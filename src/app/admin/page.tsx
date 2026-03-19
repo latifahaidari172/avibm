@@ -197,9 +197,9 @@ export default function Admin() {
     qld: customers.filter(c => c.state === 'QLD').length,
     sa: customers.filter(c => c.state === 'SA').length,
     vehicles: customers.reduce((n, c) => n + (c.vehicles?.length || 0), 0),
-    priority: customers.filter(c => c.tier === 'priority').length,
-    standard: customers.filter(c => c.tier === 'standard').length,
-    basic: customers.filter(c => c.tier === 'basic').length,
+    priority: customers.filter(c => c.tier === 'priority' || c.state === 'SA').length,
+    standard: customers.filter(c => c.tier === 'standard' && c.state !== 'SA').length,
+    basic: customers.filter(c => c.tier === 'basic' && c.state !== 'SA').length,
   }
 
   if (!authed) return (
