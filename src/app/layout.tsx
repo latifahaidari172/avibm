@@ -4,6 +4,11 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'AVIBM — Australian Vehicle Inspection Booking Monitor',
   description: 'Automatically monitor and book the earliest available inspection slot for your written-off vehicle.',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
