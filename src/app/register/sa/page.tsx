@@ -92,7 +92,7 @@ export default function RegisterSA() {
           phone: form.phone,
           state: 'SA',
           vehicles: 1,
-          tier: 'standard',
+          tier: 'priority',
         })
       })
 
@@ -105,7 +105,7 @@ export default function RegisterSA() {
           email: form.email,
           state: 'SA',
           vehicles: 1,
-          tier: 'standard',
+          tier: 'priority',
         })
       })
 
