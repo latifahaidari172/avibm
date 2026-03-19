@@ -142,7 +142,7 @@ export default function Admin() {
 
   const sendPaymentRequest = async (c: Customer) => {
     const tierPrices: Record<string, number> = { priority: 10, standard: 7.5, basic: 5 }
-    const price = tierPrices[c.tier || 'standard']
+    const price = c.state === 'SA' ? 5 : tierPrices[c.tier || 'standard']
     const vehicleCount = c.vehicles?.length || 1
     const total = (price * vehicleCount).toFixed(2)
 
@@ -436,7 +436,7 @@ export default function Admin() {
                     {new Date(c.created_at).toLocaleDateString('en-AU')}
                   </div>
 
-                  {/* Tier selector */}
+                  {/* Tier selector — QLD only */}
                   {c.state === 'QLD' && (
                     <div onClick={e => e.stopPropagation()}>
                       <select
