@@ -37,6 +37,7 @@ type Vehicle = {
   vin: string
   cutoff_date: string
   booked_date?: string
+  previous_cutoff?: string
   active: boolean
   state: string
 }
@@ -157,11 +158,11 @@ export default function Admin() {
 
 
 
-  const updateCutoff = async (vid: string, date: string) => {
-    await supabase.from('vehicles').update({ cutoff_date: date }).eq('id', vid)
+  const updateCutoff = async (vid: string, date: string, oldDate: string) => {
+    await supabase.from('vehicles').update({ cutoff_date: date, previous_cutoff: oldDate }).eq('id', vid)
     setCustomers(cs => cs.map(c => ({
       ...c,
-      vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, cutoff_date: date } : v)
+      vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, cutoff_date: date, previous_cutoff: oldDate } : v)
     })))
   }
 
@@ -471,13 +472,22 @@ export default function Admin() {
                           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>VIN: {v.vin}</div>
                         </div>
                         <div style={{ fontSize: 13 }}>
-                          <div style={{ color: 'var(--text-muted)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Cutoff Date</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Current Booking Date</div>
                           <input
                             type="date"
                             defaultValue={v.cutoff_date}
-                            onBlur={e => updateCutoff(v.id, e.target.value)}
+                            onBlur={e => {
+                              if (e.target.value !== v.cutoff_date) {
+                                updateCutoff(v.id, e.target.value, v.cutoff_date)
+                              }
+                            }}
                             style={{ width: 150, padding: '6px 10px', fontSize: 13 }}
                           />
+                          {v.previous_cutoff && (
+                            <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>
+                              Previous: <span style={{ color: '#666', textDecoration: 'line-through' }}>{v.previous_cutoff}</span>
+                            </div>
+                          )}
                         </div>
                         {v.booked_date && (
                           <div style={{ fontSize: 13 }}>
