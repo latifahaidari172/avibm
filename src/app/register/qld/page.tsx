@@ -473,10 +473,13 @@ export default function RegisterQLD() {
                       {!homeCoords && (
                         <div style={{
                           position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          background: 'rgba(10,10,10,0.85)', flexDirection: 'column', gap: 8,
+                          background: 'var(--dark-3)', flexDirection: 'column', gap: 12,
+                          borderRadius: 8,
                         }}>
-                          <div style={{ fontSize: 32 }}>🗺️</div>
-                          <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Enter your address above to see the map</div>
+                          <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--dark-4)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>📍</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: 14, textAlign: 'center', lineHeight: 1.6 }}>
+                            Enter your suburb or address above<br/>and click <strong style={{ color: 'var(--gold)' }}>SEARCH →</strong> to see the map
+                          </div>
                         </div>
                       )}
                     </div>
