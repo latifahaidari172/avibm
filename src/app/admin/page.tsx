@@ -53,7 +53,17 @@ export default function Admin() {
   const [tab, setTab] = useState<'all' | 'QLD' | 'SA'>('all')
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [autoEmailEnabled, setAutoEmailEnabled] = useState(false)
+  const [autoEmailEnabled, setAutoEmailEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('avibm_auto_email') === 'true'
+    }
+    return false
+  })
+
+  const toggleAutoEmail = (val: boolean) => {
+    setAutoEmailEnabled(val)
+    localStorage.setItem('avibm_auto_email', val ? 'true' : 'false')
+  }
 
   const login = () => {
     if (pw === ADMIN_PASSWORD) { setAuthed(true); loadData() }
@@ -238,7 +248,7 @@ export default function Admin() {
             </div>
           </div>
           <div
-            onClick={() => setAutoEmailEnabled(!autoEmailEnabled)}
+            onClick={() => toggleAutoEmail(!autoEmailEnabled)}
             style={{
               width: 52, height: 28, borderRadius: 14, cursor: 'pointer',
               background: autoEmailEnabled ? '#5adb5a' : 'var(--dark-4)',
