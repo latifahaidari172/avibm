@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
@@ -7,6 +7,37 @@ const DAMAGE_OPTIONS = ['Hail Damage', 'Flood Damage', 'Collision Damage', 'Fire
 const PURCHASE_OPTIONS = ['Auction', 'Private Sale', 'Insurance', 'Other']
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const VEHICLE_TYPES = ['Car', 'Motorcycle', 'Truck', 'Trailer', 'Caravan']
+
+const WOVI_LOCATIONS: { name: string; lat: number; lng: number; address: string }[] = [
+  { name: 'Brisbane',         lat: -27.4354, lng: 153.0870, address: '110 Lamington Ave, Eagle Farm QLD 4009' },
+  { name: 'Bundaberg',        lat: -24.8661, lng: 152.3489, address: 'Bundaberg QLD' },
+  { name: 'Burleigh Heads',   lat: -28.0856, lng: 153.4334, address: '52-56 Township Dr, Burleigh Heads QLD 4220' },
+  { name: 'Cairns',           lat: -16.9186, lng: 145.7538, address: 'Unit 4/261 McCormack St, Manunda QLD 4870' },
+  { name: 'Mackay',           lat: -21.1411, lng: 149.1860, address: 'Mackay QLD' },
+  { name: 'Narangba',         lat: -27.1986, lng: 152.9636, address: 'Shed 14/10 Cerium St, Narangba QLD 4504' },
+  { name: 'Rockhampton City', lat: -23.3791, lng: 150.5100, address: 'Rockhampton QLD' },
+  { name: 'Toowoomba',        lat: -27.5562, lng: 151.9418, address: '9/11-15 Gardner Ct, Toowoomba QLD 4350' },
+  { name: 'Townsville',       lat: -19.2590, lng: 146.7218, address: '647-651 Ingham Rd, Bohle QLD 4818' },
+  { name: 'Yatala',           lat: -27.7183, lng: 153.2230, address: 'Yatala QLD 4207' },
+]
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+}
+
+async function geocodeAddress(address: string): Promise<{lat: number, lng: number} | null> {
+  try {
+    const encoded = encodeURIComponent(address + ', Queensland, Australia')
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1`)
+    const data = await r.json()
+    if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+    return null
+  } catch { return null }
+}
 
 type Vehicle = {
   label: string
@@ -21,12 +52,13 @@ type Vehicle = {
   purchase_method: string
   purchased_from: string
   cutoff_date: string
+  locations: string[]
 }
 
 const emptyVehicle = (): Vehicle => ({
   label: '', vehicle_type: 'Car', vin: '', make: '', model: '',
   year: '', colour: '', build_month: '', damage: '', purchase_method: '',
-  purchased_from: '', cutoff_date: '',
+  purchased_from: '', cutoff_date: '', locations: WOVI_LOCATIONS.map(l => l.name),
 })
 
 export default function RegisterQLD() {
@@ -62,9 +94,139 @@ export default function RegisterQLD() {
       const v = vehicles[i]
       if (!v.vin || !v.make || !v.model || !v.year || !v.colour || !v.build_month || !v.damage || !v.purchase_method || !v.purchased_from || !v.cutoff_date)
         return `Please fill in all fields for Vehicle ${i + 1}.`
+      if (!v.locations || v.locations.length === 0)
+        return `Please select at least one location for Vehicle ${i + 1}.`
     }
     return ''
   }
+
+  const [radiusAddress, setRadiusAddress] = useState('')
+  const [radius, setRadius] = useState(200)
+  const [radiusLoading, setRadiusLoading] = useState(false)
+  const [radiusError, setRadiusError] = useState('')
+  const [homeCoords, setHomeCoords] = useState<{lat:number,lng:number}|null>(null)
+  const mapRefs = useRef<Record<number, any>>({})
+  const circleRefs = useRef<Record<number, any>>({})
+  const markerRefs = useRef<Record<number, any[]>>({})
+  const homeMarkerRefs = useRef<Record<number, any>>({})
+
+  const updateRadiusLocations = (vIdx: number, coords: {lat:number,lng:number}, r: number) => {
+    const nearby = WOVI_LOCATIONS
+      .filter(loc => haversineKm(coords.lat, coords.lng, loc.lat, loc.lng) <= r)
+      .map(loc => loc.name)
+    setVehicles(vs => vs.map((v, i) => i === vIdx ? { ...v, locations: nearby } : v))
+    // Update circle on map
+    if (circleRefs.current[vIdx]) {
+      circleRefs.current[vIdx].setRadius(r * 1000)
+    }
+    // Update marker colours
+    if (markerRefs.current[vIdx]) {
+      markerRefs.current[vIdx].forEach((m: any) => {
+        const locName = m.options.title
+        const inRadius = haversineKm(coords.lat, coords.lng, m.options._lat, m.options._lng) <= r
+        const icon = (window as any).L.divIcon({
+          html: `<div style="width:14px;height:14px;border-radius:50%;background:${inRadius ? '#3b9eff' : '#555'};border:2px solid ${inRadius ? '#fff' : '#333'};box-shadow:0 2px 4px rgba(0,0,0,0.5)"></div>`,
+          className: '', iconAnchor: [7, 7],
+        })
+        m.setIcon(icon)
+      })
+    }
+  }
+
+  const initMap = (vIdx: number, coords: {lat:number,lng:number}, r: number, vehicleLocations: string[]) => {
+    if (typeof window === 'undefined') return
+    const L = (window as any).L
+    if (!L) return
+
+    const mapEl = document.getElementById(`map-${vIdx}`)
+    if (!mapEl) return
+
+    // Destroy existing map
+    if (mapRefs.current[vIdx]) {
+      mapRefs.current[vIdx].remove()
+    }
+
+    const map = L.map(`map-${vIdx}`, { zoomControl: true }).setView([coords.lat, coords.lng], 7)
+    mapRefs.current[vIdx] = map
+
+    // Dark tile layer
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap © CARTO',
+      maxZoom: 19,
+    }).addTo(map)
+
+    // Red home marker
+    const homeIcon = L.divIcon({
+      html: `<div style="width:18px;height:18px;border-radius:50%;background:#ff3333;border:3px solid #fff;box-shadow:0 2px 8px rgba(255,51,51,0.6)"></div>`,
+      className: '', iconAnchor: [9, 9],
+    })
+    const homeMarker = L.marker([coords.lat, coords.lng], { icon: homeIcon, title: 'Your location' })
+      .addTo(map)
+      .bindPopup('<b style="color:#ff3333">📍 Your Location</b>')
+    homeMarkerRefs.current[vIdx] = homeMarker
+
+    // Yellow radius circle
+    const circle = L.circle([coords.lat, coords.lng], {
+      radius: r * 1000,
+      color: '#C9A84C',
+      weight: 2,
+      fillColor: '#C9A84C',
+      fillOpacity: 0.08,
+      dashArray: '6 4',
+    }).addTo(map)
+    circleRefs.current[vIdx] = circle
+
+    // Blue WOVI location markers
+    const markers: any[] = []
+    WOVI_LOCATIONS.forEach(loc => {
+      const dist = haversineKm(coords.lat, coords.lng, loc.lat, loc.lng)
+      const inRadius = dist <= r
+      const icon = L.divIcon({
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:${inRadius ? '#3b9eff' : '#555'};border:2px solid ${inRadius ? '#fff' : '#333'};box-shadow:0 2px 4px rgba(0,0,0,0.5)"></div>`,
+        className: '', iconAnchor: [7, 7],
+      })
+      const m = L.marker([loc.lat, loc.lng], { icon, title: loc.name, _lat: loc.lat, _lng: loc.lng })
+        .addTo(map)
+        .bindPopup(`<b style="color:${inRadius ? '#3b9eff' : '#aaa'}">${loc.name}</b><br/><span style="font-size:11px;color:#aaa">${loc.address}</span><br/><span style="font-size:12px">${Math.round(dist)}km from you</span>`)
+      markers.push(m)
+    })
+    markerRefs.current[vIdx] = markers
+  }
+
+  const findNearbyLocations = async (vIdx: number) => {
+    if (!radiusAddress) { setRadiusError('Please enter an address first.'); return }
+    setRadiusLoading(true); setRadiusError('')
+    const coords = await geocodeAddress(radiusAddress)
+    if (!coords) { setRadiusError('Address not found. Try a suburb name or postcode.'); setRadiusLoading(false); return }
+    setHomeCoords(coords)
+    updateRadiusLocations(vIdx, coords, radius)
+    // Init map after state update
+    setTimeout(() => initMap(vIdx, coords, radius, vehicles[vIdx].locations), 100)
+    setRadiusLoading(false)
+  }
+
+  const toggleLocation = (vIdx: number, loc: string) => {
+    setVehicles(vs => vs.map((v, i) => {
+      if (i !== vIdx) return v
+      const locs = v.locations.includes(loc)
+        ? v.locations.filter(l => l !== loc)
+        : [...v.locations, loc]
+      return { ...v, locations: locs }
+    }))
+  }
+
+  // Load Leaflet CSS and JS once
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if ((window as any).L) return
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+    document.head.appendChild(link)
+    const script = document.createElement('script')
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+    document.head.appendChild(script)
+  }, [])
 
   const handleNext = () => {
     const err = validateStep1()
@@ -83,12 +245,12 @@ export default function RegisterQLD() {
         .select('id').single()
       if (ce || !customer) throw new Error(ce?.message || 'Failed to save')
 
-     const vehicleRows = vehicles.map(({ label: _l, ...rest }) => ({
-        ...rest,
+      const vehicleRows = vehicles.map(v => ({
+        ...v,
         customer_id: customer.id,
         state: 'QLD',
         active: true,
-        label: rest.make + ' ' + rest.model,
+        label: v.label || `${v.make} ${v.model}`,
       }))
       const { error: ve } = await supabase.from('vehicles').insert(vehicleRows)
       if (ve) throw new Error(ve.message)
@@ -253,6 +415,112 @@ export default function RegisterQLD() {
                     <label>Current Booking Date (Cutoff)</label>
                     <input type="date" value={v.cutoff_date} onChange={e => updateVehicle(i, 'cutoff_date', e.target.value)} />
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>We'll only rebook if we find something earlier than this date.</p>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label>Inspection Locations</label>
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
+                      Enter your address, set your travel radius, and we'll show you which WOVI locations are within range on the map.
+                    </p>
+
+                    {/* Address + Radius controls */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, marginBottom: 8 }}>
+                      <input
+                        value={radiusAddress}
+                        onChange={e => setRadiusAddress(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && findNearbyLocations(i)}
+                        placeholder="Enter your suburb or full address..."
+                      />
+                      <button
+                        onClick={() => findNearbyLocations(i)}
+                        disabled={radiusLoading}
+                        style={{
+                          background: 'var(--gold)', color: '#000', border: 'none',
+                          padding: '0 20px', borderRadius: 6, cursor: 'pointer',
+                          fontFamily: 'Bebas Neue', fontSize: 15, letterSpacing: '0.1em',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >{radiusLoading ? 'SEARCHING...' : 'SEARCH →'}</button>
+                    </div>
+
+                    {/* Radius slider */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, background: 'var(--dark-3)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 16px' }}>
+                      <span style={{ fontSize: 13, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Travel radius:</span>
+                      <input
+                        type="range" min={50} max={1500} step={50}
+                        value={radius}
+                        onChange={e => { setRadius(Number(e.target.value)); if (homeCoords) updateRadiusLocations(i, homeCoords, Number(e.target.value)) }}
+                        style={{ flex: 1, accentColor: 'var(--gold)' }}
+                      />
+                      <span style={{ fontSize: 18, color: 'var(--gold)', fontFamily: 'Bebas Neue', letterSpacing: '0.05em', minWidth: 70 }}>{radius} km</span>
+                    </div>
+
+                    {radiusError && <p style={{ fontSize: 12, color: '#ff6b6b', marginBottom: 8 }}>{radiusError}</p>}
+
+                    {/* Leaflet Map */}
+                    <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', marginBottom: 12, position: 'relative' }}>
+                      <div id={`map-${i}`} style={{ height: 360, width: '100%', background: '#1a1a2e' }} />
+                      {!homeCoords && (
+                        <div style={{
+                          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: 'rgba(10,10,10,0.85)', flexDirection: 'column', gap: 8,
+                        }}>
+                          <div style={{ fontSize: 32 }}>🗺️</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Enter your address above to see the map</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Manual location selection */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <div>
+                        {homeCoords ? (
+                          <p style={{ fontSize: 12, color: 'var(--gold)', margin: 0 }}>
+                            ✓ {v.locations.length} location{v.locations.length !== 1 ? 's' : ''} selected — fine-tune below
+                          </p>
+                        ) : (
+                          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+                            Manually select which locations to monitor
+                          </p>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          onClick={() => setVehicles(vs => vs.map((v2, idx) => idx === i ? { ...v2, locations: WOVI_LOCATIONS.map(l => l.name) } : v2))}
+                          style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontFamily: 'DM Sans' }}
+                        >Select All</button>
+                        <button
+                          onClick={() => setVehicles(vs => vs.map((v2, idx) => idx === i ? { ...v2, locations: [] } : v2))}
+                          style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontFamily: 'DM Sans' }}
+                        >Clear All</button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {WOVI_LOCATIONS.map(loc => {
+                        const selected = v.locations.includes(loc.name)
+                        const dist = homeCoords ? Math.round(haversineKm(homeCoords.lat, homeCoords.lng, loc.lat, loc.lng)) : null
+                        return (
+                          <div
+                            key={loc.name}
+                            onClick={() => toggleLocation(i, loc.name)}
+                            style={{
+                              padding: '7px 12px', borderRadius: 6, cursor: 'pointer',
+                              border: `1px solid ${selected ? 'var(--gold)' : 'var(--border)'}`,
+                              background: selected ? 'var(--dark-3)' : 'var(--dark-4)',
+                              color: selected ? 'var(--gold)' : 'var(--text-muted)',
+                              fontSize: 13, transition: 'all 0.2s',
+                              userSelect: 'none',
+                            }}
+                            onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLElement).style.borderColor = 'var(--text-muted)' }}
+                            onMouseLeave={e => { if (!selected) (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
+                          >
+                            {selected ? '✓ ' : '+ '}{loc.name}{dist !== null ? ` · ${dist}km` : ''}
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {v.locations.length === 0 && (
+                      <p style={{ fontSize: 12, color: '#ff6b6b', marginTop: 8 }}>⚠️ Please select at least one location.</p>
+                    )}
                   </div>
                 </div>
               </div>
