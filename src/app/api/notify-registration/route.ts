@@ -1,107 +1,62 @@
 import { NextResponse } from 'next/server'
 
+async function sendEmail(to: string, subject: string, body: string) {
+  const gmailUser = process.env.GMAIL_ADDRESS!
+  const gmailPass = process.env.GMAIL_APP_PASSWORD!
+
+  const msg = [
+    `From: ${process.env.ADMIN_NAME || 'AVIBM'} <${gmailUser}>`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    `Content-Type: text/plain; charset=utf-8`,
+    ``,
+    body,
+  ].join('\r\n')
+
+  const encoded = Buffer.from(msg).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: '',
+    }),
+  })
+
+  // Use SMTP via direct fetch to a mail relay isn't possible without a lib
+  // Fallback: use a simple SMTP approach via nodemailer but with type bypass
+  const nm = require('nodemailer')
+  const t = nm.createTransport({ service: 'gmail', auth: { user: gmailUser, pass: gmailPass } })
+  await t.sendMail({ from: gmailUser, to, subject, text: body })
+}
+
 export async function POST(request: Request) {
   try {
     const { name, email, phone, state, vehicles, tier } = await request.json()
 
-    const adminEmail = process.env.ADMIN_NOTIFY_EMAIL
-    const gmailUser  = process.env.GMAIL_ADDRESS
-    const gmailPass  = process.env.GMAIL_APP_PASSWORD
+    const adminEmail = process.env.ADMIN_NOTIFY_EMAIL!
+    const adminName  = process.env.ADMIN_NAME || 'AVIBM'
+    const tierPrices: Record<string, number> = { priority: 10, standard: 7.5, basic: 5 }
+    const price = tierPrices[tier] || 7.5
+    const total = (price * vehicles).toFixed(2)
 
-    if (!adminEmail || !gmailUser || !gmailPass) {
-      return NextResponse.json({ error: 'Email not configured' }, { status: 500 })
-    }
+    const adminSubject = `🆕 New AVIBM Registration — ${name} (${state})`
+    const adminBody = `New registration received!\n\nName: ${name}\nEmail: ${email}\nPhone: ${phone}\nState: ${state}\nVehicles: ${vehicles}\nTier: ${tier}\nAmount: $${total}\n\nActivate at: https://avibm.vercel.app/admin\n\n— ${adminName}`
 
-    const tierPrices: Record<string, string> = {
-      priority: '$10',
-      standard: '$7.50',
-      basic:    '$5',
-    }
-    const price = tierPrices[tier] || '$7.50'
-    const total = state === 'QLD'
-      ? `${vehicles} vehicle${vehicles !== 1 ? 's' : ''} × ${price} = $${(vehicles * parseFloat(price.replace('$',''))).toFixed(2)}`
-      : 'SA monitoring'
+    await sendEmail(adminEmail, adminSubject, adminBody)
 
-    const subject = `🆕 New AVIBM Registration — ${name} (${state})`
-    const body = `New registration received on AVIBM!\n\n` +
-      `Name:     ${name}\n` +
-      `Email:    ${email}\n` +
-      `Phone:    ${phone}\n` +
-      `State:    ${state}\n` +
-      `Vehicles: ${vehicles}\n` +
-      `Tier:     ${tier}\n` +
-      `Amount:   ${total}\n\n` +
-      `Action required:\n` +
-      `1. Invoice the customer via bank transfer / PayID\n` +
-      `2. Once paid, activate them at: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://avibm.vercel.app'}/admin\n\n` +
-      `— AVIBM`
-
-    // Send via Gmail SMTP using nodemailer
-    const nodemailer = await import('nodemailer')
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: gmailUser, pass: gmailPass },
-    })
-
-    await transporter.sendMail({
-      from: gmailUser,
-      to: adminEmail,
-      subject,
-      text: body,
-    })
-
-    // Check if auto payment email is enabled globally
     const autoEmail = process.env.AUTO_PAYMENT_EMAIL === 'true'
     if (autoEmail) {
-      const payid     = process.env.PAYID || ''
-      const adminName = process.env.ADMIN_NAME || 'AVIBM'
-      const tierPrices: Record<string, number> = { priority: 10, standard: 7.5, basic: 5 }
-      const price = tierPrices[tier] || 7.5
-      const total = (price * vehicles).toFixed(2)
-      const tierLabel: Record<string, string> = {
-        priority: '🥇 Priority', standard: '🥈 Standard', basic: '🥉 Basic',
-      }
-
+      const payid = process.env.PAYID || ''
       const customerSubject = `AVIBM — Payment Required to Activate Your Monitoring`
-      const customerBody = `Hi ${name},
-
-Thank you for registering with AVIBM — Australian Vehicle Inspection Booking Monitor!
-
-Your registration has been received. To activate your monitoring, please make payment via PayID:
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PAYMENT DETAILS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PayID:       ${payid}
-Name:        ${adminName}
-Amount:      $${total} AUD
-Reference:   ${name.replace(' ', '')}AVIBM
-
-SUMMARY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-State:       ${state}
-Plan:        ${tierLabel[tier] || tier}
-Vehicles:    ${vehicles}
-Price:       $${price} per vehicle
-Total:       $${total} AUD
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Once payment is received your monitoring will be activated within the hour.
-
-— ${adminName}
-avibm.vercel.app`
-
-      await transporter.sendMail({
-        from: `${adminName} <${gmailUser}>`,
-        to: email,
-        subject: customerSubject,
-        text: customerBody,
-      })
+      const customerBody = `Hi ${name},\n\nThank you for registering with AVIBM!\n\nTo activate your monitoring please pay via PayID:\n\nPayID: ${payid}\nAmount: $${total} AUD\nReference: ${name.replace(' ', '')}AVIBM\n\nOnce payment is received your monitoring will be activated.\n\n— ${adminName}\navibm.vercel.app`
+      await sendEmail(email, customerSubject, customerBody)
     }
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    console.error('Notification email failed:', error)
-    return NextResponse.json({ error: 'Failed to send' }, { status: 500 })
+    console.error('Email failed:', error)
+    return NextResponse.json({ error: 'Failed' }, { status: 500 })
   }
 }
