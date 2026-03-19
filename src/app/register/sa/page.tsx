@@ -82,7 +82,7 @@ export default function RegisterSA() {
       })
       if (ve) throw new Error(ve.message)
 
-      // Notify admin via email
+      // Notify admin + send customer confirmation
       await fetch('/api/notify-registration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -90,6 +90,19 @@ export default function RegisterSA() {
           name: `${form.first_name} ${form.last_name}`,
           email: form.email,
           phone: form.phone,
+          state: 'SA',
+          vehicles: 1,
+          tier: 'standard',
+        })
+      })
+
+      // Send registration confirmation to customer
+      await fetch('/api/registration-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${form.first_name} ${form.last_name}`,
+          email: form.email,
           state: 'SA',
           vehicles: 1,
           tier: 'standard',
