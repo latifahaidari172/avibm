@@ -370,8 +370,10 @@ export default function Admin() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {filtered.map(c => (
               <div key={c.id} style={{
-                background: 'var(--dark-2)', border: '1px solid var(--border)',
+                background: 'var(--dark-2)',
+                border: `1px solid ${c.vehicles?.some(v => v.booked_date) ? '#5adb5a' : 'var(--border)'}`,
                 borderRadius: 10, overflow: 'hidden',
+                boxShadow: c.vehicles?.some(v => v.booked_date) ? '0 0 12px rgba(90,219,90,0.15)' : 'none',
               }}>
                 {/* Customer row */}
                 <div className='customer-row' style={{
