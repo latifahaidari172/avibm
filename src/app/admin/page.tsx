@@ -1,4 +1,4 @@
-'use client'
+\'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
@@ -13,6 +13,9 @@ type Customer = {
   last_name: string
   email: string
   phone: string
+  address?: string
+  suburb?: string
+  postcode?: string
   crn?: string
   licence_number?: string
   vehicles?: Vehicle[]
