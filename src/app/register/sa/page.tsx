@@ -82,6 +82,20 @@ export default function RegisterSA() {
       })
       if (ve) throw new Error(ve.message)
 
+      // Notify admin via email
+      await fetch('/api/notify-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${form.first_name} ${form.last_name}`,
+          email: form.email,
+          phone: form.phone,
+          state: 'SA',
+          vehicles: 1,
+          tier: 'standard',
+        })
+      })
+
       setDone(true)
     } catch (e: any) {
       setError(e.message || 'Something went wrong. Please try again.')
