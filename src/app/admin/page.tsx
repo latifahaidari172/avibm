@@ -250,9 +250,9 @@ export default function Admin() {
 
       <div className='admin-body' style={{ padding: 'clamp(16px,4vw,32px) clamp(12px,4vw,40px)' }}>
         {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 12, marginBottom: 32 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8, marginBottom: 20 }}>
           {[
-            { label: 'Total Customers', value: stats.total },
+            { label: 'Total', value: stats.total },
             { label: 'Active', value: stats.active, gold: true },
             { label: 'QLD', value: stats.qld },
             { label: 'SA', value: stats.sa },
@@ -262,10 +262,10 @@ export default function Admin() {
           ].map(s => (
             <div key={s.label} style={{
               background: 'var(--dark-2)', border: '1px solid var(--border)',
-              borderRadius: 10, padding: '20px 20px',
+              borderRadius: 10, padding: '14px 10px', textAlign: 'center',
             }}>
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 36, color: s.gold ? 'var(--gold)' : 'var(--text)' }}>{s.value}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>{s.label}</div>
+              <div style={{ fontFamily: 'Bebas Neue', fontSize: 28, color: s.gold ? 'var(--gold)' : 'var(--text)' }}>{s.value}</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2, lineHeight: 1.3 }}>{s.label}</div>
             </div>
           ))}
         </div>
