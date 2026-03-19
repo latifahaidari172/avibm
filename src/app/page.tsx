@@ -66,9 +66,9 @@ export default function Home() {
       {/* State Cards */}
       <section style={{ padding: '0 40px 80px', maxWidth: 900, margin: '0 auto' }}>
         <div className="section-label" style={{ textAlign: 'center', marginBottom: 32 }}>Select Your State</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, gridAutoRows: '1fr' }}>
           {/* QLD */}
-          <Link href="/register/qld" style={{ textDecoration: 'none' }}>
+          <Link href="/register/qld" style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
             <div style={{
               background: 'var(--dark-2)',
               border: '1px solid var(--border)',
@@ -78,7 +78,8 @@ export default function Home() {
               transition: 'border-color 0.2s, transform 0.2s',
               position: 'relative',
               overflow: 'hidden',
-              minHeight: 280,
+              height: '100%',
+              boxSizing: 'border-box',
             }}
               onMouseEnter={e => {
                 (e.currentTarget as HTMLElement).style.borderColor = 'var(--gold)'
@@ -90,7 +91,7 @@ export default function Home() {
               }}
             >
               <div style={{ fontSize: 48, marginBottom: 16 }}>🦘</div>
-              <h2 style={{ fontSize: 42, color: 'var(--text)', marginBottom: 8 }}>QUEENSLAND</h2>
+              <h2 style={{ fontSize: 36, color: 'var(--text)', marginBottom: 8 }}>QUEENSLAND</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
                 WOVI — Written Off Vehicle Inspections<br />
                 Brisbane · Burleigh Heads · Narangba · Yatala
@@ -115,7 +116,7 @@ export default function Home() {
           </Link>
 
           {/* SA */}
-          <Link href="/register/sa" style={{ textDecoration: 'none' }}>
+          <Link href="/register/sa" style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
             <div style={{
               background: 'var(--dark-2)',
               border: '1px solid var(--border)',
@@ -125,7 +126,8 @@ export default function Home() {
               transition: 'border-color 0.2s, transform 0.2s',
               position: 'relative',
               overflow: 'hidden',
-              minHeight: 280,
+              height: '100%',
+              boxSizing: 'border-box',
             }}
               onMouseEnter={e => {
                 (e.currentTarget as HTMLElement).style.borderColor = 'var(--gold)'
@@ -137,7 +139,7 @@ export default function Home() {
               }}
             >
               <div style={{ fontSize: 48, marginBottom: 16 }}>🏜️</div>
-              <h2 style={{ fontSize: 42, color: 'var(--text)', marginBottom: 8 }}>SOUTH AUSTRALIA</h2>
+              <h2 style={{ fontSize: 36, color: 'var(--text)', marginBottom: 8 }}>SOUTH AUSTRALIA</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
                 Service SA — Vehicle Inspection Bookings<br />
                 Regency Park
