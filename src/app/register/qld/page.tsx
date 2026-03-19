@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
@@ -112,6 +112,39 @@ export default function RegisterQLD() {
   }
 
   const [radiusAddress, setRadiusAddress] = useState('')
+  const [addrSuggestions, setAddrSuggestions] = useState<any[]>([])
+  const [addrLoading, setAddrLoading] = useState(false)
+  const [addrFocused, setAddrFocused] = useState(false)
+  const addrTimeout = useRef<any>(null)
+
+  const searchAddress = async (q: string) => {
+    if (q.length < 5) { setAddrSuggestions([]); return }
+    setAddrLoading(true)
+    try {
+      const encoded = encodeURIComponent(q + ', Australia')
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=6&countrycodes=au&addressdetails=1`)
+      const data = await r.json()
+      setAddrSuggestions(data)
+    } catch { setAddrSuggestions([]) }
+    setAddrLoading(false)
+  }
+
+  const selectAddress = (place: any) => {
+    const a = place.address || {}
+    const streetNum  = a.house_number || ''
+    const street     = a.road || ''
+    const suburb     = a.suburb || a.town || a.city_district || a.village || ''
+    const state      = a.state || ''
+    const postcode   = a.postcode || ''
+    const fullStreet = [streetNum, street].filter(Boolean).join(' ')
+    setOwner(p => ({
+      ...p,
+      address:  fullStreet || place.display_name.split(',')[0],
+      suburb:   suburb,
+      postcode: postcode,
+    }))
+    setAddrSuggestions([])
+  }
   const [radius, setRadius] = useState(200)
   const [radiusLoading, setRadiusLoading] = useState(false)
   const [radiusError, setRadiusError] = useState('')
@@ -333,7 +366,67 @@ export default function RegisterQLD() {
               <div><label>Last Name</label><input value={owner.last_name} onChange={e => updateOwner('last_name', e.target.value)} placeholder="Smith" /></div>
               <div><label>Email</label><input type="email" value={owner.email} onChange={e => updateOwner('email', e.target.value)} placeholder="john@email.com" /></div>
               <div><label>Mobile</label><input value={owner.phone} onChange={e => updateOwner('phone', e.target.value)} placeholder="0412 345 678" /></div>
-              <div style={{ gridColumn: '1 / -1' }}><label>Street Address</label><input value={owner.address} onChange={e => updateOwner('address', e.target.value)} placeholder="123 Main Street" /></div>
+              <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
+                <label>Street Address</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    value={owner.address}
+                    onChange={e => {
+                      updateOwner('address', e.target.value)
+                      clearTimeout(addrTimeout.current)
+                      addrTimeout.current = setTimeout(() => searchAddress(e.target.value), 350)
+                    }}
+                    onFocus={() => setAddrFocused(true)}
+                    onBlur={() => setTimeout(() => setAddrFocused(false), 200)}
+                    placeholder="Start typing your address..."
+                    autoComplete="off"
+                  />
+                  {addrLoading && (
+                    <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: 12 }}>Searching...</div>
+                  )}
+                </div>
+                {addrFocused && addrSuggestions.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                    background: 'var(--dark-2)', border: '1px solid var(--gold)',
+                    borderRadius: 8, overflow: 'hidden', marginTop: 4,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                  }}>
+                    {addrSuggestions.map((s, idx) => {
+                      const a = s.address || {}
+                      const num    = a.house_number || ''
+                      const road   = a.road || ''
+                      const suburb = a.suburb || a.town || a.city_district || ''
+                      const state  = a.state || ''
+                      const pc     = a.postcode || ''
+                      const line1  = [num, road].filter(Boolean).join(' ') || s.display_name.split(',')[0]
+                      const line2  = [suburb, state, pc].filter(Boolean).join(' ')
+                      const isExact = idx === 0
+                      return (
+                        <div
+                          key={s.place_id}
+                          onMouseDown={() => selectAddress(s)}
+                          style={{
+                            padding: '10px 14px',
+                            borderBottom: idx < addrSuggestions.length - 1 ? '1px solid var(--border)' : 'none',
+                            cursor: 'pointer',
+                            background: isExact ? 'rgba(201,168,76,0.08)' : 'transparent',
+                            transition: 'background 0.15s',
+                          }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--dark-3)'}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = isExact ? 'rgba(201,168,76,0.08)' : 'transparent'}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {isExact && <span style={{ fontSize: 10, background: 'var(--gold)', color: '#000', padding: '2px 6px', borderRadius: 3, fontWeight: 700, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>BEST MATCH</span>}
+                            <span style={{ fontSize: 14, color: 'var(--text)', fontWeight: isExact ? 600 : 400 }}>{line1}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{line2}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
               <div><label>Suburb</label><input value={owner.suburb} onChange={e => updateOwner('suburb', e.target.value)} placeholder="Brisbane" /></div>
               <div><label>Postcode</label><input value={owner.postcode} onChange={e => updateOwner('postcode', e.target.value)} placeholder="4000" /></div>
               <div style={{ gridColumn: '1 / -1' }}>
