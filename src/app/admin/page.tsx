@@ -341,7 +341,7 @@ export default function Admin() {
                   )}
 
                   {/* Auto email toggle */}
-                  <div onClick={e => { e.stopPropagation(); toggleAutoEmail(c.id, c.auto_payment_email) }} title="Auto-send payment request email when customer registers">
+                  <div onClick={e => { e.stopPropagation(); supabase.from('customers').update({ auto_payment_email: !c.auto_payment_email }).eq('id', c.id).then(() => setCustomers(cs => cs.map(x => x.id === c.id ? { ...x, auto_payment_email: !c.auto_payment_email } : x))) }} title="Auto-send payment request email when customer registers">
                     <span style={{
                       cursor: 'pointer', fontSize: 12, padding: '4px 10px', borderRadius: 4,
                       background: c.auto_payment_email ? '#1a2a1a' : 'var(--dark-4)',
