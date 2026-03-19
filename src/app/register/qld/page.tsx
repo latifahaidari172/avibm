@@ -299,7 +299,7 @@ export default function RegisterQLD() {
       const { error: ve } = await supabase.from('vehicles').insert(vehicleRows)
       if (ve) throw new Error(ve.message)
 
-      // Notify admin via email
+      // Notify admin + send customer confirmation
       await fetch('/api/notify-registration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -307,6 +307,19 @@ export default function RegisterQLD() {
           name: `${owner.first_name} ${owner.last_name}`,
           email: owner.email,
           phone: owner.phone,
+          state: 'QLD',
+          vehicles: vehicles.length,
+          tier: selectedTier,
+        })
+      })
+
+      // Send registration confirmation to customer
+      await fetch('/api/registration-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${owner.first_name} ${owner.last_name}`,
+          email: owner.email,
           state: 'QLD',
           vehicles: vehicles.length,
           tier: selectedTier,
