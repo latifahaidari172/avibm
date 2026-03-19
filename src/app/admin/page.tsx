@@ -49,6 +49,13 @@ export default function Admin() {
   const [pwError, setPwError] = useState(false)
 
   const [customers, setCustomers] = useState<Customer[]>([])
+  const [monitorStatus, setMonitorStatus] = useState<{
+    last_run: string
+    active_customers: number
+    qld_count: number
+    sa_count: number
+    status: string
+  } | null>(null)
   const [loading, setLoading] = useState(false)
   const [tab, setTab] = useState<'all' | 'QLD' | 'SA'>('all')
   const [search, setSearch] = useState('')
@@ -77,8 +84,26 @@ export default function Admin() {
       .select('*, vehicles(*)')
       .order('created_at', { ascending: false })
     setCustomers(custs || [])
+
+    const { data: status } = await supabase
+      .from('monitor_status')
+      .select('*')
+      .eq('id', 'main')
+      .single()
+    if (status) setMonitorStatus(status)
+
     setLoading(false)
   }
+
+  // Auto-refresh monitor status every 30 seconds
+  useEffect(() => {
+    if (!authed) return
+    const interval = setInterval(async () => {
+      const { data } = await supabase.from('monitor_status').select('*').eq('id', 'main').single()
+      if (data) setMonitorStatus(data)
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [authed])
 
   const toggleActive = async (id: string, current: boolean) => {
     await supabase.from('customers').update({ active: !current }).eq('id', id)
@@ -227,6 +252,81 @@ export default function Admin() {
             </div>
           ))}
         </div>
+
+        {/* Monitor Status */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20,
+        }}>
+          {/* QLD Status */}
+          <div style={{
+            background: 'var(--dark-2)',
+            border: `1px solid ${monitorStatus ? '#2a4a2a' : 'var(--border)'}`,
+            borderRadius: 10, padding: '16px 20px',
+            display: 'flex', alignItems: 'center', gap: 16,
+          }}>
+            <div style={{ position: 'relative' }}>
+              <div style={{
+                width: 14, height: 14, borderRadius: '50%',
+                background: monitorStatus ? '#5adb5a' : '#555',
+              }} />
+              {monitorStatus && (
+                <div style={{
+                  position: 'absolute', top: 0, left: 0,
+                  width: 14, height: 14, borderRadius: '50%',
+                  background: '#5adb5a', opacity: 0.4,
+                  animation: 'pulse 2s infinite',
+                }} />
+              )}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'Bebas Neue', fontSize: 15, letterSpacing: '0.05em', color: monitorStatus ? '#5adb5a' : 'var(--text-muted)' }}>
+                QLD MONITOR {monitorStatus ? '● ACTIVE' : '○ NO DATA'}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                {monitorStatus ? `${monitorStatus.qld_count} customer(s) · Last run: ${monitorStatus.last_run}` : 'Waiting for first run...'}
+              </div>
+            </div>
+          </div>
+
+          {/* SA Status */}
+          <div style={{
+            background: 'var(--dark-2)',
+            border: `1px solid ${monitorStatus ? '#2a4a2a' : 'var(--border)'}`,
+            borderRadius: 10, padding: '16px 20px',
+            display: 'flex', alignItems: 'center', gap: 16,
+          }}>
+            <div style={{ position: 'relative' }}>
+              <div style={{
+                width: 14, height: 14, borderRadius: '50%',
+                background: monitorStatus ? '#5adb5a' : '#555',
+              }} />
+              {monitorStatus && (
+                <div style={{
+                  position: 'absolute', top: 0, left: 0,
+                  width: 14, height: 14, borderRadius: '50%',
+                  background: '#5adb5a', opacity: 0.4,
+                  animation: 'pulse 2s infinite',
+                }} />
+              )}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'Bebas Neue', fontSize: 15, letterSpacing: '0.05em', color: monitorStatus ? '#5adb5a' : 'var(--text-muted)' }}>
+                SA MONITOR {monitorStatus ? '● ACTIVE' : '○ NO DATA'}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                {monitorStatus ? `${monitorStatus.sa_count} customer(s) · Last run: ${monitorStatus.last_run}` : 'Waiting for first run...'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(2); opacity: 0; }
+            100% { transform: scale(1); opacity: 0; }
+          }
+        `}</style>
 
         {/* Global auto email setting */}
         <div style={{
