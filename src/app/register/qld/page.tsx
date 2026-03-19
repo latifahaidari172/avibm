@@ -83,12 +83,12 @@ export default function RegisterQLD() {
         .select('id').single()
       if (ce || !customer) throw new Error(ce?.message || 'Failed to save')
 
-      const vehicleRows = vehicles.map(v => ({
-        ...v,
+     const vehicleRows = vehicles.map(({ label: _l, ...rest }) => ({
+        ...rest,
         customer_id: customer.id,
         state: 'QLD',
         active: true,
-        label: v.label || `${v.make} ${v.model}`,
+        label: rest.make + ' ' + rest.model,
       }))
       const { error: ve } = await supabase.from('vehicles').insert(vehicleRows)
       if (ve) throw new Error(ve.message)
