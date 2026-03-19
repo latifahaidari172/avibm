@@ -376,10 +376,14 @@ export default function RegisterQLD() {
           <div className="card">
             <h3 style={{ fontSize: 24, marginBottom: 24 }}>OWNER DETAILS</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <div><label>First Name</label><input value={owner.first_name} onChange={e => updateOwner('first_name', e.target.value)} placeholder="John" /></div>
-              <div><label>Last Name</label><input value={owner.last_name} onChange={e => updateOwner('last_name', e.target.value)} placeholder="Smith" /></div>
-              <div><label>Email</label><input type="email" value={owner.email} onChange={e => updateOwner('email', e.target.value)} placeholder="john@email.com" /></div>
-              <div><label>Mobile</label><input value={owner.phone} onChange={e => updateOwner('phone', e.target.value)} placeholder="0412 345 678" /></div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label>QLD Driver's Licence / CRN</label>
+                <input autoComplete="off" value={owner.crn} onChange={e => updateOwner('crn', e.target.value)} placeholder="Your CRN number" />
+              </div>
+              <div><label>First Name</label><input autoComplete="given-name" value={owner.first_name} onChange={e => updateOwner('first_name', e.target.value)} placeholder="John" /></div>
+              <div><label>Last Name</label><input autoComplete="family-name" value={owner.last_name} onChange={e => updateOwner('last_name', e.target.value)} placeholder="Smith" /></div>
+              <div><label>Email</label><input type="email" autoComplete="email" value={owner.email} onChange={e => updateOwner('email', e.target.value)} placeholder="john@email.com" /></div>
+              <div><label>Mobile</label><input autoComplete="tel" value={owner.phone} onChange={e => updateOwner('phone', e.target.value)} placeholder="0412 345 678" /></div>
               <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
                 <label>Street Address</label>
                 <div style={{ position: 'relative' }}>
@@ -443,10 +447,6 @@ export default function RegisterQLD() {
               </div>
               <div><label>Suburb</label><input value={owner.suburb} onChange={e => updateOwner('suburb', e.target.value)} placeholder="Brisbane" /></div>
               <div><label>Postcode</label><input value={owner.postcode} onChange={e => updateOwner('postcode', e.target.value)} placeholder="4000" /></div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label>QLD Driver's Licence / CRN</label>
-                <input value={owner.crn} onChange={e => updateOwner('crn', e.target.value)} placeholder="Your CRN number" />
-              </div>
             </div>
             <hr className="divider" />
             <div className="section-label" style={{ marginBottom: 12 }}>Select Your Plan</div>
