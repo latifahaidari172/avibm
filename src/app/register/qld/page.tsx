@@ -92,8 +92,19 @@ export default function RegisterQLD() {
   const validateStep2 = () => {
     for (let i = 0; i < vehicles.length; i++) {
       const v = vehicles[i]
-      if (!v.vin || !v.make || !v.model || !v.year || !v.colour || !v.build_month || !v.damage || !v.purchase_method || !v.purchased_from || !v.cutoff_date)
-        return `Please fill in all fields for Vehicle ${i + 1}.`
+      const missing = []
+      if (!v.vin) missing.push('VIN')
+      if (!v.make) missing.push('Make')
+      if (!v.model) missing.push('Model')
+      if (!v.year) missing.push('Year')
+      if (!v.colour) missing.push('Colour')
+      if (!v.build_month) missing.push('Build Month')
+      if (!v.damage) missing.push('Damage Type')
+      if (!v.purchase_method) missing.push('Purchase Method')
+      if (!v.purchased_from) missing.push('Purchased From')
+      if (!v.cutoff_date) missing.push('Booking Date')
+      if (missing.length > 0)
+        return `Vehicle ${i + 1} — missing: ${missing.join(', ')}`
       if (!v.locations || v.locations.length === 0)
         return `Please select at least one location for Vehicle ${i + 1}.`
     }
