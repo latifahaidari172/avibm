@@ -78,6 +78,7 @@ export default function Home() {
               transition: 'border-color 0.2s, transform 0.2s',
               position: 'relative',
               overflow: 'hidden',
+              minHeight: 280,
             }}
               onMouseEnter={e => {
                 (e.currentTarget as HTMLElement).style.borderColor = 'var(--gold)'
@@ -124,6 +125,7 @@ export default function Home() {
               transition: 'border-color 0.2s, transform 0.2s',
               position: 'relative',
               overflow: 'hidden',
+              minHeight: 280,
             }}
               onMouseEnter={e => {
                 (e.currentTarget as HTMLElement).style.borderColor = 'var(--gold)'
