@@ -108,6 +108,23 @@ export default function Admin() {
   const toggleActive = async (id: string, current: boolean) => {
     await supabase.from('customers').update({ active: !current }).eq('id', id)
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, active: !current } : c))
+
+    // Send activation confirmation email when turning ON
+    if (!current) {
+      const customer = customers.find(c => c.id === id)
+      if (customer) {
+        await fetch('/api/activation-confirmation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: `${customer.first_name} ${customer.last_name}`,
+            email: customer.email,
+            state: customer.state,
+            vehicles: customer.vehicles?.length || 1,
+          })
+        })
+      }
+    }
   }
 
   const toggleVehicle = async (vid: string, current: boolean) => {
