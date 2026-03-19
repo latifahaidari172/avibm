@@ -60,17 +60,6 @@ export default function Admin() {
   const [tab, setTab] = useState<'all' | 'QLD' | 'SA'>('all')
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [autoEmailEnabled, setAutoEmailEnabled] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('avibm_auto_email') === 'true'
-    }
-    return false
-  })
-
-  const toggleAutoEmail = (val: boolean) => {
-    setAutoEmailEnabled(val)
-    localStorage.setItem('avibm_auto_email', val ? 'true' : 'false')
-  }
 
   const login = () => {
     if (pw === ADMIN_PASSWORD) { setAuthed(true); loadData() }
@@ -345,37 +334,15 @@ export default function Admin() {
           }
         `}</style>
 
-        {/* Global auto email setting */}
+        {/* Auto payment email info */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20,
-          background: 'var(--dark-2)', border: `1px solid ${autoEmailEnabled ? '#2a4a2a' : 'var(--border)'}`,
-          borderRadius: 10, padding: '14px 20px',
+          display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20,
+          background: 'var(--dark-2)', border: '1px solid #2a4a2a',
+          borderRadius: 10, padding: '12px 20px',
         }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em', color: autoEmailEnabled ? '#5adb5a' : 'var(--text)' }}>
-              AUTO PAYMENT EMAIL
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-              {autoEmailEnabled
-                ? 'New registrations will automatically receive a payment request email'
-                : 'Payment request emails must be sent manually per customer'}
-            </div>
-          </div>
-          <div
-            onClick={() => toggleAutoEmail(!autoEmailEnabled)}
-            style={{
-              width: 52, height: 28, borderRadius: 14, cursor: 'pointer',
-              background: autoEmailEnabled ? '#5adb5a' : 'var(--dark-4)',
-              border: `1px solid ${autoEmailEnabled ? '#5adb5a' : 'var(--border)'}`,
-              position: 'relative', transition: 'all 0.2s',
-            }}
-          >
-            <div style={{
-              position: 'absolute', top: 3,
-              left: autoEmailEnabled ? 26 : 3,
-              width: 20, height: 20, borderRadius: '50%',
-              background: '#fff', transition: 'left 0.2s',
-            }} />
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#5adb5a', flexShrink: 0 }} />
+          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+            Payment request emails are <strong style={{ color: '#5adb5a' }}>automatically sent</strong> to every new registration. Use the button below to send reminders.
           </div>
         </div>
 
