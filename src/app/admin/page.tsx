@@ -124,10 +124,7 @@ export default function Admin() {
     }
   }
 
-  const toggleAutoEmail = async (id: string, current: boolean) => {
-    await supabase.from('customers').update({ auto_payment_email: !current }).eq('id', id)
-    setCustomers(cs => cs.map(c => c.id === id ? { ...c, auto_payment_email: !current } : c))
-  }
+
 
   const updateCutoff = async (vid: string, date: string) => {
     await supabase.from('vehicles').update({ cutoff_date: date }).eq('id', vid)
