@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     const adminEmail = process.env.ADMIN_NOTIFY_EMAIL!
     const adminName = process.env.ADMIN_NAME || 'AVIBM'
     const tierPrices: Record<string, number> = { priority: 10, standard: 7.5, basic: 5 }
-    const price = tierPrices[tier] || 7.5
+    const price = state === 'SA' ? 5 : (tierPrices[tier] || 7.5)
     const total = (price * vehicles).toFixed(2)
     const tierLabel: Record<string, string> = { priority: '🥇 Priority', standard: '🥈 Standard', basic: '🥉 Basic' }
 
