@@ -120,26 +120,49 @@ export default function Home() {
 
       {/* Pricing */}
       <section style={{ borderTop: '1px solid var(--border)', padding: 'clamp(40px,6vw,80px) 20px', maxWidth: 900, margin: '0 auto' }}>
-        <div className="section-label" style={{ textAlign: 'center', marginBottom: 8 }}>Pricing — Queensland Only</div>
-        <h2 style={{ fontSize: 'clamp(28px,6vw,48px)', textAlign: 'center', marginBottom: 8 }}>ONE-TIME FEE <span className="gold">PER VEHICLE</span></h2>
-        <p style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: 13, marginBottom: 32 }}>SA monitoring is included free with QLD registration.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, maxWidth: 700, margin: '0 auto' }}>
-          {[
-            { icon: '🥇', tier: 'Priority', price: '$10', color: 'var(--gold)', border: 'var(--gold)', desc: 'First in queue — books immediately' },
-            { icon: '🥈', tier: 'Standard', price: '$7.50', color: '#aaa', border: 'var(--border)', desc: '30 second delay after Priority' },
-            { icon: '🥉', tier: 'Basic', price: '$5', color: '#888', border: 'var(--border)', desc: '60 second delay after Standard' },
-          ].map(t => (
-            <div key={t.tier} style={{
-              background: 'var(--dark-2)', border: `1px solid ${t.border}`,
-              borderRadius: 10, padding: '24px 16px', textAlign: 'center',
-            }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>{t.icon}</div>
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 18, color: t.color, letterSpacing: '0.1em' }}>{t.tier}</div>
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 40, color: t.color, lineHeight: 1, margin: '6px 0' }}>{t.price}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Per Vehicle</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{t.desc}</div>
-            </div>
-          ))}
+        <div className="section-label" style={{ textAlign: 'center', marginBottom: 8 }}>Pricing</div>
+        <h2 style={{ fontSize: 'clamp(28px,6vw,48px)', textAlign: 'center', marginBottom: 32 }}>ONE-TIME FEE <span className="gold">PER VEHICLE</span></h2>
+
+        {/* QLD Pricing */}
+        <div style={{ marginBottom: 40 }}>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <span style={{ fontFamily: 'Bebas Neue', fontSize: 13, letterSpacing: '0.2em', color: '#5ab0ff' }}>QUEENSLAND — WOVI</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, maxWidth: 700, margin: '0 auto' }}>
+            {[
+              { icon: '🥇', tier: 'Priority', price: '$10', color: 'var(--gold)', border: 'var(--gold)', desc: 'First in queue — books immediately' },
+              { icon: '🥈', tier: 'Standard', price: '$7.50', color: '#aaa', border: 'var(--border)', desc: '30 second delay after Priority' },
+              { icon: '🥉', tier: 'Basic', price: '$5', color: '#888', border: 'var(--border)', desc: '60 second delay after Standard' },
+            ].map(t => (
+              <div key={t.tier} style={{
+                background: 'var(--dark-2)', border: `1px solid ${t.border}`,
+                borderRadius: 10, padding: '24px 16px', textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>{t.icon}</div>
+                <div style={{ fontFamily: 'Bebas Neue', fontSize: 18, color: t.color, letterSpacing: '0.1em' }}>{t.tier}</div>
+                <div style={{ fontFamily: 'Bebas Neue', fontSize: 40, color: t.color, lineHeight: 1, margin: '6px 0' }}>{t.price}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Per Vehicle</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{t.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* SA Pricing */}
+        <div style={{ maxWidth: 340, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <span style={{ fontFamily: 'Bebas Neue', fontSize: 13, letterSpacing: '0.2em', color: '#c080ff' }}>SOUTH AUSTRALIA — SERVICE SA</span>
+          </div>
+          <div style={{
+            background: 'var(--dark-2)', border: '1px solid var(--gold)',
+            borderRadius: 10, padding: '24px 16px', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>🥇</div>
+            <div style={{ fontFamily: 'Bebas Neue', fontSize: 18, color: 'var(--gold)', letterSpacing: '0.1em' }}>Priority</div>
+            <div style={{ fontFamily: 'Bebas Neue', fontSize: 40, color: 'var(--gold)', lineHeight: 1, margin: '6px 0' }}>$5</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Per Vehicle</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>Flat rate — always priority, checks every minute 24/7</div>
+          </div>
         </div>
       </section>
 
