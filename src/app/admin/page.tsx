@@ -9,6 +9,7 @@ type Customer = {
   active: boolean
   state: string
   tier: 'priority' | 'standard' | 'basic'
+  auto_payment_email: boolean
   first_name: string
   last_name: string
   email: string
@@ -52,6 +53,7 @@ export default function Admin() {
   const [tab, setTab] = useState<'all' | 'QLD' | 'SA'>('all')
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [autoEmailEnabled, setAutoEmailEnabled] = useState(false)
 
   const login = () => {
     if (pw === ADMIN_PASSWORD) { setAuthed(true); loadData() }
@@ -84,6 +86,37 @@ export default function Admin() {
   const updateTier = async (id: string, tier: string) => {
     await supabase.from('customers').update({ tier }).eq('id', id)
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, tier: tier as any } : c))
+  }
+
+  const sendPaymentRequest = async (c: Customer) => {
+    const tierPrices: Record<string, number> = { priority: 10, standard: 7.5, basic: 5 }
+    const price = tierPrices[c.tier || 'standard']
+    const vehicleCount = c.vehicles?.length || 1
+    const total = (price * vehicleCount).toFixed(2)
+
+    const res = await fetch('/api/send-payment-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerEmail: c.email,
+        customerName:  `${c.first_name} ${c.last_name}`,
+        vehicles:      vehicleCount,
+        tier:          c.tier || 'standard',
+        price,
+        total,
+        state:         c.state,
+      })
+    })
+    if (res.ok) {
+      alert(`✅ Payment request sent to ${c.email}`)
+    } else {
+      alert('Failed to send email. Check your Vercel env vars.')
+    }
+  }
+
+  const toggleAutoEmail = async (id: string, current: boolean) => {
+    await supabase.from('customers').update({ auto_payment_email: !current }).eq('id', id)
+    setCustomers(cs => cs.map(c => c.id === id ? { ...c, auto_payment_email: !current } : c))
   }
 
   const updateCutoff = async (vid: string, date: string) => {
@@ -188,6 +221,40 @@ export default function Admin() {
           ))}
         </div>
 
+        {/* Global auto email setting */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20,
+          background: 'var(--dark-2)', border: `1px solid ${autoEmailEnabled ? '#2a4a2a' : 'var(--border)'}`,
+          borderRadius: 10, padding: '14px 20px',
+        }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em', color: autoEmailEnabled ? '#5adb5a' : 'var(--text)' }}>
+              AUTO PAYMENT EMAIL
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+              {autoEmailEnabled
+                ? 'New registrations will automatically receive a payment request email'
+                : 'Payment request emails must be sent manually per customer'}
+            </div>
+          </div>
+          <div
+            onClick={() => setAutoEmailEnabled(!autoEmailEnabled)}
+            style={{
+              width: 52, height: 28, borderRadius: 14, cursor: 'pointer',
+              background: autoEmailEnabled ? '#5adb5a' : 'var(--dark-4)',
+              border: `1px solid ${autoEmailEnabled ? '#5adb5a' : 'var(--border)'}`,
+              position: 'relative', transition: 'all 0.2s',
+            }}
+          >
+            <div style={{
+              position: 'absolute', top: 3,
+              left: autoEmailEnabled ? 26 : 3,
+              width: 20, height: 20, borderRadius: '50%',
+              background: '#fff', transition: 'left 0.2s',
+            }} />
+          </div>
+        </div>
+
         {/* Filters */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>
           <div style={{ flex: 1 }}>
@@ -266,6 +333,18 @@ export default function Admin() {
                     </div>
                   )}
 
+                  {/* Auto email toggle */}
+                  <div onClick={e => { e.stopPropagation(); toggleAutoEmail(c.id, c.auto_payment_email) }} title="Auto-send payment request email when customer registers">
+                    <span style={{
+                      cursor: 'pointer', fontSize: 12, padding: '4px 10px', borderRadius: 4,
+                      background: c.auto_payment_email ? '#1a2a1a' : 'var(--dark-4)',
+                      border: `1px solid ${c.auto_payment_email ? '#2a4a2a' : 'var(--border)'}`,
+                      color: c.auto_payment_email ? '#5adb5a' : 'var(--text-muted)',
+                    }}>
+                      {c.auto_payment_email ? '● AUTO EMAIL' : '○ MANUAL'}
+                    </span>
+                  </div>
+
                   {/* Active toggle */}
                   <div onClick={e => { e.stopPropagation(); toggleActive(c.id, c.active) }}>
                     <span className={`badge ${c.active ? 'badge-active' : 'badge-pending'}`} style={{ cursor: 'pointer' }}>
@@ -323,8 +402,23 @@ export default function Admin() {
                       </div>
                     ))}
 
-                    {/* Delete */}
-                    <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                    {/* Actions */}
+                    <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {!c.active && (
+                        <button
+                          onClick={() => sendPaymentRequest(c)}
+                          style={{
+                            background: 'var(--gold)', color: '#000', border: 'none',
+                            padding: '10px 20px', borderRadius: 6, cursor: 'pointer',
+                            fontFamily: 'Bebas Neue', fontSize: 15, letterSpacing: '0.1em',
+                          }}
+                        >
+                          📧 SEND PAYMENT REQUEST
+                        </button>
+                      )}
+                      {c.active && (
+                        <div style={{ fontSize: 13, color: '#5adb5a' }}>✅ Customer is active — monitoring running</div>
+                      )}
                       <button onClick={() => deleteCustomer(c.id)} style={{
                         background: 'none', border: '1px solid #4a1a1a', color: '#ff6b6b',
                         padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12,
