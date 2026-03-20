@@ -40,6 +40,8 @@ type Vehicle = {
   booked_time?: string
   booked_location?: string
   previous_cutoff?: string
+  priority_locations?: string[]
+  locations?: string[]
   active: boolean
   state: string
 }
@@ -165,6 +167,14 @@ export default function Admin() {
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, cutoff_date: date, previous_cutoff: oldDate } : v)
+    })))
+  }
+
+  const updatePriorityLocations = async (vid: string, locs: string[]) => {
+    await supabase.from('vehicles').update({ priority_locations: locs }).eq('id', vid)
+    setCustomers(cs => cs.map(c => ({
+      ...c,
+      vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, priority_locations: locs } : v)
     })))
   }
 
@@ -542,6 +552,37 @@ export default function Admin() {
                             </div>
                           )}
                         </div>
+
+                        {/* Priority locations editor */}
+                        {v.locations && v.locations.length > 0 && (
+                          <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--dark-4)', borderRadius: 6, border: '1px solid var(--border)' }}>
+                            <div style={{ color: 'var(--gold)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>🥇 Priority Locations (max 2)</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                              {v.locations.map((loc: string) => {
+                                const isPriority = (v.priority_locations || []).includes(loc)
+                                const atMax = (v.priority_locations || []).length >= 2
+                                return (
+                                  <button key={loc} onClick={() => {
+                                    const current = v.priority_locations || []
+                                    const updated = isPriority ? current.filter(l => l !== loc) : atMax ? current : [...current, loc]
+                                    updatePriorityLocations(v.id, updated)
+                                  }} style={{
+                                    padding: '3px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer',
+                                    border: `1px solid ${isPriority ? 'var(--gold)' : 'var(--border)'}`,
+                                    background: isPriority ? '#2a2000' : 'transparent',
+                                    color: isPriority ? 'var(--gold)' : atMax && !isPriority ? '#444' : 'var(--text-muted)',
+                                    opacity: atMax && !isPriority ? 0.5 : 1,
+                                  }}>
+                                    {isPriority ? '🥇 ' : ''}{loc}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                            {(v.priority_locations || []).length === 0 && (
+                              <div style={{ fontSize: 11, color: '#555', marginTop: 4 }}>No priority — books earliest available anywhere</div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
 
