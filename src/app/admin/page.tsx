@@ -467,44 +467,69 @@ export default function Admin() {
                     <div className="section-label" style={{ marginBottom: 12 }}>Vehicles</div>
                     {c.vehicles?.map(v => (
                       <div key={v.id} style={{
-                        background: 'var(--dark-3)', border: '1px solid var(--border)',
+                        background: v.booked_date ? '#0d1f0d' : 'var(--dark-3)',
+                        border: `1px solid ${v.booked_date ? '#2a4a2a' : 'var(--border)'}`,
                         borderRadius: 8, padding: '14px 16px', marginBottom: 8,
-                        display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 16, alignItems: 'center',
                       }}>
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: 14 }}>{v.make} {v.model} {v.year}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>VIN: {v.vin}</div>
+                        {/* Top row — vehicle name + toggle */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 14 }}>{v.make} {v.model} {v.year}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>VIN: {v.vin}</div>
+                          </div>
+                          <div onClick={() => toggleVehicle(v.id, v.active)} style={{ cursor: 'pointer' }}>
+                            <span className={`badge ${v.active ? 'badge-active' : 'badge-inactive'}`}>
+                              {v.active ? '● ON' : '○ OFF'}
+                            </span>
+                          </div>
                         </div>
-                        <div style={{ fontSize: 13 }}>
-                          <div style={{ color: 'var(--text-muted)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Current Booking Date</div>
-                          <input
-                            type="date"
-                            defaultValue={v.cutoff_date}
-                            onBlur={e => {
-                              if (e.target.value !== v.cutoff_date) {
-                                updateCutoff(v.id, e.target.value, v.cutoff_date)
-                              }
-                            }}
-                            style={{ width: 150, padding: '6px 10px', fontSize: 13 }}
-                          />
-                          {v.previous_cutoff && (
-                            <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>
-                              Previous: <span style={{ color: '#666', textDecoration: 'line-through' }}>{v.previous_cutoff}</span>
+
+                        {/* Booking info grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+
+                          {/* Current / original booking */}
+                          <div style={{ background: 'var(--dark-4)', borderRadius: 6, padding: '10px 12px' }}>
+                            <div style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Original Booking</div>
+                            <input
+                              type="date"
+                              defaultValue={v.cutoff_date}
+                              onBlur={e => {
+                                if (e.target.value !== v.cutoff_date) {
+                                  updateCutoff(v.id, e.target.value, v.cutoff_date)
+                                }
+                              }}
+                              style={{ width: '100%', padding: '4px 8px', fontSize: 13, marginBottom: 4 }}
+                            />
+                            {v.previous_cutoff && (
+                              <div style={{ fontSize: 11, color: '#555' }}>
+                                Was: <span style={{ textDecoration: 'line-through' }}>{v.previous_cutoff}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* New booking found by monitor */}
+                          {v.booked_date ? (
+                            <div style={{ background: '#1a2a1a', border: '1px solid #2a4a2a', borderRadius: 6, padding: '10px 12px' }}>
+                              <div style={{ color: '#5adb5a', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>✅ New Booking Found</div>
+                              <div style={{ fontSize: 14, color: '#fff', fontWeight: 600, marginBottom: 4 }}>{v.booked_date}</div>
+                              {v.booked_time && (
+                                <div style={{ fontSize: 13, color: '#5ab0ff', marginBottom: 2 }}>⏰ {v.booked_time}</div>
+                              )}
+                              {v.booked_location && (
+                                <div style={{ fontSize: 13, color: '#5ab0ff' }}>📍 {v.booked_location}</div>
+                              )}
+                              {!v.booked_time && !v.booked_location && (
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Time/location updating next run</div>
+                              )}
+                            </div>
+                          ) : (
+                            <div style={{ background: 'var(--dark-4)', borderRadius: 6, padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
+                                <div style={{ fontSize: 18, marginBottom: 4 }}>🔍</div>
+                                Searching for earlier slot...
+                              </div>
                             </div>
                           )}
-                        </div>
-                        {v.booked_date && (
-                          <div style={{ fontSize: 13 }}>
-                            <div style={{ color: 'var(--text-muted)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>New Booking</div>
-                            <span className="badge badge-booked">{v.booked_date}</span>
-                            {v.booked_time && <div style={{ fontSize: 12, color: '#5ab0ff', marginTop: 3 }}>⏰ {v.booked_time}</div>}
-                            {v.booked_location && <div style={{ fontSize: 12, color: '#5ab0ff', marginTop: 2 }}>📍 {v.booked_location}</div>}
-                          </div>
-                        )}
-                        <div onClick={() => toggleVehicle(v.id, v.active)} style={{ cursor: 'pointer' }}>
-                          <span className={`badge ${v.active ? 'badge-active' : 'badge-inactive'}`}>
-                            {v.active ? '● ON' : '○ OFF'}
-                          </span>
                         </div>
                       </div>
                     ))}
