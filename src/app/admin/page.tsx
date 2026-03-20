@@ -163,30 +163,24 @@ export default function Admin() {
 
 
   const updateCutoff = async (vid: string, date: string, oldDate: string) => {
-    // Find current booked_date for this vehicle
-    let bookedDate: string | undefined
-    for (const c of customers) {
-      const veh = c.vehicles?.find(v => v.id === vid)
-      if (veh) { bookedDate = veh.booked_date; break }
-    }
+    // Always clear booking when cutoff date is updated — force monitor to re-search
+    await supabase.from('vehicles').update({
+      cutoff_date: date,
+      previous_cutoff: oldDate,
+      booked_date: null,
+      booked_time: null,
+      booked_location: null,
+    }).eq('id', vid)
 
-    // If new cutoff is after (or same as) booked date, the booking is no longer valid — clear it
-    const shouldClearBooking = bookedDate && new Date(date) >= new Date(bookedDate)
-    const update: Record<string, unknown> = { cutoff_date: date, previous_cutoff: oldDate }
-    if (shouldClearBooking) {
-      update.booked_date = null
-      update.booked_time = null
-      update.booked_location = null
-    }
-
-    await supabase.from('vehicles').update(update).eq('id', vid)
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? {
         ...v,
         cutoff_date: date,
         previous_cutoff: oldDate,
-        ...(shouldClearBooking ? { booked_date: undefined, booked_time: undefined, booked_location: undefined } : {})
+        booked_date: undefined,
+        booked_time: undefined,
+        booked_location: undefined,
       } : v)
     })))
   }
@@ -404,9 +398,9 @@ export default function Admin() {
             {filtered.map(c => (
               <div key={c.id} style={{
                 background: 'var(--dark-2)',
-                border: `1px solid ${c.vehicles?.some(v => v.booked_date) ? '#5adb5a' : 'var(--border)'}`,
+                border: `1px solid ${c.vehicles?.some(v => v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '#5adb5a' : 'var(--border)'}`,
                 borderRadius: 10, overflow: 'hidden',
-                boxShadow: c.vehicles?.some(v => v.booked_date) ? '0 0 12px rgba(90,219,90,0.15)' : 'none',
+                boxShadow: c.vehicles?.some(v => v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '0 0 12px rgba(90,219,90,0.15)' : 'none',
               }}>
                 {/* Customer row */}
                 <div className='customer-row' style={{
@@ -498,8 +492,8 @@ export default function Admin() {
                     <div className="section-label" style={{ marginBottom: 12 }}>Vehicles</div>
                     {c.vehicles?.map(v => (
                       <div key={v.id} style={{
-                        background: v.booked_date ? '#0d1f0d' : 'var(--dark-3)',
-                        border: `1px solid ${v.booked_date ? '#2a4a2a' : 'var(--border)'}`,
+                        background: (v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '#0d1f0d' : 'var(--dark-3)',
+                        border: `1px solid ${(v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '#2a4a2a' : 'var(--border)'}`,
                         borderRadius: 8, padding: '14px 16px', marginBottom: 8,
                       }}>
                         {/* Top row — vehicle name + toggle */}
