@@ -311,7 +311,7 @@ export default function RegisterQLD() {
           state: 'QLD',
           vehicles: vehicles.length,
           tier: selectedTier,
-          priority_locations: v.priority_locations || [],
+          priority_locations: vehicles.flatMap(v => v.priority_locations || []).filter((v, i, a) => a.indexOf(v) === i),
         })
       })
 
