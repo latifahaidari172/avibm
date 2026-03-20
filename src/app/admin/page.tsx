@@ -37,6 +37,8 @@ type Vehicle = {
   vin: string
   cutoff_date: string
   booked_date?: string
+  booked_time?: string
+  booked_location?: string
   previous_cutoff?: string
   active: boolean
   state: string
@@ -493,8 +495,10 @@ export default function Admin() {
                         </div>
                         {v.booked_date && (
                           <div style={{ fontSize: 13 }}>
-                            <div style={{ color: 'var(--text-muted)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Booked</div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>New Booking</div>
                             <span className="badge badge-booked">{v.booked_date}</span>
+                            {v.booked_time && <div style={{ fontSize: 12, color: '#5ab0ff', marginTop: 3 }}>⏰ {v.booked_time}</div>}
+                            {v.booked_location && <div style={{ fontSize: 12, color: '#5ab0ff', marginTop: 2 }}>📍 {v.booked_location}</div>}
                           </div>
                         )}
                         <div onClick={() => toggleVehicle(v.id, v.active)} style={{ cursor: 'pointer' }}>
