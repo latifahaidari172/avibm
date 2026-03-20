@@ -65,6 +65,11 @@ export default function Admin() {
   const [tab, setTab] = useState<'all' | 'QLD' | 'SA'>('all')
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [freeList, setFreeList] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('avibm_free_list') || '[]') } catch { return [] }
+  })
+  const [newFreeEntry, setNewFreeEntry] = useState('')
+  const [showFreePanel, setShowFreePanel] = useState(false)
 
   const login = () => {
     if (pw === ADMIN_PASSWORD) { setAuthed(true); loadData() }
@@ -183,6 +188,27 @@ export default function Admin() {
         booked_location: undefined,
       } : v)
     })))
+  }
+
+  const addFreeEntry = (entry: string) => {
+    const cleaned = entry.trim().toLowerCase()
+    if (!cleaned || freeList.includes(cleaned)) return
+    const updated = [...freeList, cleaned]
+    setFreeList(updated)
+    localStorage.setItem('avibm_free_list', JSON.stringify(updated))
+    setNewFreeEntry('')
+  }
+
+  const removeFreeEntry = (entry: string) => {
+    const updated = freeList.filter(e => e !== entry)
+    setFreeList(updated)
+    localStorage.setItem('avibm_free_list', JSON.stringify(updated))
+  }
+
+  const isFreeCustomer = (c: Customer) => {
+    const email = c.email?.toLowerCase() || ''
+    const phone = c.phone?.replace(/\s/g, '') || ''
+    return freeList.some(e => e === email || e === phone)
   }
 
   const updatePriorityLocations = async (vid: string, locs: string[]) => {
@@ -361,6 +387,69 @@ export default function Admin() {
             100% { transform: scale(1); opacity: 0; }
           }
         `}</style>
+
+        {/* Free Customers Panel */}
+        <div style={{ marginBottom: 16 }}>
+          <div
+            onClick={() => setShowFreePanel(p => !p)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'var(--dark-2)', border: '1px solid var(--border)',
+              borderRadius: showFreePanel ? '10px 10px 0 0' : 10, padding: '12px 20px', cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 16 }}>🎁</span>
+              <div>
+                <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em' }}>FREE CUSTOMERS</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{freeList.length} email{freeList.length !== 1 ? 's' : ''} / phones whitelisted — auto Priority, no payment</div>
+              </div>
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{showFreePanel ? '▲' : '▼'}</div>
+          </div>
+
+          {showFreePanel && (
+            <div style={{ background: 'var(--dark-2)', border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '16px 20px' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+                Add email addresses or phone numbers. When a matching customer registers, they are automatically set to <strong style={{ color: 'var(--gold)' }}>Priority</strong> and <strong style={{ color: '#5adb5a' }}>Active</strong> — no payment required.
+              </div>
+
+              {/* Add entry */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                <input
+                  type="text"
+                  placeholder="email@example.com or 0412345678"
+                  value={newFreeEntry}
+                  onChange={e => setNewFreeEntry(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addFreeEntry(newFreeEntry)}
+                  style={{ flex: 1, padding: '8px 12px', borderRadius: 6, fontSize: 13 }}
+                />
+                <button
+                  onClick={() => addFreeEntry(newFreeEntry)}
+                  style={{ padding: '8px 16px', borderRadius: 6, background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13 }}
+                >+ Add</button>
+              </div>
+
+              {/* List */}
+              {freeList.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#555' }}>No free customers added yet</div>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {freeList.map(entry => (
+                    <div key={entry} style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '4px 10px', borderRadius: 20, fontSize: 12,
+                      background: 'var(--dark-3)', border: '1px solid var(--gold)', color: 'var(--gold)',
+                    }}>
+                      🎁 {entry}
+                      <span onClick={() => removeFreeEntry(entry)} style={{ cursor: 'pointer', color: '#ff6b6b', marginLeft: 2, fontWeight: 700 }}>×</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Auto payment email info */}
         <div style={{
