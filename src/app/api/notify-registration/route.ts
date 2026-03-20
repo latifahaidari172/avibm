@@ -10,6 +10,8 @@ export async function POST(request: Request) {
     const adminName  = process.env.ADMIN_NAME || 'AVIBM'
     const payid      = process.env.PAYID || ''
 
+    const freeList: string[] = JSON.parse(process.env.FREE_CUSTOMER_LIST || '[]')
+    const isFree = freeList.some((e: string) => e === email?.toLowerCase() || e === phone?.replace(/\s/g, ''))
     const tierPrices: Record<string, number> = { priority: 10, standard: 7.5, basic: 5 }
     const price = state === 'SA' ? 5 : (tierPrices[tier] || 7.5)
     const total = (price * vehicles).toFixed(2)
@@ -48,6 +50,17 @@ export async function POST(request: Request) {
       </div>
     `)
     await t.sendMail({ from: `${adminName} <${gmailUser}>`, to: adminEmail, subject: `🆕 New AVIBM Registration — ${name} (${state})`, html: adminHtml, text: `New registration: ${name}, ${email}, ${phone}, ${state}, ${vehicles} vehicles, $${total}` })
+
+    // 2. If free customer — skip payment, notify admin to activate immediately
+    if (isFree) {
+      const freeHtml = emailHtml(`
+        <h1 style="margin:0 0 8px;font-size:28px;font-weight:900;color:#fff;">FREE REGISTRATION</h1>
+        <p style="margin:0 0 24px;font-size:15px;color:#C9A84C;">${name} is on the free list — activate immediately.</p>
+        <p style="margin:0;font-size:13px;color:#C9A84C;"><a href="https://avibm.vercel.app/admin" style="color:#C9A84C;font-weight:700;">→ Open Admin Panel to activate</a></p>
+      `)
+      await t.sendMail({ from: \`\${adminName} <\${gmailUser}>\`, to: adminEmail, subject: \`🎁 Free Registration — \${name} (\${state})\`, html: freeHtml, text: \`Free customer registered: \${name}, \${email}. Activate now.\` })
+      return NextResponse.json({ ok: true, free: true })
+    }
 
     // 2. Auto-send payment request to customer
     const payHtml = emailHtml(`
