@@ -163,10 +163,31 @@ export default function Admin() {
 
 
   const updateCutoff = async (vid: string, date: string, oldDate: string) => {
-    await supabase.from('vehicles').update({ cutoff_date: date, previous_cutoff: oldDate }).eq('id', vid)
+    // Find current booked_date for this vehicle
+    let bookedDate: string | undefined
+    for (const c of customers) {
+      const veh = c.vehicles?.find(v => v.id === vid)
+      if (veh) { bookedDate = veh.booked_date; break }
+    }
+
+    // If new cutoff is after (or same as) booked date, the booking is no longer valid — clear it
+    const shouldClearBooking = bookedDate && new Date(date) >= new Date(bookedDate)
+    const update: Record<string, unknown> = { cutoff_date: date, previous_cutoff: oldDate }
+    if (shouldClearBooking) {
+      update.booked_date = null
+      update.booked_time = null
+      update.booked_location = null
+    }
+
+    await supabase.from('vehicles').update(update).eq('id', vid)
     setCustomers(cs => cs.map(c => ({
       ...c,
-      vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, cutoff_date: date, previous_cutoff: oldDate } : v)
+      vehicles: c.vehicles?.map(v => v.id === vid ? {
+        ...v,
+        cutoff_date: date,
+        previous_cutoff: oldDate,
+        ...(shouldClearBooking ? { booked_date: undefined, booked_time: undefined, booked_location: undefined } : {})
+      } : v)
     })))
   }
 
