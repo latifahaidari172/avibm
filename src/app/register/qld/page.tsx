@@ -53,12 +53,13 @@ type Vehicle = {
   purchased_from: string
   cutoff_date: string
   locations: string[]
+  priority_locations: string[]
 }
 
 const emptyVehicle = (): Vehicle => ({
   label: '', vehicle_type: 'Car', vin: '', make: '', model: '',
   year: '', colour: '', build_month: '', damage: '', purchase_method: '',
-  purchased_from: '', cutoff_date: '', locations: WOVI_LOCATIONS.map(l => l.name),
+  purchased_from: '', cutoff_date: '', locations: WOVI_LOCATIONS.map(l => l.name), priority_locations: [],
 })
 
 export default function RegisterQLD() {
@@ -310,6 +311,7 @@ export default function RegisterQLD() {
           state: 'QLD',
           vehicles: vehicles.length,
           tier: selectedTier,
+          priority_locations: v.priority_locations || [],
         })
       })
 
@@ -654,6 +656,49 @@ export default function RegisterQLD() {
                     </div>
                     {v.locations.length === 0 && (
                       <p style={{ fontSize: 12, color: '#ff6b6b', marginTop: 8 }}>⚠️ Please select at least one location.</p>
+                    )}
+
+                    {/* Priority locations */}
+                    {v.locations.length > 0 && (
+                      <div style={{ marginTop: 16, padding: '14px 16px', background: 'var(--dark-4)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 12, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
+                          🥇 Priority Locations <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional — up to 2)</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, lineHeight: 1.5 }}>
+                          If multiple locations have the same earliest date, these will be booked first. If no slots at priority locations, the monitor books the next available anywhere.
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {v.locations.map(loc => {
+                            const isPriority = (v.priority_locations || []).includes(loc)
+                            const atMax = (v.priority_locations || []).length >= 2
+                            return (
+                              <button key={loc} type="button"
+                                onClick={() => {
+                                  const current = v.priority_locations || []
+                                  const updated = isPriority
+                                    ? current.filter(l => l !== loc)
+                                    : atMax ? current : [...current, loc]
+                                  setVehicles(vs => vs.map((v2, idx) => idx === i ? { ...v2, priority_locations: updated } : v2))
+                                }}
+                                style={{
+                                  padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                                  border: `1px solid ${isPriority ? 'var(--gold)' : 'var(--border)'}`,
+                                  background: isPriority ? 'var(--dark-2)' : 'transparent',
+                                  color: isPriority ? 'var(--gold)' : atMax && !isPriority ? 'var(--text-muted)' : 'var(--text-muted)',
+                                  opacity: atMax && !isPriority ? 0.5 : 1,
+                                }}
+                              >
+                                {isPriority ? '🥇 ' : ''}{loc}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        {(v.priority_locations || []).length > 0 && (
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+                            Priority: {(v.priority_locations || []).join(' → ')}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
