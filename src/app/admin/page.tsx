@@ -490,16 +490,27 @@ export default function Admin() {
                           {/* Current / original booking */}
                           <div style={{ background: 'var(--dark-4)', borderRadius: 6, padding: '10px 12px' }}>
                             <div style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Original Booking</div>
-                            <input
-                              type="date"
-                              defaultValue={v.cutoff_date}
-                              onBlur={e => {
-                                if (e.target.value !== v.cutoff_date) {
-                                  updateCutoff(v.id, e.target.value, v.cutoff_date)
-                                }
-                              }}
-                              style={{ width: '100%', padding: '4px 8px', fontSize: 13, marginBottom: 4 }}
-                            />
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+                              <input
+                                type="date"
+                                defaultValue={v.cutoff_date}
+                                id={`cutoff-${v.id}`}
+                                style={{ flex: 1, padding: '4px 8px', fontSize: 13 }}
+                              />
+                              <button
+                                onClick={() => {
+                                  const el = document.getElementById(`cutoff-${v.id}`) as HTMLInputElement
+                                  if (el && el.value && el.value !== v.cutoff_date) {
+                                    updateCutoff(v.id, el.value, v.cutoff_date)
+                                  }
+                                }}
+                                style={{
+                                  padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                                  background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700,
+                                  fontFamily: 'DM Sans', whiteSpace: 'nowrap',
+                                }}
+                              >✓ Save</button>
+                            </div>
                             {v.previous_cutoff && (
                               <div style={{ fontSize: 11, color: '#555' }}>
                                 Was: <span style={{ textDecoration: 'line-through' }}>{v.previous_cutoff}</span>
