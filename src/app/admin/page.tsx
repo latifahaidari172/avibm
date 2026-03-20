@@ -523,12 +523,13 @@ export default function Admin() {
                                 style={{ flex: 1, padding: '4px 8px', fontSize: 13 }}
                               />
                               <button
-                                onClick={async () => {
+                                onClick={async (e) => {
                                   const el = document.getElementById(`cutoff-${v.id}`) as HTMLInputElement
-                                  if (el && el.value && el.value !== v.cutoff_date) {
+                                  const btn = e.currentTarget as HTMLButtonElement
+                                  if (el && el.value) {
                                     await updateCutoff(v.id, el.value, v.cutoff_date)
-                                    const btn = el.nextElementSibling as HTMLButtonElement
-                                    if (btn) { btn.textContent = '✅'; btn.style.background = '#5adb5a'; setTimeout(() => { btn.textContent = '✓ Save'; btn.style.background = 'var(--gold)' }, 1500) }
+                                    btn.textContent = '✅'; btn.style.background = '#5adb5a'
+                                    setTimeout(() => { btn.textContent = '✓ Save'; btn.style.background = 'var(--gold)' }, 1500)
                                   }
                                 }}
                                 style={{
