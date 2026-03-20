@@ -532,7 +532,9 @@ export default function Admin() {
                           {v.booked_date ? (
                             <div style={{ background: '#1a2a1a', border: '1px solid #2a4a2a', borderRadius: 6, padding: '10px 12px' }}>
                               <div style={{ color: '#5adb5a', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>✅ New Booking Found</div>
-                              <div style={{ fontSize: 14, color: '#fff', fontWeight: 600, marginBottom: 4 }}>{v.booked_date}</div>
+                              <div style={{ fontSize: 14, color: '#fff', fontWeight: 600, marginBottom: 4 }}>
+                {v.booked_date ? (() => { const [y,m,d] = v.booked_date.split('-'); return d && m && y ? `${d}/${m}/${y}` : v.booked_date })() : ''}
+              </div>
                               {v.booked_time && (
                                 <div style={{ fontSize: 13, color: '#5ab0ff', marginBottom: 2 }}>⏰ {v.booked_time}</div>
                               )}
