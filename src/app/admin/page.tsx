@@ -44,6 +44,8 @@ type Vehicle = {
   locations?: string[]
   active: boolean
   state: string
+  search_after_date?: string
+  search_after_active?: boolean
 }
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'avibm2024'
@@ -94,7 +96,6 @@ export default function Admin() {
     setLoading(false)
   }
 
-  // Auto-refresh monitor status every 30 seconds
   useEffect(() => {
     if (!authed) return
     const interval = setInterval(async () => {
@@ -107,8 +108,6 @@ export default function Admin() {
   const toggleActive = async (id: string, current: boolean) => {
     await supabase.from('customers').update({ active: !current }).eq('id', id)
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, active: !current } : c))
-
-    // Send activation confirmation email when turning ON
     if (!current) {
       const customer = customers.find(c => c.id === id)
       if (customer) {
@@ -144,7 +143,6 @@ export default function Admin() {
     const price = c.state === 'SA' ? 5 : tierPrices[c.tier || 'standard']
     const vehicleCount = c.vehicles?.length || 1
     const total = (price * vehicleCount).toFixed(2)
-
     const res = await fetch('/api/send-payment-request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -158,17 +156,11 @@ export default function Admin() {
         state:         c.state,
       })
     })
-    if (res.ok) {
-      alert(`✅ Payment request sent to ${c.email}`)
-    } else {
-      alert('Failed to send email. Check your Vercel env vars.')
-    }
+    if (res.ok) alert(`✅ Payment request sent to ${c.email}`)
+    else alert('Failed to send email. Check your Vercel env vars.')
   }
 
-
-
   const updateCutoff = async (vid: string, date: string, oldDate: string) => {
-    // Always clear booking when cutoff date is updated — force monitor to re-search
     await supabase.from('vehicles').update({
       cutoff_date: date,
       previous_cutoff: oldDate,
@@ -176,7 +168,6 @@ export default function Admin() {
       booked_time: null,
       booked_location: null,
     }).eq('id', vid)
-
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? {
@@ -186,6 +177,21 @@ export default function Admin() {
         booked_date: undefined,
         booked_time: undefined,
         booked_location: undefined,
+      } : v)
+    })))
+  }
+
+  const updateSearchAfter = async (vid: string, date: string | null, active: boolean) => {
+    await supabase.from('vehicles').update({
+      search_after_date: date,
+      search_after_active: active,
+    }).eq('id', vid)
+    setCustomers(cs => cs.map(c => ({
+      ...c,
+      vehicles: c.vehicles?.map(v => v.id === vid ? {
+        ...v,
+        search_after_date: date ?? undefined,
+        search_after_active: active,
       } : v)
     })))
   }
@@ -203,12 +209,6 @@ export default function Admin() {
     const updated = freeList.filter(e => e !== entry)
     setFreeList(updated)
     localStorage.setItem('avibm_free_list', JSON.stringify(updated))
-  }
-
-  const isFreeCustomer = (c: Customer) => {
-    const email = c.email?.toLowerCase() || ''
-    const phone = c.phone?.replace(/\s/g, '') || ''
-    return freeList.some(e => e === email || e === phone)
   }
 
   const updatePriorityLocations = async (vid: string, locs: string[]) => {
@@ -271,7 +271,6 @@ export default function Admin() {
 
   return (
     <main style={{ minHeight: '100vh', padding: '0 0 80px' }}>
-      {/* Header */}
       <header className='admin-header' style={{
         borderBottom: '1px solid var(--border)', padding: '20px 40px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -292,6 +291,7 @@ export default function Admin() {
       </header>
 
       <div className='admin-body' style={{ padding: 'clamp(16px,4vw,32px) clamp(12px,4vw,40px)' }}>
+
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8, marginBottom: 20 }}>
           {[
@@ -314,70 +314,31 @@ export default function Admin() {
         </div>
 
         {/* Monitor Status */}
-        <div className='monitor-grid' style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12, marginBottom: 20,
-        }}>
-          {/* QLD Status */}
-          <div style={{
-            background: 'var(--dark-2)',
-            border: `1px solid ${monitorStatus ? '#2a4a2a' : 'var(--border)'}`,
-            borderRadius: 10, padding: '16px 20px',
-            display: 'flex', alignItems: 'center', gap: 16,
-          }}>
-            <div style={{ position: 'relative' }}>
-              <div style={{
-                width: 14, height: 14, borderRadius: '50%',
-                background: monitorStatus ? '#5adb5a' : '#555',
-              }} />
-              {monitorStatus && (
-                <div style={{
-                  position: 'absolute', top: 0, left: 0,
-                  width: 14, height: 14, borderRadius: '50%',
-                  background: '#5adb5a', opacity: 0.4,
-                  animation: 'pulse 2s infinite',
-                }} />
-              )}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 15, letterSpacing: '0.05em', color: monitorStatus ? '#5adb5a' : 'var(--text-muted)' }}>
-                QLD MONITOR {monitorStatus ? '● ACTIVE' : '○ NO DATA'}
+        <div className='monitor-grid' style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12, marginBottom: 20 }}>
+          {[{ label: 'QLD', count: monitorStatus?.qld_count }, { label: 'SA', count: monitorStatus?.sa_count }].map(m => (
+            <div key={m.label} style={{
+              background: 'var(--dark-2)', border: `1px solid ${monitorStatus ? '#2a4a2a' : 'var(--border)'}`,
+              borderRadius: 10, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16,
+            }}>
+              <div style={{ position: 'relative' }}>
+                <div style={{ width: 14, height: 14, borderRadius: '50%', background: monitorStatus ? '#5adb5a' : '#555' }} />
+                {monitorStatus && (
+                  <div style={{
+                    position: 'absolute', top: 0, left: 0, width: 14, height: 14, borderRadius: '50%',
+                    background: '#5adb5a', opacity: 0.4, animation: 'pulse 2s infinite',
+                  }} />
+                )}
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                {monitorStatus ? `${monitorStatus.qld_count} customer(s) · Last run: ${monitorStatus.last_run}` : 'Waiting for first run...'}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: 'Bebas Neue', fontSize: 15, letterSpacing: '0.05em', color: monitorStatus ? '#5adb5a' : 'var(--text-muted)' }}>
+                  {m.label} MONITOR {monitorStatus ? '● ACTIVE' : '○ NO DATA'}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  {monitorStatus ? `${m.count} customer(s) · Last run: ${monitorStatus.last_run}` : 'Waiting for first run...'}
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* SA Status */}
-          <div style={{
-            background: 'var(--dark-2)',
-            border: `1px solid ${monitorStatus ? '#2a4a2a' : 'var(--border)'}`,
-            borderRadius: 10, padding: '16px 20px',
-            display: 'flex', alignItems: 'center', gap: 16,
-          }}>
-            <div style={{ position: 'relative' }}>
-              <div style={{
-                width: 14, height: 14, borderRadius: '50%',
-                background: monitorStatus ? '#5adb5a' : '#555',
-              }} />
-              {monitorStatus && (
-                <div style={{
-                  position: 'absolute', top: 0, left: 0,
-                  width: 14, height: 14, borderRadius: '50%',
-                  background: '#5adb5a', opacity: 0.4,
-                  animation: 'pulse 2s infinite',
-                }} />
-              )}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 15, letterSpacing: '0.05em', color: monitorStatus ? '#5adb5a' : 'var(--text-muted)' }}>
-                SA MONITOR {monitorStatus ? '● ACTIVE' : '○ NO DATA'}
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                {monitorStatus ? `${monitorStatus.sa_count} customer(s) · Last run: ${monitorStatus.last_run}` : 'Waiting for first run...'}
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
         <style>{`
@@ -390,14 +351,11 @@ export default function Admin() {
 
         {/* Free Customers Panel */}
         <div style={{ marginBottom: 16 }}>
-          <div
-            onClick={() => setShowFreePanel(p => !p)}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: 'var(--dark-2)', border: '1px solid var(--border)',
-              borderRadius: showFreePanel ? '10px 10px 0 0' : 10, padding: '12px 20px', cursor: 'pointer',
-            }}
-          >
+          <div onClick={() => setShowFreePanel(p => !p)} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            background: 'var(--dark-2)', border: '1px solid var(--border)',
+            borderRadius: showFreePanel ? '10px 10px 0 0' : 10, padding: '12px 20px', cursor: 'pointer',
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 16 }}>🎁</span>
               <div>
@@ -407,39 +365,30 @@ export default function Admin() {
             </div>
             <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{showFreePanel ? '▲' : '▼'}</div>
           </div>
-
           {showFreePanel && (
             <div style={{ background: 'var(--dark-2)', border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '16px 20px' }}>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
                 Add email addresses or phone numbers. When a matching customer registers, they are automatically set to <strong style={{ color: 'var(--gold)' }}>Priority</strong> and <strong style={{ color: '#5adb5a' }}>Active</strong> — no payment required.
               </div>
-
-              {/* Add entry */}
               <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                <input
-                  type="text"
-                  placeholder="email@example.com or 0412345678"
-                  value={newFreeEntry}
+                <input type="text" placeholder="email@example.com or 0412345678" value={newFreeEntry}
                   onChange={e => setNewFreeEntry(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addFreeEntry(newFreeEntry)}
-                  style={{ flex: 1, padding: '8px 12px', borderRadius: 6, fontSize: 13 }}
-                />
-                <button
-                  onClick={() => addFreeEntry(newFreeEntry)}
-                  style={{ padding: '8px 16px', borderRadius: 6, background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13 }}
-                >+ Add</button>
+                  style={{ flex: 1, padding: '8px 12px', borderRadius: 6, fontSize: 13 }} />
+                <button onClick={() => addFreeEntry(newFreeEntry)}
+                  style={{ padding: '8px 16px', borderRadius: 6, background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13 }}>
+                  + Add
+                </button>
               </div>
-
-              {/* List */}
               {freeList.length === 0 ? (
                 <div style={{ fontSize: 12, color: '#555' }}>No free customers added yet</div>
               ) : (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {freeList.map(entry => (
                     <div key={entry} style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      padding: '4px 10px', borderRadius: 20, fontSize: 12,
-                      background: 'var(--dark-3)', border: '1px solid var(--gold)', color: 'var(--gold)',
+                      display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px',
+                      borderRadius: 20, fontSize: 12, background: 'var(--dark-3)',
+                      border: '1px solid var(--gold)', color: 'var(--gold)',
                     }}>
                       🎁 {entry}
                       <span onClick={() => removeFreeEntry(entry)} style={{ cursor: 'pointer', color: '#ff6b6b', marginLeft: 2, fontWeight: 700 }}>×</span>
@@ -454,8 +403,7 @@ export default function Admin() {
         {/* Auto payment email info */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20,
-          background: 'var(--dark-2)', border: '1px solid #2a4a2a',
-          borderRadius: 10, padding: '12px 20px',
+          background: 'var(--dark-2)', border: '1px solid #2a4a2a', borderRadius: 10, padding: '12px 20px',
         }}>
           <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#5adb5a', flexShrink: 0 }} />
           <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
@@ -493,57 +441,40 @@ export default function Admin() {
               }}>
                 {/* Customer row */}
                 <div className='customer-row' style={{
-                  padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-                  cursor: 'pointer',
+                  padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', cursor: 'pointer',
                 }} onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}>
-                  {/* State badge */}
                   <div style={{
                     background: c.state === 'QLD' ? '#1a2a3a' : '#2a1a2a',
                     border: `1px solid ${c.state === 'QLD' ? '#2a3a4a' : '#3a2a3a'}`,
                     color: c.state === 'QLD' ? '#5ab0ff' : '#c080ff',
-                    padding: '4px 10px', borderRadius: 4, fontSize: 12, fontWeight: 600,
-                    minWidth: 48, textAlign: 'center',
+                    padding: '4px 10px', borderRadius: 4, fontSize: 12, fontWeight: 600, minWidth: 48, textAlign: 'center',
                   }}>{c.state}</div>
-
-                  {/* Name */}
                   <div className='customer-name' style={{ flex: 1, minWidth: 140 }}>
                     <div style={{ fontWeight: 600, fontSize: 15 }}>{c.first_name} {c.last_name}</div>
                     <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{c.email} · {c.phone}</div>
                   </div>
-
-                  {/* Vehicles count */}
                   <div style={{ textAlign: 'center', minWidth: 60 }}>
                     <div style={{ fontFamily: 'Bebas Neue', fontSize: 22, color: 'var(--gold)' }}>{c.vehicles?.length || 0}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>VEHICLE{(c.vehicles?.length || 0) !== 1 ? 'S' : ''}</div>
                   </div>
-
-                  {/* Registered */}
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 90, textAlign: 'right' }}>
                     {new Date(c.created_at).toLocaleDateString('en-AU')}
                   </div>
-
-                  {/* Tier selector — QLD only */}
                   {c.state === 'QLD' && (
                     <div onClick={e => e.stopPropagation()}>
-                      <select
-                        value={c.tier || 'standard'}
-                        onChange={e => updateTier(c.id, e.target.value)}
-                        style={{
-                          padding: '4px 8px', fontSize: 12, borderRadius: 4,
-                          background: TIER_CONFIG[c.tier || 'standard'].bg,
-                          border: `1px solid ${TIER_CONFIG[c.tier || 'standard'].border}`,
-                          color: TIER_CONFIG[c.tier || 'standard'].color,
-                          cursor: 'pointer', minWidth: 110,
-                        }}
-                      >
+                      <select value={c.tier || 'standard'} onChange={e => updateTier(c.id, e.target.value)} style={{
+                        padding: '4px 8px', fontSize: 12, borderRadius: 4,
+                        background: TIER_CONFIG[c.tier || 'standard'].bg,
+                        border: `1px solid ${TIER_CONFIG[c.tier || 'standard'].border}`,
+                        color: TIER_CONFIG[c.tier || 'standard'].color,
+                        cursor: 'pointer', minWidth: 110,
+                      }}>
                         <option value="priority">🥇 Priority — $10</option>
                         <option value="standard">🥈 Standard — $7.50</option>
                         <option value="basic">🥉 Basic — $5</option>
                       </select>
                     </div>
                   )}
-
-                  {/* Auto email toggle */}
                   <div onClick={e => { e.stopPropagation(); supabase.from('customers').update({ auto_payment_email: !c.auto_payment_email }).eq('id', c.id).then(() => setCustomers(cs => cs.map(x => x.id === c.id ? { ...x, auto_payment_email: !c.auto_payment_email } : x))) }} title="Auto-send payment request email when customer registers">
                     <span style={{
                       cursor: 'pointer', fontSize: 12, padding: '4px 10px', borderRadius: 4,
@@ -554,18 +485,12 @@ export default function Admin() {
                       {c.auto_payment_email ? '● AUTO EMAIL' : '○ MANUAL'}
                     </span>
                   </div>
-
-                  {/* Active toggle */}
                   <div onClick={e => { e.stopPropagation(); toggleActive(c.id, c.active) }}>
                     <span className={`badge ${c.active ? 'badge-active' : 'badge-pending'}`} style={{ cursor: 'pointer' }}>
                       {c.active ? '● ACTIVE' : '○ PENDING'}
                     </span>
                   </div>
-
-                  {/* Expand */}
-                  <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                    {expandedId === c.id ? '▲' : '▼'}
-                  </div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{expandedId === c.id ? '▲' : '▼'}</div>
                 </div>
 
                 {/* Expanded detail */}
@@ -577,7 +502,6 @@ export default function Admin() {
                       {c.licence_number && <div><span style={{ color: 'var(--text-muted)' }}>Licence: </span>{c.licence_number}</div>}
                     </div>
 
-                    {/* Vehicles */}
                     <div className="section-label" style={{ marginBottom: 12 }}>Vehicles</div>
                     {c.vehicles?.map(v => (
                       <div key={v.id} style={{
@@ -585,7 +509,7 @@ export default function Admin() {
                         border: `1px solid ${(v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '#2a4a2a' : 'var(--border)'}`,
                         borderRadius: 8, padding: '14px 16px', marginBottom: 8,
                       }}>
-                        {/* Top row — vehicle name + toggle */}
+                        {/* Vehicle header */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                           <div>
                             <div style={{ fontWeight: 600, fontSize: 14 }}>{v.make} {v.model} {v.year}</div>
@@ -600,57 +524,40 @@ export default function Admin() {
 
                         {/* Booking info grid */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-
-                          {/* Current / original booking */}
+                          {/* Cutoff Date */}
                           <div style={{ background: 'var(--dark-4)', borderRadius: 6, padding: '10px 12px' }}>
                             <div style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Cutoff Date</div>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
-                              <input
-                                type="date"
-                                defaultValue={v.cutoff_date}
-                                id={`cutoff-${v.id}`}
-                                style={{ flex: 1, padding: '4px 8px', fontSize: 13 }}
-                              />
-                              <button
-                                onClick={async (e) => {
-                                  const el = document.getElementById(`cutoff-${v.id}`) as HTMLInputElement
-                                  const btn = e.currentTarget as HTMLButtonElement
-                                  if (el && el.value) {
-                                    await updateCutoff(v.id, el.value, v.cutoff_date)
-                                    btn.textContent = '✅'; btn.style.background = '#5adb5a'
-                                    setTimeout(() => { btn.textContent = '✓ Save'; btn.style.background = 'var(--gold)' }, 1500)
-                                  }
-                                }}
-                                style={{
-                                  padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
-                                  background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700,
-                                  fontFamily: 'DM Sans', whiteSpace: 'nowrap', transition: 'all 0.2s',
-                                }}
-                              >✓ Save</button>
+                              <input type="date" defaultValue={v.cutoff_date} id={`cutoff-${v.id}`} style={{ flex: 1, padding: '4px 8px', fontSize: 13 }} />
+                              <button onClick={async (e) => {
+                                const el = document.getElementById(`cutoff-${v.id}`) as HTMLInputElement
+                                const btn = e.currentTarget as HTMLButtonElement
+                                if (el && el.value) {
+                                  await updateCutoff(v.id, el.value, v.cutoff_date)
+                                  btn.textContent = '✅'; btn.style.background = '#5adb5a'
+                                  setTimeout(() => { btn.textContent = '✓ Save'; btn.style.background = 'var(--gold)' }, 1500)
+                                }
+                              }} style={{
+                                padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                                background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700,
+                                fontFamily: 'DM Sans', whiteSpace: 'nowrap', transition: 'all 0.2s',
+                              }}>✓ Save</button>
                             </div>
                             {v.previous_cutoff && (
-                              <div style={{ fontSize: 11, color: '#555' }}>
-                                Was: <span style={{ textDecoration: 'line-through' }}>{v.previous_cutoff}</span>
-                              </div>
+                              <div style={{ fontSize: 11, color: '#555' }}>Was: <span style={{ textDecoration: 'line-through' }}>{v.previous_cutoff}</span></div>
                             )}
                           </div>
 
-                          {/* New booking found by monitor */}
+                          {/* Booked slot */}
                           {v.booked_date ? (
                             <div style={{ background: '#1a2a1a', border: '1px solid #2a4a2a', borderRadius: 6, padding: '10px 12px' }}>
                               <div style={{ color: '#5adb5a', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>✅ New Booking Found</div>
                               <div style={{ fontSize: 14, color: '#fff', fontWeight: 600, marginBottom: 4 }}>
-                {v.booked_date ? (() => { const [y,m,d] = v.booked_date.split('-'); return d && m && y ? `${d}/${m}/${y}` : v.booked_date })() : ''}
-              </div>
-                              {v.booked_time && (
-                                <div style={{ fontSize: 13, color: '#5ab0ff', marginBottom: 2 }}>⏰ {v.booked_time}</div>
-                              )}
-                              {v.booked_location && (
-                                <div style={{ fontSize: 13, color: '#5ab0ff' }}>📍 {v.booked_location}</div>
-                              )}
-                              {!v.booked_time && !v.booked_location && (
-                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Time/location updating next run</div>
-                              )}
+                                {(() => { const [y,m,d] = v.booked_date.split('-'); return d && m && y ? `${d}/${m}/${y}` : v.booked_date })()}
+                              </div>
+                              {v.booked_time && <div style={{ fontSize: 13, color: '#5ab0ff', marginBottom: 2 }}>⏰ {v.booked_time}</div>}
+                              {v.booked_location && <div style={{ fontSize: 13, color: '#5ab0ff' }}>📍 {v.booked_location}</div>}
+                              {!v.booked_time && !v.booked_location && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Time/location updating next run</div>}
                             </div>
                           ) : (
                             <div style={{ background: 'var(--dark-4)', borderRadius: 6, padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -662,7 +569,77 @@ export default function Admin() {
                           )}
                         </div>
 
-                        {/* Priority locations editor — always show all 10 WOVI locations */}
+                        {/* Search After Date — admin only */}
+                        <div style={{
+                          marginTop: 10,
+                          background: v.search_after_active ? '#1a1500' : 'var(--dark-4)',
+                          border: `1px solid ${v.search_after_active ? '#C9A84C' : 'var(--border)'}`,
+                          borderRadius: 6, padding: '10px 12px',
+                          transition: 'all 0.2s',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <div style={{ color: v.search_after_active ? '#C9A84C' : 'var(--text-muted)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                              🔬 Admin — Search After Date
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              {/* ON/OFF toggle */}
+                              <div
+                                onClick={() => updateSearchAfter(v.id, v.search_after_date || null, !v.search_after_active)}
+                                style={{
+                                  cursor: 'pointer', fontSize: 11, padding: '2px 10px', borderRadius: 20,
+                                  background: v.search_after_active ? '#2a2000' : 'var(--dark-3)',
+                                  border: `1px solid ${v.search_after_active ? '#C9A84C' : 'var(--border)'}`,
+                                  color: v.search_after_active ? '#C9A84C' : 'var(--text-muted)',
+                                  transition: 'all 0.2s', userSelect: 'none',
+                                }}
+                              >
+                                {v.search_after_active ? '● ON' : '○ OFF'}
+                              </div>
+                              {/* Clear button — only when active */}
+                              {v.search_after_active && (
+                                <div
+                                  onClick={() => updateSearchAfter(v.id, null, false)}
+                                  style={{
+                                    cursor: 'pointer', fontSize: 11, padding: '2px 8px', borderRadius: 20,
+                                    background: 'none', border: '1px solid #4a1a1a',
+                                    color: '#ff6b6b', userSelect: 'none',
+                                  }}
+                                >✕ Clear</div>
+                              )}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <input
+                              type="date"
+                              id={`after-${v.id}`}
+                              defaultValue={v.search_after_date || ''}
+                              style={{ flex: 1, padding: '4px 8px', fontSize: 13, opacity: v.search_after_active ? 1 : 0.5 }}
+                            />
+                            <button
+                              onClick={async (e) => {
+                                const el = document.getElementById(`after-${v.id}`) as HTMLInputElement
+                                const btn = e.currentTarget as HTMLButtonElement
+                                if (el) {
+                                  await updateSearchAfter(v.id, el.value || null, v.search_after_active ?? false)
+                                  btn.textContent = '✅'; btn.style.background = '#5adb5a'
+                                  setTimeout(() => { btn.textContent = '✓ Save'; btn.style.background = 'var(--gold)' }, 1500)
+                                }
+                              }}
+                              style={{
+                                padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                                background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700,
+                                fontFamily: 'DM Sans', whiteSpace: 'nowrap',
+                              }}
+                            >✓ Save</button>
+                          </div>
+                          <div style={{ fontSize: 11, marginTop: 6, color: v.search_after_active && v.search_after_date ? '#C9A84C' : '#555' }}>
+                            {v.search_after_active && v.search_after_date
+                              ? `Only searching slots after ${v.search_after_date.split('-').reverse().join('/')}`
+                              : 'Off — searching all slots before cutoff'}
+                          </div>
+                        </div>
+
+                        {/* Priority Locations */}
                         <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--dark-4)', borderRadius: 6, border: '1px solid var(--border)' }}>
                           <div style={{ color: 'var(--gold)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>🥇 Priority Locations (max 2)</div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
@@ -687,36 +664,28 @@ export default function Admin() {
                               )
                             })}
                           </div>
-                          {(v.priority_locations || []).length === 0 ? (
-                            <div style={{ fontSize: 11, color: '#555', marginTop: 6 }}>No priority set — books earliest at any location</div>
-                          ) : (
-                            <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 6 }}>Priority: {(v.priority_locations || []).join(' → ')}</div>
-                          )}
+                          {(v.priority_locations || []).length === 0
+                            ? <div style={{ fontSize: 11, color: '#555', marginTop: 6 }}>No priority set — books earliest at any location</div>
+                            : <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 6 }}>Priority: {(v.priority_locations || []).join(' → ')}</div>
+                          }
                         </div>
                       </div>
                     ))}
 
                     {/* Actions */}
                     <div className='actions-row' style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      {!c.active && (
-                        <button
-                          onClick={() => sendPaymentRequest(c)}
-                          style={{
-                            background: 'var(--gold)', color: '#000', border: 'none',
-                            padding: '10px 20px', borderRadius: 6, cursor: 'pointer',
-                            fontFamily: 'Bebas Neue', fontSize: 15, letterSpacing: '0.1em',
-                          }}
-                        >
-                          📧 SEND PAYMENT REQUEST
-                        </button>
-                      )}
-                      {c.active && (
+                      {!c.active ? (
+                        <button onClick={() => sendPaymentRequest(c)} style={{
+                          background: 'var(--gold)', color: '#000', border: 'none',
+                          padding: '10px 20px', borderRadius: 6, cursor: 'pointer',
+                          fontFamily: 'Bebas Neue', fontSize: 15, letterSpacing: '0.1em',
+                        }}>📧 SEND PAYMENT REQUEST</button>
+                      ) : (
                         <div style={{ fontSize: 13, color: '#5adb5a' }}>✅ Customer is active — monitoring running</div>
                       )}
                       <button onClick={() => deleteCustomer(c.id)} style={{
                         background: 'none', border: '1px solid #4a1a1a', color: '#ff6b6b',
-                        padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12,
-                        fontFamily: 'DM Sans',
+                        padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
                       }}>Delete Customer</button>
                     </div>
                   </div>
