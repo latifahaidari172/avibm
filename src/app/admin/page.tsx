@@ -181,6 +181,23 @@ export default function Admin() {
     })))
   }
 
+  const updateManualBooking = async (vid: string, date: string, time: string, location: string) => {
+    await supabase.from('vehicles').update({
+      booked_date: date || null,
+      booked_time: time || null,
+      booked_location: location || null,
+    }).eq('id', vid)
+    setCustomers(cs => cs.map(c => ({
+      ...c,
+      vehicles: c.vehicles?.map(v => v.id === vid ? {
+        ...v,
+        booked_date: date || undefined,
+        booked_time: time || undefined,
+        booked_location: location || undefined,
+      } : v)
+    })))
+  }
+
   const updateSearchAfter = async (vid: string, date: string | null, active: boolean) => {
     await supabase.from('vehicles').update({
       search_after_date: date,
@@ -567,6 +584,56 @@ export default function Admin() {
                               </div>
                             </div>
                           )}
+                        </div>
+
+                        {/* Manual Booking Entry — admin only */}
+                        <div style={{ marginTop: 10, background: 'var(--dark-4)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px' }}>
+                          <div style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
+                            ✏️ Admin — Manual Booking Entry
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 6, alignItems: 'center' }}>
+                            <input
+                              type="date"
+                              id={`manual-date-${v.id}`}
+                              defaultValue={v.booked_date || ''}
+                              placeholder="Date"
+                              style={{ padding: '4px 8px', fontSize: 12 }}
+                            />
+                            <input
+                              type="text"
+                              id={`manual-time-${v.id}`}
+                              defaultValue={v.booked_time || ''}
+                              placeholder="Time (e.g. 9:00 am)"
+                              style={{ padding: '4px 8px', fontSize: 12 }}
+                            />
+                            <input
+                              type="text"
+                              id={`manual-loc-${v.id}`}
+                              defaultValue={v.booked_location || ''}
+                              placeholder="Location"
+                              style={{ padding: '4px 8px', fontSize: 12 }}
+                            />
+                            <button
+                              onClick={async (e) => {
+                                const dateEl = document.getElementById(`manual-date-${v.id}`) as HTMLInputElement
+                                const timeEl = document.getElementById(`manual-time-${v.id}`) as HTMLInputElement
+                                const locEl  = document.getElementById(`manual-loc-${v.id}`) as HTMLInputElement
+                                const btn = e.currentTarget as HTMLButtonElement
+                                await updateManualBooking(v.id, dateEl?.value || '', timeEl?.value || '', locEl?.value || '')
+                                btn.textContent = '✅'
+                                btn.style.background = '#5adb5a'
+                                setTimeout(() => { btn.textContent = '✓ Save'; btn.style.background = 'var(--gold)' }, 1500)
+                              }}
+                              style={{
+                                padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                                background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700,
+                                fontFamily: 'DM Sans', whiteSpace: 'nowrap',
+                              }}
+                            >✓ Save</button>
+                          </div>
+                          <div style={{ fontSize: 11, color: '#555', marginTop: 6 }}>
+                            Manually record a booking the system didn&apos;t make — shows in the green booking card above
+                          </div>
                         </div>
 
                         {/* Search After Date — admin only */}
