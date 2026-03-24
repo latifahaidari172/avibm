@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
@@ -51,15 +51,23 @@ type Vehicle = {
   damage: string
   purchase_method: string
   purchased_from: string
-  cutoff_date: string
+  // Current booking details — stored as cutoff_date in DB
+  current_booking_date: string
+  current_booking_time: string
+  current_booking_location: string
   locations: string[]
-  priority_locations: string[]
+  priority_locations: string[]  // ordered: index 0 = Priority 1, index 1 = Priority 2
 }
 
 const emptyVehicle = (): Vehicle => ({
   label: '', vehicle_type: 'Car', vin: '', make: '', model: '',
   year: '', colour: '', build_month: '', damage: '', purchase_method: '',
-  purchased_from: '', cutoff_date: '', locations: WOVI_LOCATIONS.map(l => l.name), priority_locations: [],
+  purchased_from: '',
+  current_booking_date: '',
+  current_booking_time: '',
+  current_booking_location: '',
+  locations: WOVI_LOCATIONS.map(l => l.name),
+  priority_locations: [],
 })
 
 export default function RegisterQLD() {
@@ -103,7 +111,7 @@ export default function RegisterQLD() {
       if (!v.damage) missing.push('Damage Type')
       if (!v.purchase_method) missing.push('Purchase Method')
       if (!v.purchased_from) missing.push('Purchased From')
-      if (!v.cutoff_date) missing.push('Booking Date')
+      if (!v.current_booking_date) missing.push('Current Booking Date')
       if (missing.length > 0)
         return `Vehicle ${i + 1} — missing: ${missing.join(', ')}`
       if (!v.locations || v.locations.length === 0)
@@ -135,7 +143,6 @@ export default function RegisterQLD() {
     const streetNum  = a.house_number || ''
     const street     = a.road || ''
     const suburb     = a.suburb || a.town || a.city_district || a.village || ''
-    const state      = a.state || ''
     const postcode   = a.postcode || ''
     const fullStreet = [streetNum, street].filter(Boolean).join(' ')
     setOwner(p => ({
@@ -146,6 +153,7 @@ export default function RegisterQLD() {
     }))
     setAddrSuggestions([])
   }
+
   const [radius, setRadius] = useState(200)
   const [radiusLoading, setRadiusLoading] = useState(false)
   const [radiusError, setRadiusError] = useState('')
@@ -160,14 +168,9 @@ export default function RegisterQLD() {
       .filter(loc => haversineKm(coords.lat, coords.lng, loc.lat, loc.lng) <= r)
       .map(loc => loc.name)
     setVehicles(vs => vs.map((v, i) => i === vIdx ? { ...v, locations: nearby } : v))
-    // Update circle on map
-    if (circleRefs.current[vIdx]) {
-      circleRefs.current[vIdx].setRadius(r * 1000)
-    }
-    // Update marker colours
+    if (circleRefs.current[vIdx]) circleRefs.current[vIdx].setRadius(r * 1000)
     if (markerRefs.current[vIdx]) {
       markerRefs.current[vIdx].forEach((m: any) => {
-        const locName = m.options.title
         const inRadius = haversineKm(coords.lat, coords.lng, m.options._lat, m.options._lng) <= r
         const icon = (window as any).L.divIcon({
           html: `<div style="width:14px;height:14px;border-radius:50%;background:${inRadius ? '#3b9eff' : '#555'};border:2px solid ${inRadius ? '#fff' : '#333'};box-shadow:0 2px 4px rgba(0,0,0,0.5)"></div>`,
@@ -178,50 +181,29 @@ export default function RegisterQLD() {
     }
   }
 
-  const initMap = (vIdx: number, coords: {lat:number,lng:number}, r: number, vehicleLocations: string[]) => {
+  const initMap = (vIdx: number, coords: {lat:number,lng:number}, r: number) => {
     if (typeof window === 'undefined') return
     const L = (window as any).L
     if (!L) return
-
     const mapEl = document.getElementById(`map-${vIdx}`)
     if (!mapEl) return
-
-    // Destroy existing map
-    if (mapRefs.current[vIdx]) {
-      mapRefs.current[vIdx].remove()
-    }
-
+    if (mapRefs.current[vIdx]) mapRefs.current[vIdx].remove()
     const map = L.map(`map-${vIdx}`, { zoomControl: true }).setView([coords.lat, coords.lng], 7)
     mapRefs.current[vIdx] = map
-
-    // Dark tile layer
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '© OpenStreetMap © CARTO',
-      maxZoom: 19,
+      attribution: '© OpenStreetMap © CARTO', maxZoom: 19,
     }).addTo(map)
-
-    // Red home marker
     const homeIcon = L.divIcon({
       html: `<div style="width:18px;height:18px;border-radius:50%;background:#ff3333;border:3px solid #fff;box-shadow:0 2px 8px rgba(255,51,51,0.6)"></div>`,
       className: '', iconAnchor: [9, 9],
     })
-    const homeMarker = L.marker([coords.lat, coords.lng], { icon: homeIcon, title: 'Your location' })
-      .addTo(map)
-      .bindPopup('<b style="color:#ff3333">📍 Your Location</b>')
-    homeMarkerRefs.current[vIdx] = homeMarker
-
-    // Yellow radius circle
+    L.marker([coords.lat, coords.lng], { icon: homeIcon, title: 'Your location' })
+      .addTo(map).bindPopup('<b style="color:#ff3333">📍 Your Location</b>')
     const circle = L.circle([coords.lat, coords.lng], {
-      radius: r * 1000,
-      color: '#C9A84C',
-      weight: 2,
-      fillColor: '#C9A84C',
-      fillOpacity: 0.08,
-      dashArray: '6 4',
+      radius: r * 1000, color: '#C9A84C', weight: 2,
+      fillColor: '#C9A84C', fillOpacity: 0.08, dashArray: '6 4',
     }).addTo(map)
     circleRefs.current[vIdx] = circle
-
-    // Blue WOVI location markers
     const markers: any[] = []
     WOVI_LOCATIONS.forEach(loc => {
       const dist = haversineKm(coords.lat, coords.lng, loc.lat, loc.lng)
@@ -245,8 +227,7 @@ export default function RegisterQLD() {
     if (!coords) { setRadiusError('Address not found. Try a suburb name or postcode.'); setRadiusLoading(false); return }
     setHomeCoords(coords)
     updateRadiusLocations(vIdx, coords, radius)
-    // Init map after state update
-    setTimeout(() => initMap(vIdx, coords, radius, vehicles[vIdx].locations), 100)
+    setTimeout(() => initMap(vIdx, coords, radius), 100)
     setRadiusLoading(false)
   }
 
@@ -256,11 +237,28 @@ export default function RegisterQLD() {
       const locs = v.locations.includes(loc)
         ? v.locations.filter(l => l !== loc)
         : [...v.locations, loc]
-      return { ...v, locations: locs }
+      // Also remove from priority if deselected
+      const priority = locs.includes(loc) ? v.priority_locations : v.priority_locations.filter(l => l !== loc)
+      return { ...v, locations: locs, priority_locations: priority }
     }))
   }
 
-  // Load Leaflet CSS and JS once
+  const togglePriority = (vIdx: number, loc: string) => {
+    setVehicles(vs => vs.map((v, i) => {
+      if (i !== vIdx) return v
+      const current = v.priority_locations || []
+      const isPriority = current.includes(loc)
+      if (isPriority) {
+        // Remove from priority
+        return { ...v, priority_locations: current.filter(l => l !== loc) }
+      } else if (current.length < 2) {
+        // Add — order matters, index 0 = P1, index 1 = P2
+        return { ...v, priority_locations: [...current, loc] }
+      }
+      return v
+    }))
+  }
+
   useEffect(() => {
     if (typeof window === 'undefined') return
     if ((window as any).L) return
@@ -284,38 +282,72 @@ export default function RegisterQLD() {
     if (err) { setError(err); return }
     setError(''); setLoading(true)
     try {
+      // Check whitelist server-side via API
+      const whitelistRes = await fetch('/api/check-whitelist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: owner.email, phone: owner.phone }),
+      })
+      const whitelistData = await whitelistRes.json()
+      const isFree = whitelistData?.whitelisted === true
+
       const { data: customer, error: ce } = await supabase
         .from('customers')
-        .insert({ state: 'QLD', active: false, tier: selectedTier, ...owner })
+        .insert({
+          state: 'QLD',
+          active: isFree,  // auto-activate if whitelisted
+          tier: isFree ? 'priority' : selectedTier,
+          auto_payment_email: !isFree,
+          ...owner,
+        })
         .select('id').single()
       if (ce || !customer) throw new Error(ce?.message || 'Failed to save')
 
       const vehicleRows = vehicles.map(v => ({
-        ...v,
         customer_id: customer.id,
         state: 'QLD',
         active: true,
         label: v.label || `${v.make} ${v.model}`,
+        vehicle_type: v.vehicle_type,
+        vin: v.vin,
+        make: v.make,
+        model: v.model,
+        year: v.year,
+        colour: v.colour,
+        build_month: v.build_month,
+        damage: v.damage,
+        purchase_method: v.purchase_method,
+        purchased_from: v.purchased_from,
+        // Store current booking date as cutoff_date
+        cutoff_date: v.current_booking_date,
+        // Store booking details for display
+        booked_date: v.current_booking_date,
+        booked_time: v.current_booking_time,
+        booked_location: v.current_booking_location,
+        locations: v.locations,
+        priority_locations: v.priority_locations,
       }))
       const { error: ve } = await supabase.from('vehicles').insert(vehicleRows)
       if (ve) throw new Error(ve.message)
 
-      // Notify admin + send customer confirmation
-      await fetch('/api/notify-registration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: `${owner.first_name} ${owner.last_name}`,
-          email: owner.email,
-          phone: owner.phone,
-          state: 'QLD',
-          vehicles: vehicles.length,
-          tier: selectedTier,
-          priority_locations: vehicles.flatMap(v => v.priority_locations || []).filter((v, i, a) => a.indexOf(v) === i),
+      // Only send payment email if NOT whitelisted
+      if (!isFree) {
+        await fetch('/api/notify-registration', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: `${owner.first_name} ${owner.last_name}`,
+            email: owner.email,
+            phone: owner.phone,
+            state: 'QLD',
+            vehicles: vehicles.length,
+            tier: selectedTier,
+            priority_locations: vehicles.flatMap(v => v.priority_locations || []).filter((v, i, a) => a.indexOf(v) === i),
+          })
         })
-      })
+      }
 
-      // Send registration confirmation to customer
+      // Always send registration confirmation
       await fetch('/api/registration-confirmation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -324,7 +356,8 @@ export default function RegisterQLD() {
           email: owner.email,
           state: 'QLD',
           vehicles: vehicles.length,
-          tier: selectedTier,
+          tier: isFree ? 'priority' : selectedTier,
+          is_free: isFree,
         })
       })
 
@@ -342,7 +375,7 @@ export default function RegisterQLD() {
         <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
         <h2 style={{ fontSize: 36, marginBottom: 12 }}>REGISTRATION SUBMITTED</h2>
         <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 24 }}>
-          Your details have been received. We'll review your registration and activate your monitoring shortly. You'll receive an email confirmation once you're live.
+          Your details have been received. We&apos;ll review your registration and activate your monitoring shortly. You&apos;ll receive an email confirmation once you&apos;re live.
         </p>
         <Link href="/" style={{ color: 'var(--gold)', fontSize: 14, textDecoration: 'none' }}>← Back to home</Link>
       </div>
@@ -358,7 +391,6 @@ export default function RegisterQLD() {
           <div className="section-label">Queensland — WOVI</div>
           <h1 style={{ fontSize: 48, lineHeight: 1 }}>REGISTER YOUR<br /><span className="gold">VEHICLES</span></h1>
         </div>
-        {/* Progress */}
         <div style={{ display: 'flex', gap: 8, marginTop: 24, alignItems: 'center' }}>
           {[1, 2].map(n => (
             <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -387,12 +419,13 @@ export default function RegisterQLD() {
           }}>{error}</div>
         )}
 
+        {/* ── STEP 1: Owner Details ── */}
         {step === 1 && (
           <div className="card">
             <h3 style={{ fontSize: 24, marginBottom: 24 }}>OWNER DETAILS</h3>
             <div className='register-grid-2' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div style={{ gridColumn: '1 / -1' }}>
-                <label>QLD Driver's Licence / CRN</label>
+                <label>QLD Driver&apos;s Licence / CRN</label>
                 <input autoComplete="off" value={owner.crn} onChange={e => updateOwner('crn', e.target.value)} placeholder="Your CRN number" />
               </div>
               <div><label>First Name</label><input autoComplete="given-name" value={owner.first_name} onChange={e => updateOwner('first_name', e.target.value)} placeholder="John" /></div>
@@ -430,10 +463,9 @@ export default function RegisterQLD() {
                       const num    = a.house_number || ''
                       const road   = a.road || ''
                       const suburb = a.suburb || a.town || a.city_district || ''
-                      const state  = a.state || ''
                       const pc     = a.postcode || ''
                       const line1  = [num, road].filter(Boolean).join(' ') || s.display_name.split(',')[0]
-                      const line2  = [suburb, state, pc].filter(Boolean).join(' ')
+                      const line2  = [suburb, pc].filter(Boolean).join(' ')
                       const isExact = idx === 0
                       return (
                         <div
@@ -444,7 +476,6 @@ export default function RegisterQLD() {
                             borderBottom: idx < addrSuggestions.length - 1 ? '1px solid var(--border)' : 'none',
                             cursor: 'pointer',
                             background: isExact ? 'rgba(201,168,76,0.08)' : 'transparent',
-                            transition: 'background 0.15s',
                           }}
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--dark-3)'}
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = isExact ? 'rgba(201,168,76,0.08)' : 'transparent'}
@@ -471,16 +502,11 @@ export default function RegisterQLD() {
                 { id: 'standard', icon: '🥈', label: 'Standard', price: '$7.50', desc: 'Second in queue. 30 second delay after Priority customers.', color: '#aaa' },
                 { id: 'basic',    icon: '🥉', label: 'Basic',    price: '$5', desc: 'Third in queue. 60 second delay after Standard customers.', color: '#888' },
               ].map(t => (
-                <div
-                  key={t.id}
-                  onClick={() => setSelectedTier(t.id as any)}
-                  style={{
-                    border: `1px solid ${selectedTier === t.id ? t.color : 'var(--border)'}`,
-                    background: selectedTier === t.id ? 'var(--dark-3)' : 'var(--dark-4)',
-                    borderRadius: 8, padding: '16px 14px', cursor: 'pointer',
-                    transition: 'all 0.2s',
-                  }}
-                >
+                <div key={t.id} onClick={() => setSelectedTier(t.id as any)} style={{
+                  border: `1px solid ${selectedTier === t.id ? t.color : 'var(--border)'}`,
+                  background: selectedTier === t.id ? 'var(--dark-3)' : 'var(--dark-4)',
+                  borderRadius: 8, padding: '16px 14px', cursor: 'pointer', transition: 'all 0.2s',
+                }}>
                   <div style={{ fontSize: 24, marginBottom: 6 }}>{t.icon}</div>
                   <div style={{ fontFamily: 'Bebas Neue', fontSize: 18, color: t.color, letterSpacing: '0.05em' }}>{t.label}</div>
                   <div style={{ fontFamily: 'Bebas Neue', fontSize: 28, color: t.color, letterSpacing: '0.05em', marginTop: 4 }}>{t.price}<span style={{ fontSize: 13, fontFamily: 'DM Sans', fontWeight: 400 }}> /vehicle</span></div>
@@ -491,16 +517,15 @@ export default function RegisterQLD() {
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>
               One-time fee per vehicle. You will receive payment details after submitting your registration.
             </p>
-            <div style={{ marginTop: 24 }}>
-              <button className="btn-gold" onClick={handleNext}>NEXT: ADD VEHICLES →</button>
-            </div>
+            <button className="btn-gold" onClick={handleNext}>NEXT: ADD VEHICLES →</button>
           </div>
         )}
 
+        {/* ── STEP 2: Vehicles ── */}
         {step === 2 && (
           <div>
             {vehicles.map((v, i) => (
-              <div key={i} className="card" style={{ marginBottom: 16, position: 'relative' }}>
+              <div key={i} className="card" style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                   <h3 style={{ fontSize: 22 }}>VEHICLE {i + 1}</h3>
                   {vehicles.length > 1 && (
@@ -510,6 +535,7 @@ export default function RegisterQLD() {
                     }}>Remove</button>
                   )}
                 </div>
+
                 <div className='register-grid-2' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <div>
                     <label>Vehicle Type</label>
@@ -544,18 +570,54 @@ export default function RegisterQLD() {
                     </select>
                   </div>
                   <div><label>Purchased From</label><input value={v.purchased_from} onChange={e => updateVehicle(i, 'purchased_from', e.target.value)} placeholder="e.g. IAA Auctions" /></div>
+
+                  {/* Current booking details */}
                   <div style={{ gridColumn: '1 / -1' }}>
-                    <label>Current Booking Date (Cutoff)</label>
-                    <input type="date" value={v.cutoff_date} onChange={e => updateVehicle(i, 'cutoff_date', e.target.value)} />
-                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>We'll only rebook if we find something earlier than this date.</p>
+                    <div style={{ background: 'var(--dark-4)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
+                      <div style={{ color: 'var(--gold)', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>
+                        📅 Current Inspection Booking
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                        <div>
+                          <label style={{ fontSize: 12 }}>Booking Date *</label>
+                          <input
+                            type="date"
+                            value={v.current_booking_date}
+                            onChange={e => updateVehicle(i, 'current_booking_date', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12 }}>Booking Time</label>
+                          <input
+                            type="text"
+                            value={v.current_booking_time}
+                            onChange={e => updateVehicle(i, 'current_booking_time', e.target.value)}
+                            placeholder="e.g. 9:00 AM"
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12 }}>Location</label>
+                          <select
+                            value={v.current_booking_location}
+                            onChange={e => updateVehicle(i, 'current_booking_location', e.target.value)}
+                          >
+                            <option value="">Select location</option>
+                            {WOVI_LOCATIONS.map(l => <option key={l.name} value={l.name}>{l.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8, marginBottom: 0 }}>
+                        We&apos;ll only rebook if we find a slot earlier than your current booking date.
+                      </p>
+                    </div>
                   </div>
+
+                  {/* Location selector */}
                   <div style={{ gridColumn: '1 / -1' }}>
                     <label>Inspection Locations</label>
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
-                      Enter your address, set your travel radius, and we'll show you which WOVI locations are within range on the map.
+                      Enter your address and travel radius to find nearby WOVI locations.
                     </p>
-
-                    {/* Address + Radius controls */}
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                       <input
                         value={radiusAddress}
@@ -563,71 +625,41 @@ export default function RegisterQLD() {
                         onKeyDown={e => e.key === 'Enter' && findNearbyLocations(i)}
                         placeholder="Enter your suburb or full address..."
                       />
-                      <button
-                        onClick={() => findNearbyLocations(i)}
-                        disabled={radiusLoading}
-                        style={{
-                          background: 'var(--gold)', color: '#000', border: 'none',
-                          padding: '12px 20px', borderRadius: 6, cursor: 'pointer',
-                          fontFamily: 'Bebas Neue', fontSize: 15, letterSpacing: '0.1em',
-                          whiteSpace: 'nowrap', flexShrink: 0,
-                        }}
-                      >{radiusLoading ? 'SEARCHING...' : 'SEARCH →'}</button>
+                      <button onClick={() => findNearbyLocations(i)} disabled={radiusLoading} style={{
+                        background: 'var(--gold)', color: '#000', border: 'none',
+                        padding: '12px 20px', borderRadius: 6, cursor: 'pointer',
+                        fontFamily: 'Bebas Neue', fontSize: 15, letterSpacing: '0.1em',
+                        whiteSpace: 'nowrap', flexShrink: 0,
+                      }}>{radiusLoading ? 'SEARCHING...' : 'SEARCH →'}</button>
                     </div>
-
-                    {/* Radius slider */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, background: 'var(--dark-3)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 16px' }}>
                       <span style={{ fontSize: 13, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Travel radius:</span>
-                      <input
-                        type="range" min={50} max={1500} step={50}
-                        value={radius}
+                      <input type="range" min={50} max={1500} step={50} value={radius}
                         onChange={e => { setRadius(Number(e.target.value)); if (homeCoords) updateRadiusLocations(i, homeCoords, Number(e.target.value)) }}
-                        style={{ flex: 1, accentColor: 'var(--gold)' }}
-                      />
+                        style={{ flex: 1, accentColor: 'var(--gold)' }} />
                       <span style={{ fontSize: 18, color: 'var(--gold)', fontFamily: 'Bebas Neue', letterSpacing: '0.05em', minWidth: 70 }}>{radius} km</span>
                     </div>
-
                     {radiusError && <p style={{ fontSize: 12, color: '#ff6b6b', marginBottom: 8 }}>{radiusError}</p>}
-
-                    {/* Leaflet Map */}
                     <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', marginBottom: 12, position: 'relative' }}>
                       <div id={`map-${i}`} className='leaflet-map' style={{ height: 'min(360px, 55vw)', minHeight: 220, width: '100%', background: '#1a1a2e' }} />
                       {!homeCoords && (
-                        <div style={{
-                          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          background: 'var(--dark-3)', flexDirection: 'column', gap: 12,
-                          borderRadius: 8,
-                        }}>
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--dark-3)', flexDirection: 'column', gap: 12, borderRadius: 8 }}>
                           <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--dark-4)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>📍</div>
                           <div style={{ color: 'var(--text-muted)', fontSize: 14, textAlign: 'center', lineHeight: 1.6 }}>
-                            Enter your suburb or address above<br/>and click <strong style={{ color: 'var(--gold)' }}>SEARCH →</strong> to see the map
+                            Enter your suburb above<br/>and click <strong style={{ color: 'var(--gold)' }}>SEARCH →</strong>
                           </div>
                         </div>
                       )}
                     </div>
-
-                    {/* Manual location selection */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <div>
-                        {homeCoords ? (
-                          <p style={{ fontSize: 12, color: 'var(--gold)', margin: 0 }}>
-                            ✓ {v.locations.length} location{v.locations.length !== 1 ? 's' : ''} selected — fine-tune below
-                          </p>
-                        ) : (
-                          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
-                            Manually select which locations to monitor
-                          </p>
-                        )}
-                      </div>
+                      <p style={{ fontSize: 12, color: homeCoords ? 'var(--gold)' : 'var(--text-muted)', margin: 0 }}>
+                        {homeCoords ? `✓ ${v.locations.length} location${v.locations.length !== 1 ? 's' : ''} selected` : 'Manually select locations'}
+                      </p>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button
-                          onClick={() => setVehicles(vs => vs.map((v2, idx) => idx === i ? { ...v2, locations: WOVI_LOCATIONS.map(l => l.name) } : v2))}
-                          style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontFamily: 'DM Sans' }}
-                        >Select All</button>
-                        <button
-                          onClick={() => setVehicles(vs => vs.map((v2, idx) => idx === i ? { ...v2, locations: [] } : v2))}
-                          style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontFamily: 'DM Sans' }}
-                        >Clear All</button>
+                        <button onClick={() => setVehicles(vs => vs.map((v2, idx) => idx === i ? { ...v2, locations: WOVI_LOCATIONS.map(l => l.name) } : v2))}
+                          style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontFamily: 'DM Sans' }}>Select All</button>
+                        <button onClick={() => setVehicles(vs => vs.map((v2, idx) => idx === i ? { ...v2, locations: [], priority_locations: [] } : v2))}
+                          style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontFamily: 'DM Sans' }}>Clear All</button>
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -635,20 +667,13 @@ export default function RegisterQLD() {
                         const selected = v.locations.includes(loc.name)
                         const dist = homeCoords ? Math.round(haversineKm(homeCoords.lat, homeCoords.lng, loc.lat, loc.lng)) : null
                         return (
-                          <div
-                            key={loc.name}
-                            onClick={() => toggleLocation(i, loc.name)}
-                            style={{
-                              padding: '7px 12px', borderRadius: 6, cursor: 'pointer',
-                              border: `1px solid ${selected ? 'var(--gold)' : 'var(--border)'}`,
-                              background: selected ? 'var(--dark-3)' : 'var(--dark-4)',
-                              color: selected ? 'var(--gold)' : 'var(--text-muted)',
-                              fontSize: 13, transition: 'all 0.2s',
-                              userSelect: 'none',
-                            }}
-                            onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLElement).style.borderColor = 'var(--text-muted)' }}
-                            onMouseLeave={e => { if (!selected) (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
-                          >
+                          <div key={loc.name} onClick={() => toggleLocation(i, loc.name)} style={{
+                            padding: '7px 12px', borderRadius: 6, cursor: 'pointer',
+                            border: `1px solid ${selected ? 'var(--gold)' : 'var(--border)'}`,
+                            background: selected ? 'var(--dark-3)' : 'var(--dark-4)',
+                            color: selected ? 'var(--gold)' : 'var(--text-muted)',
+                            fontSize: 13, transition: 'all 0.2s', userSelect: 'none',
+                          }}>
                             {selected ? '✓ ' : '+ '}{loc.name}{dist !== null ? ` · ${dist}km` : ''}
                           </div>
                         )
@@ -658,44 +683,60 @@ export default function RegisterQLD() {
                       <p style={{ fontSize: 12, color: '#ff6b6b', marginTop: 8 }}>⚠️ Please select at least one location.</p>
                     )}
 
-                    {/* Priority locations */}
+                    {/* Priority locations — numbered */}
                     {v.locations.length > 0 && (
                       <div style={{ marginTop: 16, padding: '14px 16px', background: 'var(--dark-4)', borderRadius: 8, border: '1px solid var(--border)' }}>
                         <div style={{ fontSize: 12, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
                           🥇 Priority Locations <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional — up to 2)</span>
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, lineHeight: 1.5 }}>
-                          If multiple locations have the same earliest date, these will be booked first. If no slots at priority locations, the monitor books the next available anywhere.
+                          Your 1st click = Priority 1 (checked first). Your 2nd click = Priority 2 (checked second). All other selected locations are checked after.
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {v.locations.map(loc => {
-                            const isPriority = (v.priority_locations || []).includes(loc)
+                            const priorityIndex = (v.priority_locations || []).indexOf(loc)
+                            const isPriority = priorityIndex !== -1
+                            const priorityNum = priorityIndex + 1
                             const atMax = (v.priority_locations || []).length >= 2
                             return (
                               <button key={loc} type="button"
-                                onClick={() => {
-                                  const current = v.priority_locations || []
-                                  const updated = isPriority
-                                    ? current.filter(l => l !== loc)
-                                    : atMax ? current : [...current, loc]
-                                  setVehicles(vs => vs.map((v2, idx) => idx === i ? { ...v2, priority_locations: updated } : v2))
-                                }}
+                                onClick={() => togglePriority(i, loc)}
                                 style={{
                                   padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
                                   border: `1px solid ${isPriority ? 'var(--gold)' : 'var(--border)'}`,
                                   background: isPriority ? 'var(--dark-2)' : 'transparent',
-                                  color: isPriority ? 'var(--gold)' : atMax && !isPriority ? 'var(--text-muted)' : 'var(--text-muted)',
+                                  color: isPriority ? 'var(--gold)' : atMax && !isPriority ? '#555' : 'var(--text-muted)',
                                   opacity: atMax && !isPriority ? 0.5 : 1,
+                                  fontWeight: isPriority ? 600 : 400,
+                                  transition: 'all 0.15s',
                                 }}
                               >
-                                {isPriority ? '🥇 ' : ''}{loc}
+                                {isPriority ? (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                    <span style={{
+                                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                      width: 18, height: 18, borderRadius: '50%',
+                                      background: 'var(--gold)', color: '#000',
+                                      fontSize: 10, fontWeight: 700, flexShrink: 0,
+                                    }}>{priorityNum}</span>
+                                    {loc}
+                                  </span>
+                                ) : loc}
                               </button>
                             )
                           })}
                         </div>
                         {(v.priority_locations || []).length > 0 && (
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
-                            Priority: {(v.priority_locations || []).join(' → ')}
+                            Scan order: {(v.priority_locations || []).map((l, idx) => (
+                              <span key={l}>
+                                <span style={{ color: 'var(--gold)', fontWeight: 600 }}>#{idx+1} {l}</span>
+                                {idx < (v.priority_locations || []).length - 1 ? ' → ' : ''}
+                              </span>
+                            ))}
+                            {v.locations.filter(l => !(v.priority_locations || []).includes(l)).length > 0 && (
+                              <span> → then remaining {v.locations.filter(l => !(v.priority_locations || []).includes(l)).length} location{v.locations.filter(l => !(v.priority_locations || []).includes(l)).length !== 1 ? 's' : ''}</span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -709,8 +750,7 @@ export default function RegisterQLD() {
               width: '100%', padding: '14px', borderRadius: 8,
               border: '1px dashed var(--border)', background: 'transparent',
               color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14,
-              fontFamily: 'DM Sans', marginBottom: 16,
-              transition: 'border-color 0.2s, color 0.2s',
+              fontFamily: 'DM Sans', marginBottom: 16, transition: 'border-color 0.2s, color 0.2s',
             }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--gold)'; (e.currentTarget as HTMLElement).style.color = 'var(--gold)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)' }}
