@@ -39,6 +39,9 @@ type Vehicle = {
   colour?: string
   vehicle_type?: string
   build_month?: string
+  damage?: string
+  purchase_method?: string
+  purchased_from?: string
   cutoff_date: string
   booked_date?: string
   booked_time?: string
@@ -622,6 +625,8 @@ export default function Admin() {
                                   { label: 'Year', field: 'year', width: 60 },
                                   { label: 'Colour', field: 'colour', width: 80 },
                                   { label: 'VIN', field: 'vin', width: 160 },
+                                  { label: 'Label/Nickname', field: 'label', width: 130 },
+                                  { label: 'Purchased From', field: 'purchased_from', width: 150 },
                                 ] as { label: string; field: keyof Vehicle; width: number }[]).map(({ label, field, width }) => (
                                   <div key={String(field)}>
                                     <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{label}</div>
@@ -632,6 +637,24 @@ export default function Admin() {
                                     />
                                   </div>
                                 ))}
+                                {([
+                                  { label: 'Vehicle Type', field: 'vehicle_type', width: 120, options: ['Car','Motorcycle','Truck','Trailer','Caravan'] },
+                                  { label: 'Build Month', field: 'build_month', width: 100, options: ['January','February','March','April','May','June','July','August','September','October','November','December'] },
+                                  { label: 'Damage', field: 'damage', width: 110, options: ['Hail','Flood','Collision','Fire','Other'] },
+                                  { label: 'Purchase Method', field: 'purchase_method', width: 140, options: ['Auction','Private Sale','Insurance','Other'] },
+                                ] as { label: string; field: keyof Vehicle; width: number; options: string[] }[]).map(({ label, field, width, options }) => (
+                                  <div key={String(field)}>
+                                    <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{label}</div>
+                                    <select
+                                      value={(vehicleEdits[v.id]?.[field] as string) || ''}
+                                      onChange={e => setVehicleEdits(eds => ({ ...eds, [v.id]: { ...eds[v.id], [field]: e.target.value } }))}
+                                      style={{ width, padding: '3px 6px', fontSize: 12, borderRadius: 4, background: 'var(--dark-3)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                                    >
+                                      <option value="">— Select —</option>
+                                      {options.map(o => <option key={o} value={o}>{o}</option>)}
+                                    </select>
+                                  </div>
+                                ))}
                                 <div style={{ display: 'flex', gap: 6 }}>
                                   <button onClick={() => saveVehicleEdits(v.id)} style={{ padding: '4px 10px', borderRadius: 6, background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>✓ Save</button>
                                   <button onClick={() => setEditingVehicle(null)} style={{ padding: '4px 8px', borderRadius: 6, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>✕</button>
@@ -639,14 +662,19 @@ export default function Admin() {
                               </div>
                             ) : (
                               <>
-                                <div style={{ fontWeight: 600, fontSize: 14 }}>{v.make} {v.model} {v.year}</div>
-                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>VIN: {v.vin}{v.colour ? ` · ${v.colour}` : ''}</div>
+                                <div style={{ fontWeight: 600, fontSize: 14 }}>{v.label ? `${v.label} — ` : ''}{v.make} {v.model} {v.year}{v.vehicle_type ? ` (${v.vehicle_type})` : ''}</div>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>VIN: {v.vin}{v.colour ? ` · ${v.colour}` : ''}{v.build_month ? ` · Built: ${v.build_month}` : ''}</div>
+                                {(v.damage || v.purchase_method || v.purchased_from) && (
+                                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                                    {[v.damage && `Damage: ${v.damage}`, v.purchase_method && `Purchased: ${v.purchase_method}`, v.purchased_from && `From: ${v.purchased_from}`].filter(Boolean).join(' · ')}
+                                  </div>
+                                )}
                               </>
                             )}
                           </div>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                             {editingVehicle !== v.id && (
-                              <button onClick={() => { setEditingVehicle(v.id); setVehicleEdits(eds => ({ ...eds, [v.id]: { make: v.make, model: v.model, year: v.year, colour: v.colour || '', vin: v.vin } })) }} style={{ padding: '3px 8px', borderRadius: 4, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer', fontFamily: 'DM Sans' }}>✏️</button>
+                              <button onClick={() => { setEditingVehicle(v.id); setVehicleEdits(eds => ({ ...eds, [v.id]: { make: v.make, model: v.model, year: v.year, colour: v.colour || '', vin: v.vin, label: v.label || '', vehicle_type: v.vehicle_type || '', build_month: v.build_month || '', damage: v.damage || '', purchase_method: v.purchase_method || '', purchased_from: v.purchased_from || '' } })) }} style={{ padding: '3px 8px', borderRadius: 4, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer', fontFamily: 'DM Sans' }}>✏️</button>
                             )}
                             <div onClick={() => toggleVehicle(v.id, v.active)} style={{ cursor: 'pointer' }}>
                               <span className={`badge ${v.active ? 'badge-active' : 'badge-inactive'}`}>
