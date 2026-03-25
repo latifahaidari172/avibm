@@ -82,6 +82,7 @@ export default function RegisterQLD() {
     address: '', suburb: '', postcode: '', crn: '',
   })
   const [vehicles, setVehicles] = useState<Vehicle[]>([emptyVehicle()])
+  const [hasBookingConfirmed, setHasBookingConfirmed] = useState(false)
 
   const updateOwner = (k: string, v: string) => setOwner(p => ({ ...p, [k]: v }))
   const updateVehicle = (i: number, k: string, v: string) =>
@@ -99,6 +100,8 @@ export default function RegisterQLD() {
   }
 
   const validateStep2 = () => {
+    if (!hasBookingConfirmed)
+      return 'Please confirm you have an existing WOVI booking and have paid the $100 deposit before continuing.'
     for (let i = 0; i < vehicles.length; i++) {
       const v = vehicles[i]
       const missing = []
@@ -573,43 +576,72 @@ export default function RegisterQLD() {
 
                   {/* Current booking details */}
                   <div style={{ gridColumn: '1 / -1' }}>
-                    <div style={{ background: 'var(--dark-4)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
-                      <div style={{ color: 'var(--gold)', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>
-                        📅 Current Inspection Booking
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                    {/* Booking confirmation checkbox */}
+                    <div style={{
+                      background: hasBookingConfirmed ? '#0d1a0d' : '#1a0d0d',
+                      border: `1px solid ${hasBookingConfirmed ? '#2a4a2a' : '#4a1a1a'}`,
+                      borderRadius: 8, padding: '14px 16px', marginBottom: 10,
+                    }}>
+                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={hasBookingConfirmed}
+                          onChange={e => setHasBookingConfirmed(e.target.checked)}
+                          style={{ marginTop: 3, width: 16, height: 16, flexShrink: 0, cursor: 'pointer' }}
+                        />
                         <div>
-                          <label style={{ fontSize: 12 }}>Booking Date *</label>
-                          <input
-                            type="date"
-                            value={v.current_booking_date}
-                            onChange={e => updateVehicle(i, 'current_booking_date', e.target.value)}
-                          />
+                          <div style={{ fontWeight: 600, fontSize: 14, color: hasBookingConfirmed ? '#5adb5a' : '#ff6b6b' }}>
+                            {hasBookingConfirmed ? '✅ Confirmed — I have an existing WOVI booking' : '⚠️ I confirm I have already booked a WOVI inspection and paid the $100 deposit'}
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
+                            AVIBM can only reschedule an <strong>existing</strong> booking to an earlier date. You must first go to{' '}
+                            <a href="https://wovi.com.au/bookings/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)' }}>wovi.com.au</a>
+                            {' '}and book an inspection + pay the $100 deposit before registering here.
+                          </div>
                         </div>
-                        <div>
-                          <label style={{ fontSize: 12 }}>Booking Time</label>
-                          <input
-                            type="text"
-                            value={v.current_booking_time}
-                            onChange={e => updateVehicle(i, 'current_booking_time', e.target.value)}
-                            placeholder="e.g. 9:00 AM"
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: 12 }}>Location</label>
-                          <select
-                            value={v.current_booking_location}
-                            onChange={e => updateVehicle(i, 'current_booking_location', e.target.value)}
-                          >
-                            <option value="">Select location</option>
-                            {WOVI_LOCATIONS.map(l => <option key={l.name} value={l.name}>{l.name}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8, marginBottom: 0 }}>
-                        We&apos;ll only rebook if we find a slot earlier than your current booking date.
-                      </p>
+                      </label>
                     </div>
+
+                    {/* Booking date fields — only shown once confirmed */}
+                    {hasBookingConfirmed && (
+                      <div style={{ background: 'var(--dark-4)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
+                        <div style={{ color: 'var(--gold)', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>
+                          📅 Current Inspection Booking
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                          <div>
+                            <label style={{ fontSize: 12 }}>Booking Date *</label>
+                            <input
+                              type="date"
+                              value={v.current_booking_date}
+                              onChange={e => updateVehicle(i, 'current_booking_date', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 12 }}>Booking Time</label>
+                            <input
+                              type="text"
+                              value={v.current_booking_time}
+                              onChange={e => updateVehicle(i, 'current_booking_time', e.target.value)}
+                              placeholder="e.g. 9:00 AM"
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 12 }}>Location</label>
+                            <select
+                              value={v.current_booking_location}
+                              onChange={e => updateVehicle(i, 'current_booking_location', e.target.value)}
+                            >
+                              <option value="">Select location</option>
+                              {WOVI_LOCATIONS.map(l => <option key={l.name} value={l.name}>{l.name}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8, marginBottom: 0 }}>
+                          We&apos;ll only rebook if we find a slot earlier than your current booking date.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Location selector */}
