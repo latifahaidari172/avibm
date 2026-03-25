@@ -61,7 +61,7 @@ export default function RegisterSA() {
       const { data: customer, error: ce } = await supabase
         .from('customers')
         .insert({
-          state: 'SA', active: false,
+          state: 'SA', active: false, tier: 'basic',
           first_name: form.first_name, last_name: form.last_name,
           email: form.email, phone: form.phone,
           address: form.address, suburb: form.suburb, postcode: form.postcode,
@@ -82,34 +82,15 @@ export default function RegisterSA() {
       })
       if (ve) throw new Error(ve.message)
 
-      // Notify admin + send customer confirmation
-      await fetch('/api/notify-registration', {
+      // Redirect to Stripe payment
+      const res = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: `${form.first_name} ${form.last_name}`,
-          email: form.email,
-          phone: form.phone,
-          state: 'SA',
-          vehicles: 1,
-          tier: 'priority',
-        })
+        body: JSON.stringify({ tier: 'basic', customer_id: customer.id, state: 'SA' }),
       })
-
-      // Send registration confirmation to customer
-      await fetch('/api/registration-confirmation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: `${form.first_name} ${form.last_name}`,
-          email: form.email,
-          state: 'SA',
-          vehicles: 1,
-          tier: 'priority',
-        })
-      })
-
-      setDone(true)
+      const { url, error: stripeError } = await res.json()
+      if (stripeError || !url) throw new Error(stripeError || 'Payment setup failed. Please try again.')
+      window.location.href = url
     } catch (e: any) {
       setError(e.message || 'Something went wrong. Please try again.')
     } finally {

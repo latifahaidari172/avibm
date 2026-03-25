@@ -333,25 +333,21 @@ export default function RegisterQLD() {
       const { error: ve } = await supabase.from('vehicles').insert(vehicleRows)
       if (ve) throw new Error(ve.message)
 
-      // Only send payment email if NOT whitelisted
       if (!isFree) {
-        await fetch('/api/notify-registration', {
+        // Redirect to Stripe payment
+        const res = await fetch('/api/create-checkout-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: `${owner.first_name} ${owner.last_name}`,
-            email: owner.email,
-            phone: owner.phone,
-            state: 'QLD',
-            vehicles: vehicles.length,
-            tier: selectedTier,
-            priority_locations: vehicles.flatMap(v => v.priority_locations || []).filter((v, i, a) => a.indexOf(v) === i),
-          })
+          body: JSON.stringify({ tier: selectedTier, customer_id: customer.id, state: 'QLD' }),
         })
+        const { url, error: stripeError } = await res.json()
+        if (stripeError || !url) throw new Error(stripeError || 'Payment setup failed. Please try again.')
+        window.location.href = url
+        return
       }
 
-      // Always send registration confirmation
-      await fetch('/api/registration-confirmation', {
+      // Free/whitelisted — send activation email immediately
+      await fetch('/api/activation-confirmation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -359,8 +355,6 @@ export default function RegisterQLD() {
           email: owner.email,
           state: 'QLD',
           vehicles: vehicles.length,
-          tier: isFree ? 'priority' : selectedTier,
-          is_free: isFree,
         })
       })
 
