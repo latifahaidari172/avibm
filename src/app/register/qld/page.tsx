@@ -157,7 +157,7 @@ export default function RegisterQLD() {
     setAddrSuggestions([])
   }
 
-  const [radius, setRadius] = useState(200)
+  const [radius, setRadius] = useState(50)
   const [radiusLoading, setRadiusLoading] = useState(false)
   const [radiusError, setRadiusError] = useState('')
   const [homeCoords, setHomeCoords] = useState<{lat:number,lng:number}|null>(null)
