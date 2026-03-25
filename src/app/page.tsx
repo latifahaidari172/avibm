@@ -194,7 +194,10 @@ export default function Home() {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8,
       }}>
         <span style={{ fontFamily: 'Bebas Neue', fontSize: 16, color: 'var(--gold)', letterSpacing: '0.15em' }}>AVIBM</span>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Australian Vehicle Inspection Booking Monitor</span>
+        <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+          <Link href="/status" style={{ fontSize: 12, color: 'var(--text-muted)', textDecoration: 'none' }}>Check Monitor Status</Link>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Australian Vehicle Inspection Booking Monitor</span>
+        </div>
       </footer>
 
     </main>

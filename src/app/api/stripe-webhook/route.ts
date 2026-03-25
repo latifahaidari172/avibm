@@ -67,6 +67,10 @@ export async function POST(request: Request) {
         <div style="padding:16px 20px;background:#1a1a0a;border:1px solid #3a3a00;border-radius:8px;margin-bottom:24px;">
           <p style="margin:0;font-size:13px;color:#C9A84C;line-height:1.6;">You don't need to do anything — just sit back and we'll handle it!</p>
         </div>
+        <div style="padding:14px 20px;background:#111;border:1px solid #222;border-radius:8px;margin-bottom:20px;text-align:center;">
+          <p style="margin:0 0 8px;font-size:12px;color:#555;">Want to check your monitor status anytime?</p>
+          <a href="https://avibm.vercel.app/status" style="font-size:13px;color:#C9A84C;text-decoration:none;font-weight:700;">avibm.vercel.app/status →</a>
+        </div>
         <p style="margin:0;font-size:13px;color:#555;line-height:1.7;">Thank you for choosing AVIBM. If you have any questions, simply reply to this email.</p>
       `)
 
