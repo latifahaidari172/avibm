@@ -237,6 +237,14 @@ export default function Admin() {
     localStorage.setItem('avibm_free_list', JSON.stringify(updated))
   }
 
+  const updateLocations = async (vid: string, locs: string[]) => {
+    await supabase.from('vehicles').update({ locations: locs }).eq('id', vid)
+    setCustomers(cs => cs.map(c => ({
+      ...c,
+      vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, locations: locs } : v)
+    })))
+  }
+
   const updatePriorityLocations = async (vid: string, locs: string[]) => {
     await supabase.from('vehicles').update({ priority_locations: locs }).eq('id', vid)
     setCustomers(cs => cs.map(c => ({
@@ -858,6 +866,41 @@ export default function Admin() {
                               {(v.priority_locations || []).filter(Boolean).length === 0
                                 ? 'No priority set — books earliest slot at any location'
                                 : `Checks in order: ${(v.priority_locations || []).filter(Boolean).join(' → ')} → then any remaining`
+                              }
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Locations Checklist */}
+                        {v.state === 'QLD' && (
+                          <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--dark-4)', borderRadius: 6, border: '1px solid var(--border)' }}>
+                            <div style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>📍 Locations to Search</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {['Brisbane','Bundaberg','Burleigh Heads','Cairns','Mackay','Narangba','Rockhampton City','Toowoomba','Townsville','Yatala'].map(loc => {
+                                const allLocs = v.locations && v.locations.length > 0 ? v.locations : ['Brisbane','Bundaberg','Burleigh Heads','Cairns','Mackay','Narangba','Rockhampton City','Toowoomba','Townsville','Yatala']
+                                const checked = allLocs.includes(loc)
+                                return (
+                                  <div key={loc} onClick={() => {
+                                    const current = v.locations && v.locations.length > 0 ? v.locations : ['Brisbane','Bundaberg','Burleigh Heads','Cairns','Mackay','Narangba','Rockhampton City','Toowoomba','Townsville','Yatala']
+                                    const updated = checked ? current.filter(l => l !== loc) : [...current, loc]
+                                    updateLocations(v.id, updated)
+                                  }} style={{
+                                    display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px',
+                                    borderRadius: 20, fontSize: 11, cursor: 'pointer', userSelect: 'none',
+                                    background: checked ? '#1a2a1a' : 'transparent',
+                                    border: `1px solid ${checked ? '#2a4a2a' : 'var(--border)'}`,
+                                    color: checked ? '#5adb5a' : 'var(--text-muted)',
+                                    transition: 'all 0.15s',
+                                  }}>
+                                    <span>{checked ? '✓' : '○'}</span> {loc}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                              {!v.locations || v.locations.length === 0
+                                ? 'All locations enabled (default)'
+                                : `Searching ${v.locations.length} location${v.locations.length !== 1 ? 's' : ''}`
                               }
                             </div>
                           </div>
