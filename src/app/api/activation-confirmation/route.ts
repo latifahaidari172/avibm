@@ -32,6 +32,11 @@ export async function POST(request: Request) {
         <p style="margin:0;font-size:13px;color:#C9A84C;line-height:1.6;"><strong style="color:#C9A84C;">The moment an earlier slot becomes available</strong>, we will automatically rebook it for you and send you an email confirmation with the new date and location straight away.</p>
       </div>
 
+      <div style="padding:14px 20px;background:#111;border:1px solid #222;border-radius:8px;margin-bottom:20px;text-align:center;">
+        <p style="margin:0 0 8px;font-size:12px;color:#555;">Want to check your monitor status anytime?</p>
+        <a href="https://avibm.vercel.app/status" style="font-size:13px;color:#C9A84C;text-decoration:none;font-weight:700;">avibm.vercel.app/status →</a>
+      </div>
+
       <p style="margin:0;font-size:13px;color:#555;line-height:1.7;">Thank you for choosing AVIBM. We're working hard around the clock to get you the earliest possible appointment. If you have any questions, simply reply to this email.</p>
     `)
 
