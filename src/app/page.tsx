@@ -21,8 +21,8 @@ export default function Home() {
           <span style={{ fontFamily: 'Bebas Neue', fontSize: 22, letterSpacing: '0.15em', color: 'var(--gold)' }}>AVIBM</span>
           <span style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.08em', lineHeight: 1 }}>VEHICLE INSPECTION BOOKING MONITOR</span>
         </div>
-        <Link href="/admin" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none', letterSpacing: '0.05em' }}>
-          Admin →
+        <Link href="/status" style={{ color: 'var(--gold)', fontSize: 13, textDecoration: 'none', letterSpacing: '0.05em', border: '1px solid var(--gold)', padding: '6px 14px', borderRadius: 6 }}>
+          Check Status
         </Link>
       </header>
 
