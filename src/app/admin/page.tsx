@@ -19,6 +19,7 @@ type Customer = {
   postcode?: string
   crn?: string
   licence_number?: string
+  date_of_birth?: string
   vehicles?: Vehicle[]
 }
 
@@ -35,6 +36,9 @@ type Vehicle = {
   model: string
   year: string
   vin: string
+  colour?: string
+  vehicle_type?: string
+  build_month?: string
   cutoff_date: string
   booked_date?: string
   booked_time?: string
@@ -46,6 +50,7 @@ type Vehicle = {
   state: string
   search_after_date?: string
   search_after_active?: boolean
+  notes?: string
 }
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'avibm2024'
@@ -67,6 +72,10 @@ export default function Admin() {
   const [tab, setTab] = useState<'all' | 'QLD' | 'SA'>('all')
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [editingCustomer, setEditingCustomer] = useState<string | null>(null)
+  const [customerEdits, setCustomerEdits] = useState<Record<string, Partial<Customer>>>({})
+  const [editingVehicle, setEditingVehicle] = useState<string | null>(null)
+  const [vehicleEdits, setVehicleEdits] = useState<Record<string, Partial<Vehicle>>>({})
   const [freeList, setFreeList] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('avibm_free_list') || '[]') } catch { return [] }
   })
@@ -233,6 +242,33 @@ export default function Admin() {
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, priority_locations: locs } : v)
+    })))
+  }
+
+  const saveCustomerEdits = async (id: string) => {
+    const edits = customerEdits[id]
+    if (!edits) return
+    await supabase.from('customers').update(edits).eq('id', id)
+    setCustomers(cs => cs.map(c => c.id === id ? { ...c, ...edits } : c))
+    setEditingCustomer(null)
+  }
+
+  const saveVehicleEdits = async (vid: string) => {
+    const edits = vehicleEdits[vid]
+    if (!edits) return
+    await supabase.from('vehicles').update(edits).eq('id', vid)
+    setCustomers(cs => cs.map(c => ({
+      ...c,
+      vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, ...edits } : v)
+    })))
+    setEditingVehicle(null)
+  }
+
+  const updateNotes = async (vid: string, notes: string) => {
+    await supabase.from('vehicles').update({ notes }).eq('id', vid)
+    setCustomers(cs => cs.map(c => ({
+      ...c,
+      vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, notes } : v)
     })))
   }
 
@@ -513,10 +549,51 @@ export default function Admin() {
                 {/* Expanded detail */}
                 {expandedId === c.id && (
                   <div style={{ borderTop: '1px solid var(--border)', padding: '20px' }}>
-                    <div className='customer-detail-grid' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 20, fontSize: 13 }}>
-                      <div><span style={{ color: 'var(--text-muted)' }}>Address: </span>{c.address}, {c.suburb} {c.postcode}</div>
-                      {c.crn && <div><span style={{ color: 'var(--text-muted)' }}>CRN: </span>{c.crn}</div>}
-                      {c.licence_number && <div><span style={{ color: 'var(--text-muted)' }}>Licence: </span>{c.licence_number}</div>}
+                    {/* Customer Details — view / edit */}
+                    <div style={{ marginBottom: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <div className="section-label" style={{ marginBottom: 0 }}>Customer Details</div>
+                        {editingCustomer === c.id ? (
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button onClick={() => saveCustomerEdits(c.id)} style={{ padding: '4px 12px', borderRadius: 6, background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>✓ Save</button>
+                            <button onClick={() => setEditingCustomer(null)} style={{ padding: '4px 12px', borderRadius: 6, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>Cancel</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setEditingCustomer(c.id); setCustomerEdits(e => ({ ...e, [c.id]: { first_name: c.first_name, last_name: c.last_name, email: c.email, phone: c.phone, address: c.address, suburb: c.suburb, postcode: c.postcode, crn: c.crn, licence_number: c.licence_number, date_of_birth: c.date_of_birth } })) }} style={{ padding: '4px 12px', borderRadius: 6, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>✏️ Edit</button>
+                        )}
+                      </div>
+                      {editingCustomer === c.id ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8, fontSize: 13 }}>
+                          {([
+                            { label: 'First Name', field: 'first_name' },
+                            { label: 'Last Name', field: 'last_name' },
+                            { label: 'Email', field: 'email' },
+                            { label: 'Phone', field: 'phone' },
+                            { label: 'Address', field: 'address' },
+                            { label: 'Suburb', field: 'suburb' },
+                            { label: 'Postcode', field: 'postcode' },
+                            { label: 'CRN', field: 'crn' },
+                            { label: 'Licence No.', field: 'licence_number' },
+                            { label: 'Date of Birth', field: 'date_of_birth' },
+                          ] as { label: string; field: keyof Customer }[]).map(({ label, field }) => (
+                            <div key={String(field)}>
+                              <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>{label}</div>
+                              <input
+                                value={(customerEdits[c.id]?.[field] as string) || ''}
+                                onChange={e => setCustomerEdits(eds => ({ ...eds, [c.id]: { ...eds[c.id], [field]: e.target.value } }))}
+                                style={{ width: '100%', padding: '4px 8px', fontSize: 13, borderRadius: 4, boxSizing: 'border-box' }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className='customer-detail-grid' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 13 }}>
+                          <div><span style={{ color: 'var(--text-muted)' }}>Address: </span>{c.address}, {c.suburb} {c.postcode}</div>
+                          {c.crn && <div><span style={{ color: 'var(--text-muted)' }}>CRN: </span>{c.crn}</div>}
+                          {c.licence_number && <div><span style={{ color: 'var(--text-muted)' }}>Licence: </span>{c.licence_number}</div>}
+                          {c.date_of_birth && <div><span style={{ color: 'var(--text-muted)' }}>DOB: </span>{c.date_of_birth}</div>}
+                        </div>
+                      )}
                     </div>
 
                     <div className="section-label" style={{ marginBottom: 12 }}>Vehicles</div>
@@ -527,15 +604,47 @@ export default function Admin() {
                         borderRadius: 8, padding: '14px 16px', marginBottom: 8,
                       }}>
                         {/* Vehicle header */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: 14 }}>{v.make} {v.model} {v.year}</div>
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>VIN: {v.vin}</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 8 }}>
+                          <div style={{ flex: 1 }}>
+                            {editingVehicle === v.id ? (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'flex-end' }}>
+                                {([
+                                  { label: 'Make', field: 'make', width: 80 },
+                                  { label: 'Model', field: 'model', width: 100 },
+                                  { label: 'Year', field: 'year', width: 60 },
+                                  { label: 'Colour', field: 'colour', width: 80 },
+                                  { label: 'VIN', field: 'vin', width: 160 },
+                                ] as { label: string; field: keyof Vehicle; width: number }[]).map(({ label, field, width }) => (
+                                  <div key={String(field)}>
+                                    <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{label}</div>
+                                    <input
+                                      value={(vehicleEdits[v.id]?.[field] as string) || ''}
+                                      onChange={e => setVehicleEdits(eds => ({ ...eds, [v.id]: { ...eds[v.id], [field]: e.target.value } }))}
+                                      style={{ width, padding: '3px 6px', fontSize: 12, borderRadius: 4 }}
+                                    />
+                                  </div>
+                                ))}
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <button onClick={() => saveVehicleEdits(v.id)} style={{ padding: '4px 10px', borderRadius: 6, background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>✓ Save</button>
+                                  <button onClick={() => setEditingVehicle(null)} style={{ padding: '4px 8px', borderRadius: 6, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>✕</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ fontWeight: 600, fontSize: 14 }}>{v.make} {v.model} {v.year}</div>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>VIN: {v.vin}{v.colour ? ` · ${v.colour}` : ''}</div>
+                              </>
+                            )}
                           </div>
-                          <div onClick={() => toggleVehicle(v.id, v.active)} style={{ cursor: 'pointer' }}>
-                            <span className={`badge ${v.active ? 'badge-active' : 'badge-inactive'}`}>
-                              {v.active ? '● ON' : '○ OFF'}
-                            </span>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                            {editingVehicle !== v.id && (
+                              <button onClick={() => { setEditingVehicle(v.id); setVehicleEdits(eds => ({ ...eds, [v.id]: { make: v.make, model: v.model, year: v.year, colour: v.colour || '', vin: v.vin } })) }} style={{ padding: '3px 8px', borderRadius: 4, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer', fontFamily: 'DM Sans' }}>✏️</button>
+                            )}
+                            <div onClick={() => toggleVehicle(v.id, v.active)} style={{ cursor: 'pointer' }}>
+                              <span className={`badge ${v.active ? 'badge-active' : 'badge-inactive'}`}>
+                                {v.active ? '● ON' : '○ OFF'}
+                              </span>
+                            </div>
                           </div>
                         </div>
 
@@ -707,34 +816,83 @@ export default function Admin() {
                         </div>
 
                         {/* Priority Locations */}
-                        <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--dark-4)', borderRadius: 6, border: '1px solid var(--border)' }}>
-                          <div style={{ color: 'var(--gold)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>🥇 Priority Locations (max 2)</div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                            {['Brisbane','Bundaberg','Burleigh Heads','Cairns','Mackay','Narangba','Rockhampton City','Toowoomba','Townsville','Yatala'].map((loc: string) => {
-                              const isPriority = (v.priority_locations || []).includes(loc)
-                              const atMax = (v.priority_locations || []).length >= 2
-                              return (
-                                <button key={loc} onClick={() => {
-                                  const current = v.priority_locations || []
-                                  const updated = isPriority ? current.filter((l: string) => l !== loc) : atMax ? current : [...current, loc]
-                                  updatePriorityLocations(v.id, updated)
-                                }} style={{
-                                  padding: '3px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer',
-                                  border: `1px solid ${isPriority ? 'var(--gold)' : 'var(--border)'}`,
-                                  background: isPriority ? '#2a2000' : 'transparent',
-                                  color: isPriority ? 'var(--gold)' : atMax && !isPriority ? '#444' : 'var(--text-muted)',
-                                  opacity: atMax && !isPriority ? 0.5 : 1,
-                                  transition: 'all 0.15s',
-                                }}>
-                                  {isPriority ? '🥇 ' : ''}{loc}
-                                </button>
-                              )
-                            })}
+                        {v.state === 'QLD' && (
+                          <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--dark-4)', borderRadius: 6, border: '1px solid var(--border)' }}>
+                            <div style={{ color: 'var(--gold)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>🥇 Priority Locations</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 6 }}>
+                              {([0, 1] as const).map(idx => {
+                                const slotLabel = idx === 0 ? 'Priority 1' : 'Priority 2'
+                                const currentVal = (v.priority_locations || [])[idx] || ''
+                                const otherVal = (v.priority_locations || [])[1 - idx] || ''
+                                return (
+                                  <div key={idx}>
+                                    <div style={{ fontSize: 10, color: idx === 0 ? 'var(--gold)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                                      {idx === 0 ? '🥇' : '🥈'} {slotLabel}
+                                    </div>
+                                    <select
+                                      value={currentVal}
+                                      onChange={e => {
+                                        const newLoc = e.target.value
+                                        const current = [...(v.priority_locations || [])]
+                                        if (newLoc) { current[idx] = newLoc } else { current.splice(idx, 1) }
+                                        updatePriorityLocations(v.id, current.filter(Boolean))
+                                      }}
+                                      style={{
+                                        width: '100%', padding: '5px 8px', fontSize: 12, borderRadius: 4, cursor: 'pointer',
+                                        background: currentVal ? '#2a2000' : 'var(--dark-3)',
+                                        border: `1px solid ${currentVal ? 'var(--gold)' : 'var(--border)'}`,
+                                        color: currentVal ? 'var(--gold)' : 'var(--text-muted)',
+                                      }}
+                                    >
+                                      <option value="">— None —</option>
+                                      {['Brisbane','Bundaberg','Burleigh Heads','Cairns','Mackay','Narangba','Rockhampton City','Toowoomba','Townsville','Yatala']
+                                        .filter(loc => loc !== otherVal || loc === currentVal)
+                                        .map(loc => <option key={loc} value={loc}>{loc}</option>)
+                                      }
+                                    </select>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                              {(v.priority_locations || []).filter(Boolean).length === 0
+                                ? 'No priority set — books earliest slot at any location'
+                                : `Checks in order: ${(v.priority_locations || []).filter(Boolean).join(' → ')} → then any remaining`
+                              }
+                            </div>
                           </div>
-                          {(v.priority_locations || []).length === 0
-                            ? <div style={{ fontSize: 11, color: '#555', marginTop: 6 }}>No priority set — books earliest at any location</div>
-                            : <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 6 }}>Priority: {(v.priority_locations || []).join(' → ')}</div>
-                          }
+                        )}
+
+                        {/* Admin Notes */}
+                        <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--dark-4)', borderRadius: 6, border: '1px solid var(--border)' }}>
+                          <div style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>📝 Admin Notes</div>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <textarea
+                              id={`notes-${v.id}`}
+                              defaultValue={v.notes || ''}
+                              placeholder="Add private notes about this vehicle..."
+                              rows={3}
+                              style={{
+                                flex: 1, padding: '6px 8px', fontSize: 13, borderRadius: 4,
+                                resize: 'vertical', fontFamily: 'DM Sans', lineHeight: 1.5,
+                                background: 'var(--dark-3)', border: '1px solid var(--border)', color: 'var(--text)',
+                              }}
+                            />
+                            <button
+                              onClick={async (e) => {
+                                const el = document.getElementById(`notes-${v.id}`) as HTMLTextAreaElement
+                                const btn = e.currentTarget as HTMLButtonElement
+                                await updateNotes(v.id, el?.value || '')
+                                btn.textContent = '✅'; btn.style.background = '#5adb5a'
+                                setTimeout(() => { btn.textContent = '✓ Save'; btn.style.background = 'var(--gold)' }, 1500)
+                              }}
+                              style={{
+                                padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                                background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700,
+                                fontFamily: 'DM Sans', whiteSpace: 'nowrap', alignSelf: 'flex-start',
+                              }}
+                            >✓ Save</button>
+                          </div>
                         </div>
                       </div>
                     ))}
