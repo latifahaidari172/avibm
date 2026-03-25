@@ -1,12 +1,5 @@
-// src/app/api/check-whitelist/route.ts
-// Checks if an email or phone is on the free whitelist stored in Supabase
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,21 +8,31 @@ export async function POST(req: NextRequest) {
     const cleanEmail = (email || '').toLowerCase().trim()
     const cleanPhone = (phone || '').replace(/\s/g, '').trim()
 
-    // Check whitelist table in Supabase
-    const { data, error } = await supabase
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    // Check email
+    const { data: emailMatch } = await supabase
       .from('free_customers')
       .select('entry')
-      .or(`entry.eq.${cleanEmail},entry.eq.${cleanPhone}`)
+      .eq('entry', cleanEmail)
       .limit(1)
 
-    if (error) {
-      console.error('Whitelist check error:', error)
-      return NextResponse.json({ whitelisted: false })
-    }
+    if (emailMatch && emailMatch.length > 0)
+      return NextResponse.json({ whitelisted: true })
 
-    return NextResponse.json({ whitelisted: data && data.length > 0 })
+    // Check phone
+    const { data: phoneMatch } = await supabase
+      .from('free_customers')
+      .select('entry')
+      .eq('entry', cleanPhone)
+      .limit(1)
+
+    return NextResponse.json({ whitelisted: phoneMatch != null && phoneMatch.length > 0 })
   } catch (e) {
-    console.error('Whitelist check exception:', e)
+    console.error('Whitelist check error:', e)
     return NextResponse.json({ whitelisted: false })
   }
 }
