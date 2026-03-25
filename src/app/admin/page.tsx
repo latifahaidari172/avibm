@@ -640,7 +640,7 @@ export default function Admin() {
                                 {([
                                   { label: 'Vehicle Type', field: 'vehicle_type', width: 120, options: ['Car','Motorcycle','Truck','Trailer','Caravan'] },
                                   { label: 'Build Month', field: 'build_month', width: 100, options: ['January','February','March','April','May','June','July','August','September','October','November','December'] },
-                                  { label: 'Damage', field: 'damage', width: 200, options: ['Hail Damage','Water Damage','Malicious Damage','Fire Damage','Structural Damage','Impact Damage - Drivers Front','Impact Damage - Passenger Front','Impact Damage - Drivers Side','Impact Damage - Passenger Side','Impact Damage - Drivers Rear','Impact Damage - Passenger Rear','Other'] },
+                                  { label: 'Damage', field: 'damage', width: 200, options: ['HAIL DAMAGE','WATER DAMAGE','MALICIOUS DAMAGE','FIRE DAMAGE','STRUCTURAL DAMAGE','IMPACT DAMAGE DRIVERS FRONT','IMPACT DAMAGE PASSENGER FRONT','IMPACT DAMAGE DRIVERS SIDE','IMPACT DAMAGE PASSENGER SIDE','IMPACT DAMAGE DRIVERS REAR','IMPACT DAMAGE PASSENGER REAR','OTHER'] },
                                   { label: 'Purchase Method', field: 'purchase_method', width: 140, options: ['Auction','Private Sale','Insurance','Other'] },
                                 ] as { label: string; field: keyof Vehicle; width: number; options: string[] }[]).map(({ label, field, width, options }) => (
                                   <div key={String(field)}>
