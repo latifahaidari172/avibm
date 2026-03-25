@@ -427,8 +427,8 @@ export default function RegisterQLD() {
               </div>
               <div><label>First Name</label><input autoComplete="given-name" value={owner.first_name} onChange={e => updateOwner('first_name', e.target.value)} placeholder="John" /></div>
               <div><label>Last Name</label><input autoComplete="family-name" value={owner.last_name} onChange={e => updateOwner('last_name', e.target.value)} placeholder="Smith" /></div>
-              <div><label>Email</label><input type="email" autoComplete="email" value={owner.email} onChange={e => updateOwner('email', e.target.value)} placeholder="john@email.com" /></div>
-              <div><label>Mobile</label><input autoComplete="tel" value={owner.phone} onChange={e => updateOwner('phone', e.target.value)} placeholder="0412 345 678" /></div>
+              <div><label>Email</label><input type="email" autoComplete="email" value={owner.email} onChange={e => updateOwner('email', e.target.value.toLowerCase())} placeholder="john@email.com" style={{ textTransform: 'lowercase' }} /></div>
+              <div><label>Mobile</label><input autoComplete="tel" inputMode="numeric" value={owner.phone} onChange={e => updateOwner('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="0412345678" /></div>
               <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
                 <label>Street Address</label>
                 <div style={{ position: 'relative' }}>
