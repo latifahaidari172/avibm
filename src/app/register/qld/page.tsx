@@ -72,7 +72,7 @@ const emptyVehicle = (): Vehicle => ({
 
 export default function RegisterQLD() {
   const [step, setStep] = useState(1)
-  const [selectedTier, setSelectedTier] = useState<'priority'|'standard'|'basic'>('standard')
+  const [selectedTier, setSelectedTier] = useState<'priority'|'standard'|'basic'>('priority')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
