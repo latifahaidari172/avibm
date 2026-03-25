@@ -84,6 +84,9 @@ export default function Admin() {
   })
   const [newFreeEntry, setNewFreeEntry] = useState('')
   const [showFreePanel, setShowFreePanel] = useState(false)
+  const [showPendingPanel, setShowPendingPanel] = useState(true)
+  const [pendingCoupons, setPendingCoupons] = useState<Record<string, string>>({})
+  const [sendingReminder, setSendingReminder] = useState<string | null>(null)
 
   const login = () => {
     if (pw === ADMIN_PASSWORD) { setAuthed(true); loadData() }
@@ -283,11 +286,34 @@ export default function Admin() {
     })))
   }
 
+  const sendStripeReminder = async (c: Customer, coupon: string) => {
+    setSendingReminder(c.id)
+    try {
+      const res = await fetch('/api/send-stripe-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_id: c.id,
+          tier: c.tier || 'basic',
+          state: c.state,
+          coupon_code: coupon || null,
+          customer_name: `${c.first_name} ${c.last_name}`,
+          customer_email: c.email,
+        }),
+      })
+      if (res.ok) alert(`✅ Payment link sent to ${c.email}`)
+      else alert('Failed to send reminder.')
+    } catch { alert('Error sending reminder.') }
+    setSendingReminder(null)
+  }
+
   const deleteCustomer = async (id: string) => {
     if (!confirm('Delete this customer and all their vehicles?')) return
     await supabase.from('customers').delete().eq('id', id)
     setCustomers(cs => cs.filter(c => c.id !== id))
   }
+
+  const pendingPayment = customers.filter(c => !c.active && c.auto_payment_email)
 
   const filtered = customers.filter(c => {
     if (tab !== 'all' && c.state !== tab) return false
@@ -463,6 +489,65 @@ export default function Admin() {
             </div>
           )}
         </div>
+
+        {/* Pending Payment Section */}
+        {pendingPayment.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div onClick={() => setShowPendingPanel(p => !p)} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: '#1a0808', border: '1px solid #4a2020',
+              borderRadius: showPendingPanel ? '10px 10px 0 0' : 10, padding: '12px 20px', cursor: 'pointer',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 16 }}>⏳</span>
+                <div>
+                  <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em', color: '#ff8888' }}>PENDING PAYMENT</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{pendingPayment.length} customer{pendingPayment.length !== 1 ? 's' : ''} registered but not yet paid</div>
+                </div>
+              </div>
+              <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{showPendingPanel ? '▲' : '▼'}</div>
+            </div>
+            {showPendingPanel && (
+              <div style={{ background: '#120808', border: '1px solid #4a2020', borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {pendingPayment.map(c => (
+                  <div key={c.id} style={{ background: 'var(--dark-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                      <div style={{
+                        background: c.state === 'QLD' ? '#1a2a3a' : '#2a1a2a',
+                        border: `1px solid ${c.state === 'QLD' ? '#2a3a4a' : '#3a2a3a'}`,
+                        color: c.state === 'QLD' ? '#5ab0ff' : '#c080ff',
+                        padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                      }}>{c.state}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{c.first_name} {c.last_name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{c.email} · {c.phone}</div>
+                      </div>
+                      <div style={{ fontSize: 11, color: TIER_CONFIG[c.tier]?.color }}>{TIER_CONFIG[c.tier]?.label}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Date(c.created_at).toLocaleDateString('en-AU')}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input
+                        placeholder="Coupon code (optional)"
+                        value={pendingCoupons[c.id] || ''}
+                        onChange={e => setPendingCoupons(p => ({ ...p, [c.id]: e.target.value.toUpperCase() }))}
+                        style={{ flex: 1, padding: '7px 12px', borderRadius: 6, fontSize: 12 }}
+                      />
+                      <button
+                        onClick={() => sendStripeReminder(c, pendingCoupons[c.id] || '')}
+                        disabled={sendingReminder === c.id}
+                        style={{ padding: '7px 14px', borderRadius: 6, background: '#C9A84C', border: 'none', color: '#000', fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12, opacity: sendingReminder === c.id ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                      >{sendingReminder === c.id ? 'Sending...' : '📧 Send Link'}</button>
+                      <button
+                        onClick={() => deleteCustomer(c.id)}
+                        style={{ padding: '7px 12px', borderRadius: 6, background: '#2a0a0a', border: '1px solid #4a1a1a', color: '#ff6b6b', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12 }}
+                      >🗑</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Auto payment email info */}
         <div style={{
