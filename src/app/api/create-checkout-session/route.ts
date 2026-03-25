@@ -33,6 +33,7 @@ export async function POST(request: Request) {
         quantity: 1,
       }],
       mode: 'payment',
+      allow_promotion_codes: true,
       success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/register/${state.toLowerCase()}`,
       metadata: { customer_id: String(customer_id), tier, state },
