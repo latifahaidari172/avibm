@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
-const DAMAGE_OPTIONS = ['Hail Damage', 'Flood Damage', 'Collision Damage', 'Fire Damage', 'Other']
+const DAMAGE_OPTIONS = ['Hail Damage', 'Water Damage', 'Malicious Damage', 'Fire Damage', 'Structural Damage', 'Impact Damage - Drivers Front', 'Impact Damage - Passenger Front', 'Impact Damage - Drivers Side', 'Impact Damage - Passenger Side', 'Impact Damage - Drivers Rear', 'Impact Damage - Passenger Rear', 'Other']
 const PURCHASE_OPTIONS = ['Auction', 'Private Sale', 'Insurance', 'Other']
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const VEHICLE_TYPES = ['Car', 'Motorcycle', 'Truck', 'Trailer', 'Caravan']
