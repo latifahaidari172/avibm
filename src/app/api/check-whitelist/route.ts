@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,29 +7,30 @@ export async function POST(req: NextRequest) {
     const cleanEmail = (email || '').toLowerCase().trim()
     const cleanPhone = (phone || '').replace(/\s/g, '').trim()
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY!
+    const headers = {
+      'apikey': supabaseKey,
+      'Authorization': `Bearer ${supabaseKey}`,
+    }
 
     // Check email
-    const { data: emailMatch } = await supabase
-      .from('free_customers')
-      .select('entry')
-      .eq('entry', cleanEmail)
-      .limit(1)
-
-    if (emailMatch && emailMatch.length > 0)
+    const emailRes = await fetch(
+      `${supabaseUrl}/rest/v1/free_customers?entry=eq.${encodeURIComponent(cleanEmail)}&select=entry&limit=1`,
+      { headers }
+    )
+    const emailData = await emailRes.json()
+    if (Array.isArray(emailData) && emailData.length > 0)
       return NextResponse.json({ whitelisted: true })
 
     // Check phone
-    const { data: phoneMatch } = await supabase
-      .from('free_customers')
-      .select('entry')
-      .eq('entry', cleanPhone)
-      .limit(1)
+    const phoneRes = await fetch(
+      `${supabaseUrl}/rest/v1/free_customers?entry=eq.${encodeURIComponent(cleanPhone)}&select=entry&limit=1`,
+      { headers }
+    )
+    const phoneData = await phoneRes.json()
+    return NextResponse.json({ whitelisted: Array.isArray(phoneData) && phoneData.length > 0 })
 
-    return NextResponse.json({ whitelisted: phoneMatch != null && phoneMatch.length > 0 })
   } catch (e) {
     console.error('Whitelist check error:', e)
     return NextResponse.json({ whitelisted: false })
