@@ -135,8 +135,8 @@ export default function RegisterSA() {
           <div className='register-grid-2' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div><label>First Name</label><input value={form.first_name} onChange={e => update('first_name', e.target.value)} placeholder="John" /></div>
             <div><label>Last Name</label><input value={form.last_name} onChange={e => update('last_name', e.target.value)} placeholder="Smith" /></div>
-            <div><label>Email</label><input type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="john@email.com" /></div>
-            <div><label>Mobile</label><input value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="0412 345 678" /></div>
+            <div><label>Email</label><input type="email" value={form.email} onChange={e => update('email', e.target.value.toLowerCase())} placeholder="john@email.com" style={{ textTransform: 'lowercase' }} /></div>
+            <div><label>Mobile</label><input inputMode="numeric" value={form.phone} onChange={e => update('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="0412345678" /></div>
             <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
               <label>Street Address</label>
               <div style={{ position: 'relative' }}>
