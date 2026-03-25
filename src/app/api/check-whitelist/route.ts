@@ -29,7 +29,20 @@ export async function POST(req: NextRequest) {
       { headers }
     )
     const phoneData = await phoneRes.json()
-    return NextResponse.json({ whitelisted: Array.isArray(phoneData) && phoneData.length > 0 })
+    const whitelisted = Array.isArray(phoneData) && phoneData.length > 0
+
+    // Temporary debug — remove after confirming
+    return NextResponse.json({
+      whitelisted,
+      debug: {
+        cleanEmail,
+        cleanPhone,
+        emailStatus: emailRes.status,
+        phoneStatus: phoneRes.status,
+        emailData,
+        phoneData,
+      }
+    })
 
   } catch (e) {
     console.error('Whitelist check error:', e)
