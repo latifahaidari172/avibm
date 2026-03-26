@@ -1151,52 +1151,140 @@ export default function Admin() {
                 {archived.map(c => (
                   <div key={c.id} style={{
                     background: 'var(--dark-2)', border: '1px solid #3a2a0a',
-                    borderRadius: 10, overflow: 'hidden', opacity: 0.75,
+                    borderRadius: 10, overflow: 'hidden', opacity: 0.85,
                   }}>
-                    {/* Collapsed summary row */}
-                    <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    {/* Header row — clickable to expand */}
+                    <div
+                      className='customer-row'
+                      style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', cursor: 'pointer' }}
+                      onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
+                    >
                       <div style={{
                         background: c.state === 'QLD' ? '#1a2a3a' : '#2a1a2a',
                         border: `1px solid ${c.state === 'QLD' ? '#2a3a4a' : '#3a2a3a'}`,
                         color: c.state === 'QLD' ? '#5ab0ff' : '#c080ff',
                         padding: '4px 10px', borderRadius: 4, fontSize: 12, fontWeight: 600,
                       }}>{c.state}</div>
-                      <div style={{ flex: 1 }}>
+                      <div className='customer-name' style={{ flex: 1, minWidth: 140 }}>
                         <div style={{ fontWeight: 600, fontSize: 15 }}>{c.first_name} {c.last_name}</div>
-                        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{c.email} · {c.phone}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{c.email} · {c.phone}</div>
                       </div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        {c.vehicles?.length || 0} vehicle{(c.vehicles?.length || 0) !== 1 ? 's' : ''}
+                      <div style={{ textAlign: 'center', minWidth: 60 }}>
+                        <div style={{ fontFamily: 'Bebas Neue', fontSize: 22, color: 'var(--gold)' }}>{c.vehicles?.length || 0}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>VEHICLE{(c.vehicles?.length || 0) !== 1 ? 'S' : ''}</div>
                       </div>
-                      {/* Archived vehicles summary */}
-                      {c.vehicles && c.vehicles.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {c.vehicles.map(v => (
-                            <div key={v.id} style={{
-                              fontSize: 11, padding: '3px 10px', borderRadius: 20,
-                              background: v.archived ? '#1a1200' : 'var(--dark-4)',
-                              border: `1px solid ${v.archived ? '#4a3a00' : 'var(--border)'}`,
-                              color: v.archived ? '#C9A84C' : 'var(--text-muted)',
-                            }}>
-                              {v.label || `${v.make} ${v.model}`}
-                              {v.booked_date && <span style={{ color: '#5adb5a', marginLeft: 4 }}>✓ {v.booked_date}</span>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <button
-                        onClick={() => archiveCustomer(c.id, true)}
-                        style={{
-                          padding: '6px 14px', borderRadius: 6, background: 'none',
-                          border: '1px solid #2a4a2a', color: '#5adb5a',
-                          cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
-                        }}
-                      >↩ Unarchive</button>
-                      <button onClick={() => deleteCustomer(c.id)} style={{
-                        background: 'none', border: '1px solid #4a1a1a', color: '#ff6b6b',
-                        padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
-                      }}>🗑</button>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 90, textAlign: 'right' }}>
+                        {new Date(c.created_at).toLocaleDateString('en-AU')}
+                      </div>
+                      <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#1a1200', border: '1px solid #4a3a00', color: '#C9A84C' }}>📦 ARCHIVED</span>
+                      <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{expandedId === c.id ? '▲' : '▼'}</div>
                     </div>
+
+                    {/* Expanded detail — same as main list */}
+                    {expandedId === c.id && (
+                      <div style={{ borderTop: '1px solid var(--border)', padding: '20px' }}>
+                        {/* Customer Details */}
+                        <div style={{ marginBottom: 20 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <div className="section-label" style={{ marginBottom: 0 }}>Customer Details</div>
+                            {editingCustomer === c.id ? (
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <button onClick={() => saveCustomerEdits(c.id)} style={{ padding: '4px 12px', borderRadius: 6, background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>✓ Save</button>
+                                <button onClick={() => setEditingCustomer(null)} style={{ padding: '4px 12px', borderRadius: 6, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>Cancel</button>
+                              </div>
+                            ) : (
+                              <button onClick={() => { setEditingCustomer(c.id); setCustomerEdits(e => ({ ...e, [c.id]: { first_name: c.first_name, last_name: c.last_name, email: c.email, phone: c.phone, address: c.address, suburb: c.suburb, postcode: c.postcode, crn: c.crn, licence_number: c.licence_number, date_of_birth: c.date_of_birth } })) }} style={{ padding: '4px 12px', borderRadius: 6, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>✏️ Edit</button>
+                            )}
+                          </div>
+                          {editingCustomer === c.id ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8, fontSize: 13 }}>
+                              {([
+                                { label: 'First Name', field: 'first_name' },
+                                { label: 'Last Name', field: 'last_name' },
+                                { label: 'Email', field: 'email' },
+                                { label: 'Phone', field: 'phone' },
+                                { label: 'Address', field: 'address' },
+                                { label: 'Suburb', field: 'suburb' },
+                                { label: 'Postcode', field: 'postcode' },
+                                { label: 'CRN', field: 'crn' },
+                                { label: 'Licence No.', field: 'licence_number' },
+                                { label: 'Date of Birth', field: 'date_of_birth' },
+                              ] as { label: string; field: keyof Customer }[]).map(({ label, field }) => (
+                                <div key={String(field)}>
+                                  <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>{label}</div>
+                                  <input
+                                    value={(customerEdits[c.id]?.[field] as string) || ''}
+                                    onChange={e => setCustomerEdits(eds => ({ ...eds, [c.id]: { ...eds[c.id], [field]: e.target.value } }))}
+                                    style={{ width: '100%', padding: '4px 8px', fontSize: 13, borderRadius: 4, boxSizing: 'border-box' }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className='customer-detail-grid' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 13 }}>
+                              <div><span style={{ color: 'var(--text-muted)' }}>Address: </span>{c.address}, {c.suburb} {c.postcode}</div>
+                              {c.crn && <div><span style={{ color: 'var(--text-muted)' }}>CRN: </span>{c.crn}</div>}
+                              {c.licence_number && <div><span style={{ color: 'var(--text-muted)' }}>Licence: </span>{c.licence_number}</div>}
+                              {c.date_of_birth && <div><span style={{ color: 'var(--text-muted)' }}>DOB: </span>{c.date_of_birth}</div>}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="section-label" style={{ marginBottom: 12 }}>Vehicles</div>
+                        {c.vehicles?.map(v => (
+                          <div key={v.id} style={{
+                            background: v.booked_date ? '#0d1f0d' : 'var(--dark-3)',
+                            border: `1px solid ${v.booked_date ? '#2a4a2a' : 'var(--border)'}`,
+                            borderRadius: 8, padding: '14px 16px', marginBottom: 8,
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 8 }}>
+                              <div>
+                                <div style={{ fontWeight: 600, fontSize: 14 }}>{v.label || `${v.make} ${v.model} ${v.year}`}</div>
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{v.make} {v.model} · {v.year} · {v.colour} · VIN: {v.vin}</div>
+                              </div>
+                              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                                {v.archived ? (
+                                  <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, background: '#1a1200', border: '1px solid #4a3a00', color: '#C9A84C' }}>📦 ARCHIVED</span>
+                                ) : (
+                                  <span className={`badge ${v.active ? 'badge-active' : 'badge-inactive'}`}>{v.active ? '● ON' : '○ OFF'}</span>
+                                )}
+                                <button onClick={() => archiveVehicle(v.id, !!v.archived)} title={v.archived ? 'Unarchive vehicle' : 'Archive vehicle'} style={{
+                                  padding: '3px 8px', borderRadius: 4, background: 'none',
+                                  border: `1px solid ${v.archived ? '#2a4a2a' : '#4a3a1a'}`,
+                                  color: v.archived ? '#5adb5a' : '#C9A84C',
+                                  fontSize: 11, cursor: 'pointer', fontFamily: 'DM Sans',
+                                }}>{v.archived ? '↩ Unarchive' : '📦'}</button>
+                              </div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, fontSize: 12 }}>
+                              <div style={{ background: 'var(--dark-4)', borderRadius: 6, padding: '8px 10px' }}>
+                                <div style={{ color: 'var(--text-muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Original Booking</div>
+                                <div style={{ fontWeight: 600 }}>{v.cutoff_date || '—'}</div>
+                              </div>
+                              {v.booked_date && (
+                                <div style={{ background: '#0a1f0a', borderRadius: 6, padding: '8px 10px', border: '1px solid #2a4a2a' }}>
+                                  <div style={{ color: '#5adb5a', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>✅ Booked</div>
+                                  <div style={{ fontWeight: 600, color: '#5adb5a' }}>{v.booked_date}{v.booked_time ? ` · ${v.booked_time}` : ''}</div>
+                                  {v.booked_location && <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>{v.booked_location}</div>}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Actions */}
+                        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <button onClick={() => archiveCustomer(c.id, true)} style={{
+                            background: 'none', border: '1px solid #2a4a2a', color: '#5adb5a',
+                            padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
+                          }}>↩ Unarchive Customer</button>
+                          <button onClick={() => deleteCustomer(c.id)} style={{
+                            background: 'none', border: '1px solid #4a1a1a', color: '#ff6b6b',
+                            padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
+                          }}>Delete Customer</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
