@@ -343,15 +343,17 @@ export default function Admin() {
     return true
   })
 
+  const active_customers = customers.filter(c => !c.archived)
+
   const stats = {
-    total: customers.length,
-    active: customers.filter(c => c.active).length,
-    qld: customers.filter(c => c.state === 'QLD').length,
-    sa: customers.filter(c => c.state === 'SA').length,
-    vehicles: customers.reduce((n, c) => n + (c.vehicles?.length || 0), 0),
-    priority: customers.filter(c => c.tier === 'priority' || c.state === 'SA').length,
-    standard: customers.filter(c => c.tier === 'standard' && c.state !== 'SA').length,
-    basic: customers.filter(c => c.tier === 'basic' && c.state !== 'SA').length,
+    total: active_customers.length,
+    active: active_customers.filter(c => c.active).length,
+    qld: active_customers.filter(c => c.state === 'QLD').length,
+    sa: active_customers.filter(c => c.state === 'SA').length,
+    vehicles: active_customers.reduce((n, c) => n + (c.vehicles?.filter(v => !v.archived).length || 0), 0),
+    priority: active_customers.filter(c => c.tier === 'priority' || c.state === 'SA').length,
+    standard: active_customers.filter(c => c.tier === 'standard' && c.state !== 'SA').length,
+    basic: active_customers.filter(c => c.tier === 'basic' && c.state !== 'SA').length,
   }
 
   if (!authed) return (
