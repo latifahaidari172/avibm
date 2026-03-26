@@ -10,6 +10,9 @@ const TIER_LABEL: Record<string, string> = {
 
 type Vehicle = {
   label: string
+  make?: string
+  model?: string
+  year?: string
   active: boolean
   cutoff_date: string
   booked_date?: string
@@ -106,6 +109,31 @@ export default function StatusPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
             {/* Account status */}
+            {/* Derive booking summary for account-level banner */}
+            {(() => {
+              const bookedVehicles = result.vehicles.filter(v => !!v.booked_date)
+              if (bookedVehicles.length > 0 && bookedVehicles.length === result.vehicles.length) {
+                return (
+                  <div style={{
+                    background: '#0a1f0a',
+                    border: '1px solid #3a6a3a',
+                    borderRadius: 12,
+                    padding: '16px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                  }}>
+                    <div style={{ fontSize: 28 }}>✅</div>
+                    <div>
+                      <div style={{ fontFamily: 'Bebas Neue', fontSize: 20, color: '#5adb5a', letterSpacing: '0.05em' }}>All bookings confirmed</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>A confirmation email was sent to you — check your inbox.</div>
+                    </div>
+                  </div>
+                )
+              }
+              return null
+            })()}
+
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                 <div>
@@ -143,49 +171,75 @@ export default function StatusPage() {
 
             {/* Vehicles */}
             {result.vehicles.map((v, i) => {
-              const hasBooking = v.booked_date && v.cutoff_date && new Date(v.booked_date) < new Date(v.cutoff_date)
+              const hasBooking = !!v.booked_date
+              const isEarlier = hasBooking && v.cutoff_date && new Date(v.booked_date!) < new Date(v.cutoff_date)
               return (
-                <div key={i} className="card" style={{ borderColor: hasBooking ? '#2a4a2a' : undefined, boxShadow: hasBooking ? '0 0 12px rgba(90,219,90,0.1)' : undefined }}>
+                <div key={i} className="card" style={{
+                  borderColor: hasBooking ? '#2a4a2a' : undefined,
+                  boxShadow: hasBooking ? '0 0 16px rgba(90,219,90,0.15)' : undefined,
+                }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
                     <div style={{ fontFamily: 'Bebas Neue', fontSize: 20, letterSpacing: '0.05em' }}>{v.label}</div>
                     <div style={{
                       padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                      background: v.active ? '#1a2a1a' : 'var(--dark-3)',
-                      border: `1px solid ${v.active ? '#2a4a2a' : 'var(--border)'}`,
-                      color: v.active ? '#5adb5a' : 'var(--text-muted)',
-                    }}>{v.active ? '● ACTIVE' : '○ PAUSED'}</div>
+                      background: hasBooking ? '#0a2a0a' : v.active ? '#1a2a1a' : 'var(--dark-3)',
+                      border: `1px solid ${hasBooking ? '#3a6a3a' : v.active ? '#2a4a2a' : 'var(--border)'}`,
+                      color: hasBooking ? '#5adb5a' : v.active ? '#5adb5a' : 'var(--text-muted)',
+                    }}>{hasBooking ? '✓ BOOKED' : v.active ? '● ACTIVE' : '○ PAUSED'}</div>
                   </div>
+
+                  {hasBooking && (
+                    <div style={{
+                      background: '#0a1f0a',
+                      border: '1px solid #2a5a2a',
+                      borderRadius: 10,
+                      padding: '14px 16px',
+                      marginBottom: 14,
+                    }}>
+                      <div style={{ fontSize: 11, color: '#5adb5a', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 10 }}>
+                        ✅ BOOKING CONFIRMED
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>New date</span>
+                          <span style={{ fontSize: 14, color: '#5adb5a', fontWeight: 700 }}>{formatDate(v.booked_date)}</span>
+                        </div>
+                        {v.booked_time && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Time</span>
+                            <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{v.booked_time}</span>
+                          </div>
+                        )}
+                        {v.booked_location && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Location</span>
+                            <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{v.booked_location}</span>
+                          </div>
+                        )}
+                        {isEarlier && v.cutoff_date && (
+                          <div style={{ marginTop: 4, paddingTop: 8, borderTop: '1px solid #1a3a1a', display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Saved vs original</span>
+                            <span style={{ fontSize: 12, color: '#5adb5a' }}>
+                              {Math.ceil((new Date(v.cutoff_date).getTime() - new Date(v.booked_date!).getTime()) / 86400000)} days earlier
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   <table width="100%" cellPadding={0} cellSpacing={0}>
                     <tbody>
                       <tr>
-                        <td style={{ padding: '5px 0', fontSize: 12, color: 'var(--text-muted)', width: '50%' }}>Current booking to beat</td>
+                        <td style={{ padding: '5px 0', fontSize: 12, color: 'var(--text-muted)', width: '50%' }}>Original booking</td>
                         <td style={{ padding: '5px 0', fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{formatDate(v.cutoff_date)}</td>
                       </tr>
-                      {hasBooking ? (
-                        <>
-                          <tr><td colSpan={2} style={{ padding: '10px 0 4px' }}>
-                            <div style={{ height: 1, background: '#2a4a2a' }} />
-                          </td></tr>
-                          <tr>
-                            <td style={{ padding: '5px 0', fontSize: 12, color: '#5adb5a' }}>✅ Earlier slot found</td>
-                            <td style={{ padding: '5px 0', fontSize: 13, color: '#5adb5a', fontWeight: 700 }}>{formatDate(v.booked_date)}</td>
-                          </tr>
-                          {v.booked_time && <tr>
-                            <td style={{ padding: '5px 0', fontSize: 12, color: 'var(--text-muted)' }}>Time</td>
-                            <td style={{ padding: '5px 0', fontSize: 13, color: 'var(--text)' }}>{v.booked_time}</td>
-                          </tr>}
-                          {v.booked_location && <tr>
-                            <td style={{ padding: '5px 0', fontSize: 12, color: 'var(--text-muted)' }}>Location</td>
-                            <td style={{ padding: '5px 0', fontSize: 13, color: 'var(--text)' }}>{v.booked_location}</td>
-                          </tr>}
-                        </>
-                      ) : v.active ? (
+                      {!hasBooking && v.active && (
                         <tr>
                           <td style={{ padding: '5px 0', fontSize: 12, color: 'var(--text-muted)' }}>Status</td>
                           <td style={{ padding: '5px 0', fontSize: 13, color: 'var(--gold)' }}>🔍 Searching for earlier slot...</td>
                         </tr>
-                      ) : null}
+                      )}
                     </tbody>
                   </table>
                 </div>
