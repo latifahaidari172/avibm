@@ -88,12 +88,16 @@ export default function Admin() {
   const [showFreePanel, setShowFreePanel] = useState(false)
   const [showPendingPanel, setShowPendingPanel] = useState(true)
   const [showArchivedPanel, setShowArchivedPanel] = useState(false)
+  const [newRegCount, setNewRegCount] = useState(0)
   const [pendingCoupons, setPendingCoupons] = useState<Record<string, string>>({})
   const [sendingReminder, setSendingReminder] = useState<string | null>(null)
 
   const login = () => {
-    if (pw === ADMIN_PASSWORD) { setAuthed(true); loadData() }
-    else setPwError(true)
+    if (pw === ADMIN_PASSWORD) {
+      localStorage.setItem('avibm_admin_last_seen', new Date().toISOString())
+      setAuthed(true)
+      loadData()
+    } else setPwError(true)
   }
 
   const loadData = async () => {
@@ -122,6 +126,51 @@ export default function Admin() {
     }, 30000)
     return () => clearInterval(interval)
   }, [authed])
+
+  // Poll for new registrations and update tab title
+  useEffect(() => {
+    if (!authed) return
+    const lastSeenKey = 'avibm_admin_last_seen'
+    const getLastSeen = () => localStorage.getItem(lastSeenKey) || new Date().toISOString()
+
+    const check = async () => {
+      const lastSeen = getLastSeen()
+      const { data } = await supabase
+        .from('customers')
+        .select('id')
+        .gt('created_at', lastSeen)
+      if (data && data.length > 0) {
+        setNewRegCount(n => n + data.length)
+      }
+    }
+
+    const interval = setInterval(check, 30000)
+    return () => clearInterval(interval)
+  }, [authed])
+
+  // Update tab title when newRegCount changes
+  useEffect(() => {
+    if (newRegCount > 0) {
+      document.title = `🔔 (${newRegCount}) New Registration! — AVIBM Admin`
+    } else {
+      document.title = 'AVIBM Admin'
+    }
+    return () => { document.title = 'AVIBM Admin' }
+  }, [newRegCount])
+
+  // Clear notification when tab is focused
+  useEffect(() => {
+    if (!authed) return
+    const onFocus = () => {
+      if (newRegCount > 0) {
+        localStorage.setItem('avibm_admin_last_seen', new Date().toISOString())
+        setNewRegCount(0)
+        loadData()
+      }
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [authed, newRegCount])
 
   const toggleActive = async (id: string, current: boolean) => {
     await supabase.from('customers').update({ active: !current }).eq('id', id)
