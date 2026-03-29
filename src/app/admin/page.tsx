@@ -113,7 +113,7 @@ export default function Admin() {
     const { data } = await supabase
       .from('admin_users')
       .select('id, username, role, active')
-      .eq('username', username.trim().toLowerCase())
+      .eq('username', username.trim())
       .eq('password', pw.trim())
       .eq('active', true)
       .single()
