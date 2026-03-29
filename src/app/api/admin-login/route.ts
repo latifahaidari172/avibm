@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       const res = await fetch(url, { headers: getHeaders() })
       const rows = await res.json()
 
-      if (!Array.isArray(rows)) return NextResponse.json({ error: 'Database error', detail: JSON.stringify(rows), hasKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY }, { status: 500 })
+      if (!Array.isArray(rows)) return NextResponse.json({ error: 'Database error' }, { status: 500 })
 
       const match = rows.find(
         (r: any) =>
