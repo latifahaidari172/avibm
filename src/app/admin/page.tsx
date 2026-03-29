@@ -60,15 +60,22 @@ type Vehicle = {
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'avibm2024'
 
-type AdminLog = { id: string; created_at: string; action: string; details: string | null }
+type AdminLog = { id: string; created_at: string; action: string; details: string | null; admin_username: string | null }
+type AdminUser = { id: string; created_at: string; username: string; role: string; active: boolean }
 
 export default function Admin() {
   const [authed, setAuthed] = useState(false)
-  const [isOwner, setIsOwner] = useState(false)
+  const [authedAdmin, setAuthedAdmin] = useState<{ id: string; username: string; role: string } | null>(null)
+  const [username, setUsername] = useState('')
   const [pw, setPw] = useState('')
-  const [pwError, setPwError] = useState(false)
+  const [pwError, setPwError] = useState('')
   const [adminLogs, setAdminLogs] = useState<AdminLog[]>([])
   const [showLogsPanel, setShowLogsPanel] = useState(true)
+  const [admins, setAdmins] = useState<AdminUser[]>([])
+  const [showAdminPanel, setShowAdminPanel] = useState(true)
+  const [selectedAdmin, setSelectedAdmin] = useState<AdminUser | null>(null)
+  const [addingAdmin, setAddingAdmin] = useState(false)
+  const [newAdminForm, setNewAdminForm] = useState({ username: '', password: '' })
 
   const [customers, setCustomers] = useState<Customer[]>([])
   const [monitorStatus, setMonitorStatus] = useState<{
@@ -97,30 +104,61 @@ export default function Admin() {
   const [pendingCoupons, setPendingCoupons] = useState<Record<string, string>>({})
   const [sendingReminder, setSendingReminder] = useState<string | null>(null)
 
-  const login = () => {
-    const passwords = ADMIN_PASSWORD.split(',').map(p => p.trim())
-    if (passwords.includes(pw)) {
-      const owner = pw === passwords[0]
-      localStorage.setItem('avibm_admin_last_seen', new Date().toISOString())
-      setIsOwner(owner)
-      setAuthed(true)
-      loadData()
-      if (owner) loadLogs()
-    } else setPwError(true)
+  const isOwner = authedAdmin?.role === 'owner'
+
+  const login = async () => {
+    if (!username.trim()) { setPwError('Enter your username'); return }
+    if (!pw.trim()) { setPwError('Enter your password'); return }
+    const { data } = await supabase
+      .from('admin_users')
+      .select('id, username, role, active')
+      .eq('username', username.trim().toLowerCase())
+      .eq('password', pw.trim())
+      .eq('active', true)
+      .single()
+    if (!data) { setPwError('Incorrect username or password'); return }
+    localStorage.setItem('avibm_admin_last_seen', new Date().toISOString())
+    setAuthedAdmin({ id: data.id, username: data.username, role: data.role })
+    setAuthed(true)
+    loadData()
+    if (data.role === 'owner') { loadLogs(); loadAdmins() }
   }
 
-  const loadLogs = async () => {
-    const { data } = await supabase
-      .from('admin_logs')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(100)
+  const loadLogs = async (filterUsername?: string) => {
+    let query = supabase.from('admin_logs').select('*').order('created_at', { ascending: false }).limit(200)
+    if (filterUsername) query = query.eq('admin_username', filterUsername)
+    const { data } = await query
     if (data) setAdminLogs(data)
   }
 
+  const loadAdmins = async () => {
+    const { data } = await supabase.from('admin_users').select('*').order('created_at', { ascending: true })
+    if (data) setAdmins(data)
+  }
+
+  const addAdmin = async () => {
+    if (!newAdminForm.username.trim() || !newAdminForm.password.trim()) return
+    await supabase.from('admin_users').insert({
+      username: newAdminForm.username.trim().toLowerCase(),
+      password: newAdminForm.password.trim(),
+      role: 'admin',
+      active: true,
+    })
+    setNewAdminForm({ username: '', password: '' })
+    setAddingAdmin(false)
+    loadAdmins()
+  }
+
+  const removeAdmin = async (id: string) => {
+    if (!confirm('Remove this admin?')) return
+    await supabase.from('admin_users').delete().eq('id', id)
+    loadAdmins()
+    if (selectedAdmin?.id === id) setSelectedAdmin(null)
+  }
+
   const logAction = async (action: string, details?: string) => {
-    if (isOwner) return
-    await supabase.from('admin_logs').insert({ action, details: details || null })
+    if (isOwner || !authedAdmin) return
+    await supabase.from('admin_logs').insert({ action, details: details || null, admin_username: authedAdmin.username })
   }
 
   const loadData = async () => {
@@ -458,16 +496,27 @@ export default function Admin() {
       <div className="card" style={{ maxWidth: 360, width: '100%' }}>
         <div className="section-label" style={{ marginBottom: 8 }}>Admin Access</div>
         <h2 style={{ fontSize: 32, marginBottom: 24 }}>AVIBM ADMIN</h2>
+        <div style={{ marginBottom: 12 }}>
+          <label>Username</label>
+          <input
+            value={username}
+            onChange={e => { setUsername(e.target.value); setPwError('') }}
+            onKeyDown={e => e.key === 'Enter' && login()}
+            placeholder="Enter username"
+            autoComplete="username"
+          />
+        </div>
         <div style={{ marginBottom: 16 }}>
           <label>Password</label>
           <input
             type="password" value={pw}
-            onChange={e => { setPw(e.target.value); setPwError(false) }}
+            onChange={e => { setPw(e.target.value); setPwError('') }}
             onKeyDown={e => e.key === 'Enter' && login()}
-            placeholder="Enter admin password"
+            placeholder="Enter password"
+            autoComplete="current-password"
             style={{ borderColor: pwError ? '#ff4444' : undefined }}
           />
-          {pwError && <p style={{ color: '#ff4444', fontSize: 12, marginTop: 6 }}>Incorrect password</p>}
+          {pwError && <p style={{ color: '#ff4444', fontSize: 12, marginTop: 6 }}>{pwError}</p>}
         </div>
         <button className="btn-gold" onClick={login}>ENTER</button>
         <div style={{ marginTop: 16, textAlign: 'center' }}>
@@ -490,6 +539,11 @@ export default function Admin() {
           <span style={{ color: 'var(--text-muted)', fontSize: 12, marginLeft: 12, letterSpacing: '0.1em' }}>ADMIN PANEL</span>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <span style={{
+            fontSize: 12, color: isOwner ? 'var(--gold)' : '#5adb5a',
+            border: `1px solid ${isOwner ? 'var(--gold)' : '#2a4a2a'}`,
+            padding: '4px 10px', borderRadius: 20, letterSpacing: '0.05em',
+          }}>{isOwner ? '👑' : '👤'} {authedAdmin?.username}</span>
           <button onClick={loadData} style={{
             background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)',
             padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontFamily: 'DM Sans',
@@ -557,54 +611,121 @@ export default function Admin() {
           }
         `}</style>
 
-        {/* Activity Log — owner only */}
+        {/* Admin Management — owner only */}
         {isOwner && (
           <div style={{ marginBottom: 16 }}>
-            <div onClick={() => setShowLogsPanel(p => !p)} style={{
+            <div onClick={() => setShowAdminPanel(p => !p)} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: 'var(--dark-2)', border: '1px solid var(--border)',
-              borderRadius: showLogsPanel ? '10px 10px 0 0' : 10, padding: '12px 20px', cursor: 'pointer',
+              background: 'var(--dark-2)', border: '1px solid var(--gold)',
+              borderRadius: showAdminPanel ? '10px 10px 0 0' : 10, padding: '12px 20px', cursor: 'pointer',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 16 }}>🕵️</span>
+                <span style={{ fontSize: 16 }}>👥</span>
                 <div>
-                  <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em' }}>ADMIN 2 ACTIVITY LOG</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{adminLogs.length} action{adminLogs.length !== 1 ? 's' : ''} recorded — only visible to you</div>
+                  <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em', color: 'var(--gold)' }}>ADMIN USERS</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{admins.filter(a => a.role !== 'owner').length} admin{admins.filter(a => a.role !== 'owner').length !== 1 ? 's' : ''} — click a username to view their activity</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button onClick={e => { e.stopPropagation(); loadLogs() }} style={{
-                  background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)',
-                  padding: '4px 10px', borderRadius: 5, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
-                }}>↻</button>
-                <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{showLogsPanel ? '▲' : '▼'}</span>
-              </div>
+              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{showAdminPanel ? '▲' : '▼'}</span>
             </div>
-            {showLogsPanel && (
-              <div style={{
-                background: 'var(--dark-3)', border: '1px solid var(--border)', borderTop: 'none',
-                borderRadius: '0 0 10px 10px', padding: 16,
-              }}>
-                {adminLogs.length === 0 ? (
-                  <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0, textAlign: 'center', padding: '16px 0' }}>No activity recorded yet.</p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {adminLogs.map(log => (
-                      <div key={log.id} style={{
-                        display: 'flex', gap: 12, alignItems: 'flex-start',
-                        padding: '8px 12px', background: 'var(--dark-2)', borderRadius: 7,
-                        border: '1px solid var(--border)',
-                      }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', marginTop: 1, minWidth: 130 }}>
-                          {new Date(log.created_at).toLocaleString('en-AU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{log.action}</span>
-                          {log.details && <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>{log.details}</span>}
-                        </div>
+            {showAdminPanel && (
+              <div style={{ background: 'var(--dark-3)', border: '1px solid var(--gold)', borderTop: 'none', borderRadius: '0 0 10px 10px', padding: 16 }}>
+
+                {/* Admin list */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+                  {admins.filter(a => a.role !== 'owner').length === 0 && (
+                    <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>No other admins yet.</p>
+                  )}
+                  {admins.filter(a => a.role !== 'owner').map(a => (
+                    <div key={a.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 14px', background: selectedAdmin?.id === a.id ? '#1a1a0a' : 'var(--dark-2)',
+                      border: `1px solid ${selectedAdmin?.id === a.id ? 'var(--gold)' : 'var(--border)'}`,
+                      borderRadius: 8,
+                    }}>
+                      <button onClick={() => {
+                        if (selectedAdmin?.id === a.id) { setSelectedAdmin(null); return }
+                        setSelectedAdmin(a)
+                        loadLogs(a.username)
+                      }} style={{
+                        background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer',
+                        fontFamily: 'DM Sans', fontSize: 14, fontWeight: 600, padding: 0, textAlign: 'left',
+                      }}>👤 {a.username}</button>
+                      <span style={{
+                        fontSize: 11, padding: '2px 8px', borderRadius: 10,
+                        background: a.active ? '#1a2a1a' : '#2a1a1a',
+                        border: `1px solid ${a.active ? '#2a4a2a' : '#4a2a2a'}`,
+                        color: a.active ? '#5adb5a' : '#ff6b6b',
+                      }}>{a.active ? 'Active' : 'Inactive'}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                        Added {new Date(a.created_at).toLocaleDateString('en-AU')}
+                      </span>
+                      <button onClick={() => removeAdmin(a.id)} style={{
+                        background: 'none', border: '1px solid #4a1a1a', color: '#ff6b6b',
+                        padding: '3px 10px', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontFamily: 'DM Sans',
+                      }}>Remove</button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Activity log for selected admin */}
+                {selectedAdmin && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)' }}>
+                        Activity log — {selectedAdmin.username}
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: 8 }}>({adminLogs.length} action{adminLogs.length !== 1 ? 's' : ''})</span>
                       </div>
-                    ))}
+                      <button onClick={() => { setSelectedAdmin(null); setAdminLogs([]) }} style={{
+                        background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12,
+                      }}>✕ Close</button>
+                    </div>
+                    {adminLogs.length === 0 ? (
+                      <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0, textAlign: 'center', padding: '12px 0' }}>No activity recorded for this admin yet.</p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 300, overflowY: 'auto' }}>
+                        {adminLogs.map(log => (
+                          <div key={log.id} style={{
+                            display: 'flex', gap: 12, alignItems: 'flex-start',
+                            padding: '7px 12px', background: 'var(--dark-2)', borderRadius: 6, border: '1px solid var(--border)',
+                          }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', minWidth: 120 }}>
+                              {new Date(log.created_at).toLocaleString('en-AU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{log.action}</span>
+                              {log.details && <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>{log.details}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
+                )}
+
+                {/* Add admin form */}
+                {addingAdmin ? (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input placeholder="Username" value={newAdminForm.username}
+                      onChange={e => setNewAdminForm(p => ({ ...p, username: e.target.value }))}
+                      style={{ flex: 1, minWidth: 120, padding: '7px 12px', borderRadius: 6, fontSize: 13 }} />
+                    <input placeholder="Password" value={newAdminForm.password}
+                      onChange={e => setNewAdminForm(p => ({ ...p, password: e.target.value }))}
+                      style={{ flex: 1, minWidth: 120, padding: '7px 12px', borderRadius: 6, fontSize: 13 }} />
+                    <button onClick={addAdmin} style={{
+                      padding: '7px 16px', borderRadius: 6, background: 'var(--gold)', border: 'none',
+                      color: '#000', fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13,
+                    }}>Add</button>
+                    <button onClick={() => { setAddingAdmin(false); setNewAdminForm({ username: '', password: '' }) }} style={{
+                      padding: '7px 12px', borderRadius: 6, background: 'none', border: '1px solid var(--border)',
+                      color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13,
+                    }}>Cancel</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setAddingAdmin(true)} style={{
+                    padding: '8px 16px', borderRadius: 6, background: 'none', border: '1px solid var(--gold)',
+                    color: 'var(--gold)', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13, fontWeight: 600,
+                  }}>+ Add Admin</button>
                 )}
               </div>
             )}
@@ -709,10 +830,10 @@ export default function Admin() {
                         disabled={sendingReminder === c.id}
                         style={{ padding: '7px 14px', borderRadius: 6, background: '#C9A84C', border: 'none', color: '#000', fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12, opacity: sendingReminder === c.id ? 0.6 : 1, whiteSpace: 'nowrap' }}
                       >{sendingReminder === c.id ? 'Sending...' : '📧 Send Link'}</button>
-                      <button
+                      {isOwner && <button
                         onClick={() => deleteCustomer(c.id)}
                         style={{ padding: '7px 12px', borderRadius: 6, background: '#2a0a0a', border: '1px solid #4a1a1a', color: '#ff6b6b', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12 }}
-                      >🗑</button>
+                      >🗑</button>}
                     </div>
                   </div>
                 ))}
@@ -938,11 +1059,11 @@ export default function Admin() {
                                 {v.active ? '● ON' : '○ OFF'}
                               </span>
                             </div>
-                            <button onClick={() => archiveVehicle(v.id, !!v.archived)} title="Archive vehicle" style={{
+                            {isOwner && <button onClick={() => archiveVehicle(v.id, !!v.archived)} title="Archive vehicle" style={{
                               padding: '3px 8px', borderRadius: 4, background: 'none',
                               border: '1px solid #4a3a1a', color: '#C9A84C', fontSize: 11,
                               cursor: 'pointer', fontFamily: 'DM Sans',
-                            }}>📦</button>
+                            }}>📦</button>}
                           </div>
                         </div>
 
@@ -1241,11 +1362,11 @@ export default function Admin() {
                                 <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{v.label || `${v.make} ${v.model} ${v.year}`}</span>
                                 {v.booked_date && <span style={{ marginLeft: 10, fontSize: 12, color: '#5adb5a' }}>✓ Booked {v.booked_date}{v.booked_time ? ` at ${v.booked_time}` : ''}{v.booked_location ? ` — ${v.booked_location}` : ''}</span>}
                               </div>
-                              <button onClick={() => archiveVehicle(v.id, true)} style={{
+                              {isOwner && <button onClick={() => archiveVehicle(v.id, true)} style={{
                                 padding: '3px 10px', borderRadius: 4, background: 'none',
                                 border: '1px solid #2a4a2a', color: '#5adb5a',
                                 cursor: 'pointer', fontSize: 11, fontFamily: 'DM Sans',
-                              }}>↩ Unarchive</button>
+                              }}>↩ Unarchive</button>}
                             </div>
                           ))}
                         </div>
@@ -1263,7 +1384,7 @@ export default function Admin() {
                       ) : (
                         <div style={{ fontSize: 13, color: '#5adb5a' }}>✅ Customer is active — monitoring running</div>
                       )}
-                      <div style={{ display: 'flex', gap: 8 }}>
+                      {isOwner && <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => archiveCustomer(c.id, !!c.archived)} style={{
                           background: 'none', border: '1px solid #4a3a1a', color: '#C9A84C',
                           padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
@@ -1272,7 +1393,7 @@ export default function Admin() {
                           background: 'none', border: '1px solid #4a1a1a', color: '#ff6b6b',
                           padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
                         }}>Delete Customer</button>
-                      </div>
+                      </div>}
                     </div>
                   </div>
                 )}
@@ -1399,12 +1520,12 @@ export default function Admin() {
                                 ) : (
                                   <span className={`badge ${v.active ? 'badge-active' : 'badge-inactive'}`}>{v.active ? '● ON' : '○ OFF'}</span>
                                 )}
-                                <button onClick={() => archiveVehicle(v.id, !!v.archived)} title={v.archived ? 'Unarchive vehicle' : 'Archive vehicle'} style={{
+                                {isOwner && <button onClick={() => archiveVehicle(v.id, !!v.archived)} title={v.archived ? 'Unarchive vehicle' : 'Archive vehicle'} style={{
                                   padding: '3px 8px', borderRadius: 4, background: 'none',
                                   border: `1px solid ${v.archived ? '#2a4a2a' : '#4a3a1a'}`,
                                   color: v.archived ? '#5adb5a' : '#C9A84C',
                                   fontSize: 11, cursor: 'pointer', fontFamily: 'DM Sans',
-                                }}>{v.archived ? '↩ Unarchive' : '📦'}</button>
+                                }}>{v.archived ? '↩ Unarchive' : '📦'}</button>}
                               </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, fontSize: 12 }}>
@@ -1424,7 +1545,7 @@ export default function Admin() {
                         ))}
 
                         {/* Actions */}
-                        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        {isOwner && <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <button onClick={() => archiveCustomer(c.id, true)} style={{
                             background: 'none', border: '1px solid #2a4a2a', color: '#5adb5a',
                             padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
@@ -1433,7 +1554,7 @@ export default function Admin() {
                             background: 'none', border: '1px solid #4a1a1a', color: '#ff6b6b',
                             padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
                           }}>Delete Customer</button>
-                        </div>
+                        </div>}
                       </div>
                     )}
                   </div>
