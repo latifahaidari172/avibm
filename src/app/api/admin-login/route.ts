@@ -9,45 +9,60 @@ const getHeaders = () => ({
 const BASE = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/admin_users`
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  if (searchParams.get('action') === 'list') {
-    const res = await fetch(`${BASE()}?role=neq.owner&select=id,created_at,username,role,active&order=created_at.asc`, { headers: getHeaders() })
-    return NextResponse.json(await res.json())
+  try {
+    const { searchParams } = new URL(request.url)
+    if (searchParams.get('action') === 'list') {
+      const res = await fetch(`${BASE()}?role=neq.owner&select=id,created_at,username,role,active&order=created_at.asc`, { headers: getHeaders() })
+      return NextResponse.json(await res.json())
+    }
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 })
   }
-  return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
 }
 
 export async function POST(request: Request) {
-  const body = await request.json()
-  const { action } = body
+  try {
+    const body = await request.json()
+    const { action } = body
 
-  if (!action) {
-    // Login
-    const { username, password } = body
-    if (!username || !password) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
-    const res = await fetch(
-      `${BASE()}?username=ilike.${encodeURIComponent(username.trim())}&password=eq.${encodeURIComponent(password.trim())}&active=eq.true&select=id,username,role`,
-      { headers: getHeaders() }
-    )
-    const data = await res.json()
-    if (!data || data.length === 0) return NextResponse.json({ error: 'Incorrect username or password' }, { status: 401 })
-    return NextResponse.json(data[0])
+    if (!action) {
+      const { username, password } = body
+      if (!username || !password) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+
+      const url = `${BASE()}?select=id,username,password,role&active=eq.true`
+      const res = await fetch(url, { headers: getHeaders() })
+      const rows = await res.json()
+
+      if (!Array.isArray(rows)) return NextResponse.json({ error: 'Database error' }, { status: 500 })
+
+      const match = rows.find(
+        (r: any) =>
+          r.username?.toLowerCase() === username.trim().toLowerCase() &&
+          r.password === password.trim()
+      )
+
+      if (!match) return NextResponse.json({ error: 'Incorrect username or password' }, { status: 401 })
+      return NextResponse.json({ id: match.id, username: match.username, role: match.role })
+    }
+
+    if (action === 'add') {
+      const { username, password } = body
+      await fetch(BASE(), {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ username: username.trim(), password: password.trim(), role: 'admin', active: true }),
+      })
+      return NextResponse.json({ ok: true })
+    }
+
+    if (action === 'remove') {
+      await fetch(`${BASE()}?id=eq.${body.id}`, { method: 'DELETE', headers: getHeaders() })
+      return NextResponse.json({ ok: true })
+    }
+
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 })
   }
-
-  if (action === 'add') {
-    const { username, password } = body
-    await fetch(BASE(), {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ username: username.trim(), password: password.trim(), role: 'admin', active: true }),
-    })
-    return NextResponse.json({ ok: true })
-  }
-
-  if (action === 'remove') {
-    await fetch(`${BASE()}?id=eq.${body.id}`, { method: 'DELETE', headers: getHeaders() })
-    return NextResponse.json({ ok: true })
-  }
-
-  return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
 }
