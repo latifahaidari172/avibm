@@ -80,6 +80,11 @@ export default function Admin() {
   const [selectedAdmin, setSelectedAdmin] = useState<AdminUser | null>(null)
   const [addingAdmin, setAddingAdmin] = useState(false)
   const [newAdminForm, setNewAdminForm] = useState({ username: '', password: '' })
+  const [showMenu, setShowMenu] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [settingsForm, setSettingsForm] = useState({ username: '', newPassword: '', confirmPassword: '' })
+  const [settingsError, setSettingsError] = useState('')
+  const [settingsSuccess, setSettingsSuccess] = useState(false)
 
   const [customers, setCustomers] = useState<Customer[]>([])
   const [monitorStatus, setMonitorStatus] = useState<{
@@ -172,6 +177,40 @@ export default function Admin() {
   const logAction = async (action: string, details?: string) => {
     if (isOwner || !authedAdmin) return
     await supabase.from('admin_logs').insert({ action, details: details || null, admin_username: authedAdmin.username })
+  }
+
+  const logout = () => {
+    localStorage.removeItem('avibm_admin_user')
+    localStorage.removeItem('avibm_admin_last_seen')
+    setAuthed(false)
+    setAuthedAdmin(null)
+    setShowMenu(false)
+  }
+
+  const changeCredentials = async () => {
+    setSettingsError('')
+    setSettingsSuccess(false)
+    if (!settingsForm.username.trim() && !settingsForm.newPassword.trim()) {
+      setSettingsError('Enter a new username or password'); return
+    }
+    if (settingsForm.newPassword && settingsForm.newPassword !== settingsForm.confirmPassword) {
+      setSettingsError('Passwords do not match'); return
+    }
+    const updates: Record<string, string> = {}
+    if (settingsForm.username.trim()) updates.username = settingsForm.username.trim()
+    if (settingsForm.newPassword.trim()) updates.password = settingsForm.newPassword.trim()
+    await fetch('/api/admin-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update', id: authedAdmin!.id, updates }),
+    })
+    if (updates.username) {
+      const updated = { ...authedAdmin!, username: updates.username }
+      setAuthedAdmin(updated)
+      localStorage.setItem('avibm_admin_user', JSON.stringify(updated))
+    }
+    setSettingsSuccess(true)
+    setSettingsForm({ username: '', newPassword: '', confirmPassword: '' })
   }
 
   const loadData = async () => {
@@ -579,16 +618,47 @@ export default function Admin() {
           <span style={{ color: 'var(--text-muted)', fontSize: 12, marginLeft: 12, letterSpacing: '0.1em' }}>ADMIN PANEL</span>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <span style={{
-            fontSize: 12, color: isOwner ? 'var(--gold)' : '#5adb5a',
-            border: `1px solid ${isOwner ? 'var(--gold)' : '#2a4a2a'}`,
-            padding: '4px 10px', borderRadius: 20, letterSpacing: '0.05em',
-          }}>{isOwner ? '👑' : '👤'} {authedAdmin?.username}</span>
           <button onClick={loadData} style={{
             background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)',
             padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontFamily: 'DM Sans',
           }}>↻ Refresh</button>
           <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>← Site</Link>
+          {/* Account menu */}
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setShowMenu(p => !p)} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'none', border: `1px solid ${isOwner ? 'var(--gold)' : '#2a4a2a'}`,
+              color: isOwner ? 'var(--gold)' : '#5adb5a',
+              padding: '6px 12px', borderRadius: 20, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
+            }}>{isOwner ? '👑' : '👤'} {authedAdmin?.username} ▾</button>
+            {showMenu && (
+              <>
+                <div onClick={() => setShowMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 199 }} />
+                <div style={{
+                  position: 'absolute', top: '110%', right: 0, zIndex: 200, minWidth: 200,
+                  background: 'var(--dark-2)', border: '1px solid var(--border)',
+                  borderRadius: 10, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                }}>
+                  {isOwner && (
+                    <button onClick={() => { setShowMenu(false); setShowAdminPanel(true); document.getElementById('admin-panel')?.scrollIntoView({ behavior: 'smooth' }) }} style={{
+                      width: '100%', padding: '12px 16px', background: 'none', border: 'none',
+                      borderBottom: '1px solid var(--border)', color: 'var(--gold)',
+                      cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13, textAlign: 'left',
+                    }}>👥 Manage Admins</button>
+                  )}
+                  <button onClick={() => { setShowMenu(false); setSettingsSuccess(false); setSettingsError(''); setShowSettingsModal(true) }} style={{
+                    width: '100%', padding: '12px 16px', background: 'none', border: 'none',
+                    borderBottom: '1px solid var(--border)', color: 'var(--text)',
+                    cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13, textAlign: 'left',
+                  }}>⚙️ Change Username / Password</button>
+                  <button onClick={logout} style={{
+                    width: '100%', padding: '12px 16px', background: 'none', border: 'none',
+                    color: '#ff6b6b', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13, textAlign: 'left',
+                  }}>↩ Log Out</button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -1671,6 +1741,37 @@ export default function Admin() {
         )}
 
       </div>
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(0,0,0,0.7)' }}>
+          <div className="card" style={{ maxWidth: 400, width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 22 }}>ACCOUNT SETTINGS</h3>
+              <button onClick={() => setShowSettingsModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>Leave blank to keep unchanged.</div>
+            <div style={{ marginBottom: 12 }}>
+              <label>New Username</label>
+              <input value={settingsForm.username} onChange={e => setSettingsForm(p => ({ ...p, username: e.target.value }))}
+                placeholder={`Current: ${authedAdmin?.username}`} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label>New Password</label>
+              <input type="password" value={settingsForm.newPassword} onChange={e => setSettingsForm(p => ({ ...p, newPassword: e.target.value }))}
+                placeholder="Enter new password" />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label>Confirm New Password</label>
+              <input type="password" value={settingsForm.confirmPassword} onChange={e => setSettingsForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                placeholder="Confirm new password" />
+            </div>
+            {settingsError && <p style={{ color: '#ff6b6b', fontSize: 13, marginBottom: 12 }}>{settingsError}</p>}
+            {settingsSuccess && <p style={{ color: '#5adb5a', fontSize: 13, marginBottom: 12 }}>✅ Updated successfully</p>}
+            <button className="btn-gold" onClick={changeCredentials}>SAVE CHANGES</button>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
