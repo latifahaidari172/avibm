@@ -110,18 +110,23 @@ export default function Admin() {
   const login = async () => {
     if (!username.trim()) { setPwError('Enter your username'); return }
     if (!pw.trim()) { setPwError('Enter your password'); return }
-    const res = await fetch('/api/admin-login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: username.trim(), password: pw.trim() }),
-    })
-    const data = await res.json()
-    if (!res.ok) { setPwError(data.error || 'Incorrect username or password'); return }
-    localStorage.setItem('avibm_admin_last_seen', new Date().toISOString())
-    setAuthedAdmin({ id: data.id, username: data.username, role: data.role })
-    setAuthed(true)
-    loadData()
-    if (data.role === 'owner') { loadLogs(); loadAdmins() }
+    setPwError('')
+    try {
+      const res = await fetch('/api/admin-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password: pw.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setPwError(data.error || 'Incorrect username or password'); return }
+      localStorage.setItem('avibm_admin_last_seen', new Date().toISOString())
+      setAuthedAdmin({ id: data.id, username: data.username, role: data.role })
+      setAuthed(true)
+      loadData()
+      if (data.role === 'owner') { loadLogs(); loadAdmins() }
+    } catch (e) {
+      setPwError('Connection error — try again')
+    }
   }
 
   const loadLogs = async (filterUsername?: string) => {
