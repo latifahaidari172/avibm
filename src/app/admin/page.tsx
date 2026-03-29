@@ -65,8 +65,10 @@ type AdminLog = { id: string; created_at: string; action: string; details: strin
 type AdminUser = { id: string; created_at: string; username: string; role: string; active: boolean }
 
 export default function Admin() {
-  const [authed, setAuthed] = useState(false)
-  const [authedAdmin, setAuthedAdmin] = useState<{ id: string; username: string; role: string } | null>(null)
+  const [authed, setAuthed] = useState(() => !!localStorage.getItem('avibm_admin_user'))
+  const [authedAdmin, setAuthedAdmin] = useState<{ id: string; username: string; role: string } | null>(() => {
+    try { return JSON.parse(localStorage.getItem('avibm_admin_user') || 'null') } catch { return null }
+  })
   const [username, setUsername] = useState('')
   const [pw, setPw] = useState('')
   const [pwError, setPwError] = useState('')
@@ -119,8 +121,10 @@ export default function Admin() {
       })
       const data = await res.json()
       if (!res.ok) { setPwError(data.error || 'Incorrect username or password'); return }
+      const adminUser = { id: data.id, username: data.username, role: data.role }
       localStorage.setItem('avibm_admin_last_seen', new Date().toISOString())
-      setAuthedAdmin({ id: data.id, username: data.username, role: data.role })
+      localStorage.setItem('avibm_admin_user', JSON.stringify(adminUser))
+      setAuthedAdmin(adminUser)
       setAuthed(true)
       loadData()
       if (data.role === 'owner') { loadLogs(); loadAdmins() }
@@ -186,6 +190,14 @@ export default function Admin() {
 
     setLoading(false)
   }
+
+  useEffect(() => {
+    if (authed) {
+      loadData()
+      if (authedAdmin?.role === 'owner') { loadLogs(); loadAdmins() }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!authed) return
