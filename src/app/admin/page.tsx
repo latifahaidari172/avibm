@@ -571,8 +571,8 @@ export default function Admin() {
   }
 
   if (!authed) return (
-    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
-      <div className="card" style={{ maxWidth: 360, width: '100%' }}>
+    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, background: 'radial-gradient(ellipse at 50% 40%, rgba(201,168,76,0.06) 0%, transparent 70%)' }}>
+      <div className="card" style={{ maxWidth: 360, width: '100%', background: 'linear-gradient(135deg, #161616, #111)', border: '1px solid rgba(201,168,76,0.2)', boxShadow: '0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.05)' }}>
         <div className="section-label" style={{ marginBottom: 8 }}>Admin Access</div>
         <h2 style={{ fontSize: 32, marginBottom: 24 }}>AVIBM ADMIN</h2>
         <div style={{ marginBottom: 12 }}>
@@ -608,10 +608,13 @@ export default function Admin() {
   return (
     <main style={{ minHeight: '100vh', padding: '0 0 80px' }}>
       <header className='admin-header' style={{
-        borderBottom: '1px solid var(--border)', padding: '20px 40px',
+        borderBottom: '1px solid #1e1e1e', padding: '16px 40px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        position: 'sticky', top: 0, background: 'rgba(10,10,10,0.95)',
-        backdropFilter: 'blur(10px)', zIndex: 100,
+        position: 'sticky', top: 0,
+        background: 'rgba(8,8,8,0.97)',
+        backdropFilter: 'blur(20px)',
+        zIndex: 100,
+        boxShadow: '0 1px 0 rgba(201,168,76,0.08)',
       }}>
         <div>
           <span style={{ fontFamily: 'Bebas Neue', fontSize: 22, color: 'var(--gold)', letterSpacing: '0.15em' }}>AVIBM</span>
@@ -665,7 +668,7 @@ export default function Admin() {
       <div className='admin-body' style={{ padding: 'clamp(16px,4vw,32px) clamp(12px,4vw,40px)' }}>
 
         {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 10, marginBottom: 24 }}>
           {[
             { label: 'Total', value: stats.total },
             { label: 'Active', value: stats.active, gold: true },
@@ -675,12 +678,9 @@ export default function Admin() {
             { label: '🥈 Standard', value: stats.standard },
             { label: '🥉 Basic', value: stats.basic },
           ].map(s => (
-            <div key={s.label} style={{
-              background: 'var(--dark-2)', border: '1px solid var(--border)',
-              borderRadius: 10, padding: '14px 10px', textAlign: 'center',
-            }}>
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 28, color: s.gold ? 'var(--gold)' : 'var(--text)' }}>{s.value}</div>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2, lineHeight: 1.3 }}>{s.label}</div>
+            <div key={s.label} className={`admin-stat-card${s.gold ? ' gold' : ''}`}>
+              <div style={{ fontFamily: 'Bebas Neue', fontSize: 34, lineHeight: 1, color: s.gold ? 'var(--gold)' : 'var(--text)', marginBottom: 4 }}>{s.value}</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.3 }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -688,10 +688,7 @@ export default function Admin() {
         {/* Monitor Status */}
         <div className='monitor-grid' style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12, marginBottom: 20 }}>
           {[{ label: 'QLD', count: monitorStatus?.qld_count }, { label: 'SA', count: monitorStatus?.sa_count }].map(m => (
-            <div key={m.label} style={{
-              background: 'var(--dark-2)', border: `1px solid ${monitorStatus ? '#2a4a2a' : 'var(--border)'}`,
-              borderRadius: 10, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16,
-            }}>
+            <div key={m.label} className={`admin-monitor-card ${monitorStatus ? 'active' : 'inactive'}`}>
               <div style={{ position: 'relative' }}>
                 <div style={{ width: 14, height: 14, borderRadius: '50%', background: monitorStatus ? '#5adb5a' : '#555' }} />
                 {monitorStatus && (
