@@ -61,6 +61,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true })
     }
 
+    if (action === 'update') {
+      await fetch(`${BASE()}?id=eq.${body.id}`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+        body: JSON.stringify(body.updates),
+      })
+      return NextResponse.json({ ok: true })
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 })
