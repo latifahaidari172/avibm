@@ -65,8 +65,9 @@ type AdminLog = { id: string; created_at: string; action: string; details: strin
 type AdminUser = { id: string; created_at: string; username: string; role: string; active: boolean }
 
 export default function Admin() {
-  const [authed, setAuthed] = useState(() => !!localStorage.getItem('avibm_admin_user'))
+  const [authed, setAuthed] = useState(() => typeof window !== 'undefined' && !!localStorage.getItem('avibm_admin_user'))
   const [authedAdmin, setAuthedAdmin] = useState<{ id: string; username: string; role: string } | null>(() => {
+    if (typeof window === 'undefined') return null
     try { return JSON.parse(localStorage.getItem('avibm_admin_user') || 'null') } catch { return null }
   })
   const [username, setUsername] = useState('')
