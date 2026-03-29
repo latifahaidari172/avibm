@@ -606,7 +606,7 @@ export default function Admin() {
   )
 
   return (
-    <main style={{ minHeight: '100vh', padding: '0 0 80px' }}>
+    <main style={{ minHeight: '100vh', padding: '0 0 80px', background: 'radial-gradient(ellipse at 50% 0%, rgba(201,168,76,0.04) 0%, transparent 60%)' }}>
       <header className='admin-header' style={{
         borderBottom: '1px solid #1e1e1e', padding: '16px 40px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -720,12 +720,8 @@ export default function Admin() {
 
         {/* Admin Management — owner only */}
         {isOwner && (
-          <div style={{ marginBottom: 16 }}>
-            <div onClick={() => setShowAdminPanel(p => !p)} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: 'var(--dark-2)', border: '1px solid var(--gold)',
-              borderRadius: showAdminPanel ? '10px 10px 0 0' : 10, padding: '12px 20px', cursor: 'pointer',
-            }}>
+          <div className="admin-section" style={{ marginBottom: 16, borderColor: 'rgba(201,168,76,0.35)' }} id="admin-panel">
+            <div className={`admin-section-header gold-border${showAdminPanel ? ' open' : ''}`} onClick={() => setShowAdminPanel(p => !p)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 16 }}>👥</span>
                 <div>
@@ -736,7 +732,7 @@ export default function Admin() {
               <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{showAdminPanel ? '▲' : '▼'}</span>
             </div>
             {showAdminPanel && (
-              <div style={{ background: 'var(--dark-3)', border: '1px solid var(--gold)', borderTop: 'none', borderRadius: '0 0 10px 10px', padding: 16 }}>
+              <div className="admin-section-body">
 
                 {/* Admin list */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
@@ -746,7 +742,7 @@ export default function Admin() {
                   {admins.filter(a => a.role !== 'owner').map(a => (
                     <div key={a.id} style={{
                       display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '10px 14px', background: selectedAdmin?.id === a.id ? '#1a1a0a' : 'var(--dark-2)',
+                      padding: '10px 14px', background: selectedAdmin?.id === a.id ? '#1a1800' : '#111',
                       border: `1px solid ${selectedAdmin?.id === a.id ? 'var(--gold)' : 'var(--border)'}`,
                       borderRadius: 8,
                     }}>
@@ -767,10 +763,7 @@ export default function Admin() {
                       <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
                         Added {new Date(a.created_at).toLocaleDateString('en-AU')}
                       </span>
-                      <button onClick={() => removeAdmin(a.id)} style={{
-                        background: 'none', border: '1px solid #4a1a1a', color: '#ff6b6b',
-                        padding: '3px 10px', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontFamily: 'DM Sans',
-                      }}>Remove</button>
+                      <button onClick={() => removeAdmin(a.id)} className="admin-btn admin-btn-red" style={{ fontSize: 11 }}>Remove</button>
                     </div>
                   ))}
                 </div>
@@ -819,20 +812,11 @@ export default function Admin() {
                     <input placeholder="Password" value={newAdminForm.password}
                       onChange={e => setNewAdminForm(p => ({ ...p, password: e.target.value }))}
                       style={{ flex: 1, minWidth: 120, padding: '7px 12px', borderRadius: 6, fontSize: 13 }} />
-                    <button onClick={addAdmin} style={{
-                      padding: '7px 16px', borderRadius: 6, background: 'var(--gold)', border: 'none',
-                      color: '#000', fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13,
-                    }}>Add</button>
-                    <button onClick={() => { setAddingAdmin(false); setNewAdminForm({ username: '', password: '' }) }} style={{
-                      padding: '7px 12px', borderRadius: 6, background: 'none', border: '1px solid var(--border)',
-                      color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13,
-                    }}>Cancel</button>
+                    <button onClick={addAdmin} className="admin-btn admin-btn-gold">Add</button>
+                    <button onClick={() => { setAddingAdmin(false); setNewAdminForm({ username: '', password: '' }) }} className="admin-btn admin-btn-outline">Cancel</button>
                   </div>
                 ) : (
-                  <button onClick={() => setAddingAdmin(true)} style={{
-                    padding: '8px 16px', borderRadius: 6, background: 'none', border: '1px solid var(--gold)',
-                    color: 'var(--gold)', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13, fontWeight: 600,
-                  }}>+ Add Admin</button>
+                  <button onClick={() => setAddingAdmin(true)} className="admin-btn admin-btn-amber" style={{ fontSize: 13 }}>+ Add Admin</button>
                 )}
               </div>
             )}
@@ -840,12 +824,8 @@ export default function Admin() {
         )}
 
         {/* Free Customers Panel */}
-        <div style={{ marginBottom: 16 }}>
-          <div onClick={() => setShowFreePanel(p => !p)} style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            background: 'var(--dark-2)', border: '1px solid var(--border)',
-            borderRadius: showFreePanel ? '10px 10px 0 0' : 10, padding: '12px 20px', cursor: 'pointer',
-          }}>
+        <div className="admin-section" style={{ marginBottom: 16 }}>
+          <div className={`admin-section-header gold-border${showFreePanel ? ' open' : ''}`} onClick={() => setShowFreePanel(p => !p)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 16 }}>🎁</span>
               <div>
@@ -856,7 +836,7 @@ export default function Admin() {
             <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{showFreePanel ? '▲' : '▼'}</div>
           </div>
           {showFreePanel && (
-            <div style={{ background: 'var(--dark-2)', border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '16px 20px' }}>
+            <div className="admin-section-body" style={{ padding: '16px 20px' }}>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
                 Add email addresses or phone numbers. When a matching customer registers, they are automatically set to <strong style={{ color: 'var(--gold)' }}>Priority</strong> and <strong style={{ color: '#5adb5a' }}>Active</strong> — no payment required.
               </div>
@@ -892,44 +872,29 @@ export default function Admin() {
 
         {/* Pending Deletions — owner only */}
         {isOwner && customers.filter(c => c.pending_deletion).length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              background: '#1a0a0a', border: '1px solid #6a1a1a',
-              borderRadius: 10, padding: '12px 20px',
-            }}>
-              <span style={{ fontSize: 16 }}>⚠️</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em', color: '#ff6b6b' }}>
-                  PENDING DELETIONS — {customers.filter(c => c.pending_deletion).length} awaiting approval
+          <div className="admin-section" style={{ marginBottom: 16, borderColor: '#6a1a1a' }}>
+            <div className="admin-section-header red-border open" style={{ background: 'linear-gradient(90deg,#1a0808,#140606)', cursor: 'default' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+                <span style={{ fontSize: 16 }}>⚠️</span>
+                <div>
+                  <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em', color: '#ff6b6b' }}>
+                    PENDING DELETIONS — {customers.filter(c => c.pending_deletion).length} awaiting approval
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Requested by another admin — confirm to delete permanently or reinstate</div>
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Requested by another admin — confirm to delete permanently or reinstate</div>
               </div>
             </div>
-            <div style={{ background: '#120808', border: '1px solid #6a1a1a', borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="admin-section-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {customers.filter(c => c.pending_deletion).map(c => (
                 <div key={c.id} style={{ background: 'var(--dark-2)', border: '1px solid #4a1a1a', borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                  <div style={{
-                    background: c.state === 'QLD' ? '#1a2a3a' : '#2a1a2a',
-                    border: `1px solid ${c.state === 'QLD' ? '#2a3a4a' : '#3a2a3a'}`,
-                    color: c.state === 'QLD' ? '#5ab0ff' : '#c080ff',
-                    padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                  }}>{c.state}</div>
+                  <span className={`pill ${c.state === 'QLD' ? 'pill-qld' : 'pill-sa'}`}>{c.state}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{c.first_name} {c.last_name}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{c.email} · {c.phone}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => reinstateFromDeletion(c.id)} style={{
-                      padding: '7px 14px', borderRadius: 6, background: 'none',
-                      border: '1px solid #2a4a2a', color: '#5adb5a',
-                      cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12,
-                    }}>↩ Reinstate</button>
-                    <button onClick={() => approveDelete(c.id)} style={{
-                      padding: '7px 14px', borderRadius: 6, background: '#2a0a0a',
-                      border: '1px solid #6a1a1a', color: '#ff6b6b',
-                      cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700,
-                    }}>Confirm Delete</button>
+                    <button onClick={() => reinstateFromDeletion(c.id)} className="admin-btn admin-btn-green">↩ Reinstate</button>
+                    <button onClick={() => approveDelete(c.id)} className="admin-btn admin-btn-red" style={{ fontWeight: 700 }}>Confirm Delete</button>
                   </div>
                 </div>
               ))}
@@ -939,32 +904,23 @@ export default function Admin() {
 
         {/* Pending Payment Section */}
         {pendingPayment.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div onClick={() => setShowPendingPanel(p => !p)} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: '#1a0808', border: '1px solid #4a2020',
-              borderRadius: showPendingPanel ? '10px 10px 0 0' : 10, padding: '12px 20px', cursor: 'pointer',
-            }}>
+          <div className="admin-section" style={{ marginBottom: 16, borderColor: '#4a2020' }}>
+            <div className={`admin-section-header orange-border${showPendingPanel ? ' open' : ''}`} style={{ background: showPendingPanel ? 'linear-gradient(90deg,#1a0a0a,#140808)' : 'linear-gradient(90deg,#1a0a0a,#140808)' }} onClick={() => setShowPendingPanel(p => !p)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 16 }}>⏳</span>
                 <div>
-                  <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em', color: '#ff8888' }}>PENDING PAYMENT</div>
+                  <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em', color: '#ff9966' }}>PENDING PAYMENT</div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{pendingPayment.length} customer{pendingPayment.length !== 1 ? 's' : ''} registered but not yet paid</div>
                 </div>
               </div>
               <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{showPendingPanel ? '▲' : '▼'}</div>
             </div>
             {showPendingPanel && (
-              <div style={{ background: '#120808', border: '1px solid #4a2020', borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="admin-section-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {pendingPayment.map(c => (
-                  <div key={c.id} style={{ background: 'var(--dark-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px' }}>
+                  <div key={c.id} style={{ background: 'var(--dark-2)', border: '1px solid #2a2020', borderRadius: 10, padding: '12px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-                      <div style={{
-                        background: c.state === 'QLD' ? '#1a2a3a' : '#2a1a2a',
-                        border: `1px solid ${c.state === 'QLD' ? '#2a3a4a' : '#3a2a3a'}`,
-                        color: c.state === 'QLD' ? '#5ab0ff' : '#c080ff',
-                        padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                      }}>{c.state}</div>
+                      <span className={`pill ${c.state === 'QLD' ? 'pill-qld' : 'pill-sa'}`}>{c.state}</span>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600, fontSize: 14 }}>{c.first_name} {c.last_name}</div>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{c.email} · {c.phone}</div>
@@ -982,16 +938,13 @@ export default function Admin() {
                       <button
                         onClick={() => sendStripeReminder(c, pendingCoupons[c.id] || '')}
                         disabled={sendingReminder === c.id}
-                        style={{ padding: '7px 14px', borderRadius: 6, background: '#C9A84C', border: 'none', color: '#000', fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12, opacity: sendingReminder === c.id ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                        className="admin-btn admin-btn-gold"
+                        style={{ opacity: sendingReminder === c.id ? 0.6 : 1, whiteSpace: 'nowrap' }}
                       >{sendingReminder === c.id ? 'Sending...' : '📧 Send Link'}</button>
                       {isOwner ? (
-                        <button onClick={() => deleteCustomer(c.id)}
-                          style={{ padding: '7px 12px', borderRadius: 6, background: '#2a0a0a', border: '1px solid #4a1a1a', color: '#ff6b6b', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12 }}
-                        >🗑</button>
+                        <button onClick={() => deleteCustomer(c.id)} className="admin-btn admin-btn-red">🗑</button>
                       ) : (
-                        <button onClick={() => requestDelete(c.id)}
-                          style={{ padding: '7px 12px', borderRadius: 6, background: '#2a1a0a', border: '1px solid #4a2a1a', color: '#ff9966', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12 }}
-                        >🗑</button>
+                        <button onClick={() => requestDelete(c.id)} className="admin-btn admin-btn-orange">🗑</button>
                       )}
                     </div>
                   </div>
@@ -1004,16 +957,21 @@ export default function Admin() {
         {/* Auto payment email info */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20,
-          background: 'var(--dark-2)', border: '1px solid #2a4a2a', borderRadius: 10, padding: '12px 20px',
+          background: 'linear-gradient(90deg, #0d1a0d, #0e150e)', border: '1px solid #2a4a2a', borderRadius: 10, padding: '12px 20px',
         }}>
-          <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#5adb5a', flexShrink: 0 }} />
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#5adb5a', flexShrink: 0, boxShadow: '0 0 8px rgba(90,219,90,0.5)' }} />
           <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
             Payment request emails are <strong style={{ color: '#5adb5a' }}>automatically sent</strong> to every new registration. Use the button below to send reminders.
           </div>
         </div>
 
         {/* Filters */}
-        <div className='filters-row' style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
+          <div style={{ fontFamily: 'Bebas Neue', fontSize: 20, letterSpacing: '0.08em', color: 'var(--text)' }}>
+            CUSTOMERS <span style={{ color: 'var(--text-muted)', fontSize: 14, fontFamily: 'DM Sans', letterSpacing: 0, fontWeight: 400 }}>{filtered.length} shown</span>
+          </div>
+        </div>
+        <div className='filters-row' style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
           <div style={{ flex: 1 }}>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or email..." style={{ maxWidth: 320 }} />
           </div>
@@ -1034,22 +992,11 @@ export default function Admin() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {filtered.map(c => (
-              <div key={c.id} style={{
-                background: 'var(--dark-2)',
-                border: `1px solid ${c.vehicles?.some(v => v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '#5adb5a' : 'var(--border)'}`,
-                borderRadius: 10, overflow: 'hidden',
-                boxShadow: c.vehicles?.some(v => v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '0 0 12px rgba(90,219,90,0.15)' : 'none',
-              }}>
+              <div key={c.id} className={`admin-customer-card ${c.state === 'QLD' ? 'qld' : 'sa'}${c.active ? ' active-customer' : ''}`}
+                style={{ boxShadow: c.vehicles?.some(v => v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '0 0 16px rgba(90,219,90,0.2)' : 'none' }}>
                 {/* Customer row */}
-                <div className='customer-row' style={{
-                  padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', cursor: 'pointer',
-                }} onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}>
-                  <div style={{
-                    background: c.state === 'QLD' ? '#1a2a3a' : '#2a1a2a',
-                    border: `1px solid ${c.state === 'QLD' ? '#2a3a4a' : '#3a2a3a'}`,
-                    color: c.state === 'QLD' ? '#5ab0ff' : '#c080ff',
-                    padding: '4px 10px', borderRadius: 4, fontSize: 12, fontWeight: 600, minWidth: 48, textAlign: 'center',
-                  }}>{c.state}</div>
+                <div className='admin-customer-row customer-row' onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}>
+                  <span className={`pill ${c.state === 'QLD' ? 'pill-qld' : 'pill-sa'}`} style={{ minWidth: 42, textAlign: 'center' }}>{c.state}</span>
                   <div className='customer-name' style={{ flex: 1, minWidth: 140 }}>
                     <div style={{ fontWeight: 600, fontSize: 15 }}>{c.first_name} {c.last_name}</div>
                     <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{c.email} · {c.phone}</div>
@@ -1077,14 +1024,9 @@ export default function Admin() {
                     </div>
                   )}
                   <div onClick={e => { e.stopPropagation(); supabase.from('customers').update({ auto_payment_email: !c.auto_payment_email }).eq('id', c.id).then(() => setCustomers(cs => cs.map(x => x.id === c.id ? { ...x, auto_payment_email: !c.auto_payment_email } : x))) }} title="Auto-send payment request email when customer registers">
-                    <span style={{
-                      cursor: 'pointer', fontSize: 12, padding: '4px 10px', borderRadius: 4,
-                      background: c.auto_payment_email ? '#1a2a1a' : 'var(--dark-4)',
-                      border: `1px solid ${c.auto_payment_email ? '#2a4a2a' : 'var(--border)'}`,
-                      color: c.auto_payment_email ? '#5adb5a' : 'var(--text-muted)',
-                    }}>
-                      {c.auto_payment_email ? '● AUTO EMAIL' : '○ MANUAL'}
-                    </span>
+                    <button className={`admin-toggle ${c.auto_payment_email ? 'on' : 'off'}`}>
+                      {c.auto_payment_email ? '● AUTO' : '○ MANUAL'}
+                    </button>
                   </div>
                   <div onClick={e => { e.stopPropagation(); toggleActive(c.id, c.active) }}>
                     <span className={`badge ${c.active ? 'badge-active' : 'badge-pending'}`} style={{ cursor: 'pointer' }}>
@@ -1096,18 +1038,18 @@ export default function Admin() {
 
                 {/* Expanded detail */}
                 {expandedId === c.id && (
-                  <div style={{ borderTop: '1px solid var(--border)', padding: '20px' }}>
+                  <div style={{ borderTop: '1px solid #1e1e1e', padding: '20px', background: '#0c0c0c' }}>
                     {/* Customer Details — view / edit */}
                     <div style={{ marginBottom: 20 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                         <div className="section-label" style={{ marginBottom: 0 }}>Customer Details</div>
                         {editingCustomer === c.id ? (
                           <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={() => saveCustomerEdits(c.id)} style={{ padding: '4px 12px', borderRadius: 6, background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>✓ Save</button>
-                            <button onClick={() => setEditingCustomer(null)} style={{ padding: '4px 12px', borderRadius: 6, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>Cancel</button>
+                            <button onClick={() => saveCustomerEdits(c.id)} className="admin-btn admin-btn-gold">✓ Save</button>
+                            <button onClick={() => setEditingCustomer(null)} className="admin-btn admin-btn-outline">Cancel</button>
                           </div>
                         ) : (
-                          <button onClick={() => { setEditingCustomer(c.id); setCustomerEdits(e => ({ ...e, [c.id]: { first_name: c.first_name, last_name: c.last_name, email: c.email, phone: c.phone, address: c.address, suburb: c.suburb, postcode: c.postcode, crn: c.crn, licence_number: c.licence_number, date_of_birth: c.date_of_birth } })) }} style={{ padding: '4px 12px', borderRadius: 6, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>✏️ Edit</button>
+                          <button onClick={() => { setEditingCustomer(c.id); setCustomerEdits(e => ({ ...e, [c.id]: { first_name: c.first_name, last_name: c.last_name, email: c.email, phone: c.phone, address: c.address, suburb: c.suburb, postcode: c.postcode, crn: c.crn, licence_number: c.licence_number, date_of_birth: c.date_of_birth } })) }} className="admin-btn admin-btn-outline">✏️ Edit</button>
                         )}
                       </div>
                       {editingCustomer === c.id ? (
@@ -1147,9 +1089,10 @@ export default function Admin() {
                     <div className="section-label" style={{ marginBottom: 12 }}>Vehicles</div>
                     {c.vehicles?.filter(v => !v.archived).map(v => (
                       <div key={v.id} style={{
-                        background: (v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '#0d1f0d' : 'var(--dark-3)',
-                        border: `1px solid ${(v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '#2a4a2a' : 'var(--border)'}`,
-                        borderRadius: 8, padding: '14px 16px', marginBottom: 8,
+                        background: (v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? 'linear-gradient(135deg, #0d1f0d, #0a160a)' : 'linear-gradient(135deg, #131313, #0f0f0f)',
+                        border: `1px solid ${(v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '#2a4a2a' : '#222'}`,
+                        borderRadius: 10, padding: '14px 16px', marginBottom: 8,
+                        boxShadow: (v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '0 0 10px rgba(90,219,90,0.08)' : 'none',
                       }}>
                         {/* Vehicle header */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 8 }}>
@@ -1193,8 +1136,8 @@ export default function Admin() {
                                   </div>
                                 ))}
                                 <div style={{ display: 'flex', gap: 6 }}>
-                                  <button onClick={() => saveVehicleEdits(v.id)} style={{ padding: '4px 10px', borderRadius: 6, background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>✓ Save</button>
-                                  <button onClick={() => setEditingVehicle(null)} style={{ padding: '4px 8px', borderRadius: 6, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>✕</button>
+                                  <button onClick={() => saveVehicleEdits(v.id)} className="admin-btn admin-btn-gold">✓ Save</button>
+                                  <button onClick={() => setEditingVehicle(null)} className="admin-btn admin-btn-outline">✕</button>
                                 </div>
                               </div>
                             ) : (
@@ -1211,18 +1154,14 @@ export default function Admin() {
                           </div>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                             {editingVehicle !== v.id && (
-                              <button onClick={() => { setEditingVehicle(v.id); setVehicleEdits(eds => ({ ...eds, [v.id]: { make: v.make, model: v.model, year: v.year, colour: v.colour || '', vin: v.vin, label: v.label || '', vehicle_type: v.vehicle_type || '', build_month: v.build_month || '', damage: v.damage || '', purchase_method: v.purchase_method || '', purchased_from: v.purchased_from || '' } })) }} style={{ padding: '3px 8px', borderRadius: 4, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer', fontFamily: 'DM Sans' }}>✏️</button>
+                              <button onClick={() => { setEditingVehicle(v.id); setVehicleEdits(eds => ({ ...eds, [v.id]: { make: v.make, model: v.model, year: v.year, colour: v.colour || '', vin: v.vin, label: v.label || '', vehicle_type: v.vehicle_type || '', build_month: v.build_month || '', damage: v.damage || '', purchase_method: v.purchase_method || '', purchased_from: v.purchased_from || '' } })) }} className="admin-btn admin-btn-outline" style={{ fontSize: 11 }}>✏️</button>
                             )}
                             <div onClick={() => toggleVehicle(v.id, v.active)} style={{ cursor: 'pointer' }}>
                               <span className={`badge ${v.active ? 'badge-active' : 'badge-inactive'}`}>
                                 {v.active ? '● ON' : '○ OFF'}
                               </span>
                             </div>
-                            <button onClick={() => archiveVehicle(v.id, !!v.archived)} title="Archive vehicle" style={{
-                              padding: '3px 8px', borderRadius: 4, background: 'none',
-                              border: '1px solid #4a3a1a', color: '#C9A84C', fontSize: 11,
-                              cursor: 'pointer', fontFamily: 'DM Sans',
-                            }}>📦</button>
+                            <button onClick={() => archiveVehicle(v.id, !!v.archived)} title="Archive vehicle" className="admin-btn admin-btn-amber" style={{ fontSize: 11 }}>📦</button>
                           </div>
                         </div>
 
@@ -1533,31 +1472,21 @@ export default function Admin() {
                     )}
 
                     {/* Actions */}
-                    <div className='actions-row' style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className='actions-row' style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
                       {!c.active ? (
-                        <button onClick={() => sendPaymentRequest(c)} style={{
-                          background: 'var(--gold)', color: '#000', border: 'none',
-                          padding: '10px 20px', borderRadius: 6, cursor: 'pointer',
-                          fontFamily: 'Bebas Neue', fontSize: 15, letterSpacing: '0.1em',
-                        }}>📧 SEND PAYMENT REQUEST</button>
+                        <button onClick={() => sendPaymentRequest(c)} className="admin-btn admin-btn-gold" style={{ fontSize: 13, padding: '10px 20px', letterSpacing: '0.05em' }}>📧 Send Payment Request</button>
                       ) : (
-                        <div style={{ fontSize: 13, color: '#5adb5a' }}>✅ Customer is active — monitoring running</div>
+                        <div style={{ fontSize: 13, color: '#5adb5a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#5adb5a', display: 'inline-block', boxShadow: '0 0 6px rgba(90,219,90,0.6)' }} />
+                          Active — monitoring running
+                        </div>
                       )}
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => archiveCustomer(c.id, !!c.archived)} style={{
-                          background: 'none', border: '1px solid #4a3a1a', color: '#C9A84C',
-                          padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
-                        }}>📦 Archive Customer</button>
+                        <button onClick={() => archiveCustomer(c.id, !!c.archived)} className="admin-btn admin-btn-amber">📦 Archive</button>
                         {isOwner ? (
-                          <button onClick={() => deleteCustomer(c.id)} style={{
-                            background: 'none', border: '1px solid #4a1a1a', color: '#ff6b6b',
-                            padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
-                          }}>Delete Customer</button>
+                          <button onClick={() => deleteCustomer(c.id)} className="admin-btn admin-btn-red">Delete</button>
                         ) : (
-                          <button onClick={() => requestDelete(c.id)} style={{
-                            background: 'none', border: '1px solid #4a2a1a', color: '#ff9966',
-                            padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
-                          }}>🗑 Request Delete</button>
+                          <button onClick={() => requestDelete(c.id)} className="admin-btn admin-btn-orange">🗑 Request Delete</button>
                         )}
                       </div>
                     </div>
@@ -1570,39 +1499,27 @@ export default function Admin() {
 
         {/* Archived Section */}
         {archived.length > 0 && (
-          <div style={{ marginTop: 40 }}>
-            <button
-              onClick={() => setShowArchivedPanel(p => !p)}
-              style={{
-                width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                background: 'var(--dark-2)', border: '1px solid #4a3a1a', borderRadius: 10,
-                padding: '14px 20px', cursor: 'pointer', color: '#C9A84C', fontFamily: 'Bebas Neue',
-                fontSize: 18, letterSpacing: '0.08em',
-              }}
-            >
-              <span>📦 ARCHIVED ({archived.length})</span>
-              <span style={{ fontSize: 14 }}>{showArchivedPanel ? '▲ HIDE' : '▼ SHOW'}</span>
-            </button>
+          <div className="admin-section" style={{ marginTop: 40, borderColor: '#3a2a0a' }}>
+            <div className={`admin-section-header gold-border${showArchivedPanel ? ' open' : ''}`}
+              style={{ background: 'linear-gradient(90deg, #151005, #111)', cursor: 'pointer' }}
+              onClick={() => setShowArchivedPanel(p => !p)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span>📦</span>
+                <span style={{ fontFamily: 'Bebas Neue', fontSize: 17, letterSpacing: '0.08em', color: '#C9A84C' }}>ARCHIVED ({archived.length})</span>
+              </div>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{showArchivedPanel ? '▲ HIDE' : '▼ SHOW'}</span>
+            </div>
 
             {showArchivedPanel && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+              <div className="admin-section-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {archived.map(c => (
-                  <div key={c.id} style={{
-                    background: 'var(--dark-2)', border: '1px solid #3a2a0a',
-                    borderRadius: 10, overflow: 'hidden', opacity: 0.85,
-                  }}>
+                  <div key={c.id} className={`admin-customer-card ${c.state === 'QLD' ? 'qld' : 'sa'}`} style={{ opacity: 0.8 }}>
                     {/* Header row — clickable to expand */}
                     <div
-                      className='customer-row'
-                      style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', cursor: 'pointer' }}
+                      className='admin-customer-row customer-row'
                       onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
                     >
-                      <div style={{
-                        background: c.state === 'QLD' ? '#1a2a3a' : '#2a1a2a',
-                        border: `1px solid ${c.state === 'QLD' ? '#2a3a4a' : '#3a2a3a'}`,
-                        color: c.state === 'QLD' ? '#5ab0ff' : '#c080ff',
-                        padding: '4px 10px', borderRadius: 4, fontSize: 12, fontWeight: 600,
-                      }}>{c.state}</div>
+                      <span className={`pill ${c.state === 'QLD' ? 'pill-qld' : 'pill-sa'}`} style={{ minWidth: 42, textAlign: 'center' }}>{c.state}</span>
                       <div className='customer-name' style={{ flex: 1, minWidth: 140 }}>
                         <div style={{ fontWeight: 600, fontSize: 15 }}>{c.first_name} {c.last_name}</div>
                         <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{c.email} · {c.phone}</div>
@@ -1620,18 +1537,18 @@ export default function Admin() {
 
                     {/* Expanded detail — same as main list */}
                     {expandedId === c.id && (
-                      <div style={{ borderTop: '1px solid var(--border)', padding: '20px' }}>
+                      <div style={{ borderTop: '1px solid #1e1e1e', padding: '20px', background: '#0c0c0c' }}>
                         {/* Customer Details */}
                         <div style={{ marginBottom: 20 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                             <div className="section-label" style={{ marginBottom: 0 }}>Customer Details</div>
                             {editingCustomer === c.id ? (
                               <div style={{ display: 'flex', gap: 8 }}>
-                                <button onClick={() => saveCustomerEdits(c.id)} style={{ padding: '4px 12px', borderRadius: 6, background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>✓ Save</button>
-                                <button onClick={() => setEditingCustomer(null)} style={{ padding: '4px 12px', borderRadius: 6, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>Cancel</button>
+                                <button onClick={() => saveCustomerEdits(c.id)} className="admin-btn admin-btn-gold">✓ Save</button>
+                                <button onClick={() => setEditingCustomer(null)} className="admin-btn admin-btn-outline">Cancel</button>
                               </div>
                             ) : (
-                              <button onClick={() => { setEditingCustomer(c.id); setCustomerEdits(e => ({ ...e, [c.id]: { first_name: c.first_name, last_name: c.last_name, email: c.email, phone: c.phone, address: c.address, suburb: c.suburb, postcode: c.postcode, crn: c.crn, licence_number: c.licence_number, date_of_birth: c.date_of_birth } })) }} style={{ padding: '4px 12px', borderRadius: 6, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans' }}>✏️ Edit</button>
+                              <button onClick={() => { setEditingCustomer(c.id); setCustomerEdits(e => ({ ...e, [c.id]: { first_name: c.first_name, last_name: c.last_name, email: c.email, phone: c.phone, address: c.address, suburb: c.suburb, postcode: c.postcode, crn: c.crn, licence_number: c.licence_number, date_of_birth: c.date_of_birth } })) }} className="admin-btn admin-btn-outline">✏️ Edit</button>
                             )}
                           </div>
                           {editingCustomer === c.id ? (
@@ -1711,21 +1628,12 @@ export default function Admin() {
                         ))}
 
                         {/* Actions */}
-                        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <button onClick={() => archiveCustomer(c.id, true)} style={{
-                            background: 'none', border: '1px solid #2a4a2a', color: '#5adb5a',
-                            padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
-                          }}>↩ Unarchive Customer</button>
+                        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                          <button onClick={() => archiveCustomer(c.id, true)} className="admin-btn admin-btn-green">↩ Unarchive</button>
                           {isOwner ? (
-                            <button onClick={() => deleteCustomer(c.id)} style={{
-                              background: 'none', border: '1px solid #4a1a1a', color: '#ff6b6b',
-                              padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
-                            }}>Delete Customer</button>
+                            <button onClick={() => deleteCustomer(c.id)} className="admin-btn admin-btn-red">Delete Customer</button>
                           ) : (
-                            <button onClick={() => requestDelete(c.id)} style={{
-                              background: 'none', border: '1px solid #4a2a1a', color: '#ff9966',
-                              padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
-                            }}>🗑 Request Delete</button>
+                            <button onClick={() => requestDelete(c.id)} className="admin-btn admin-btn-orange">🗑 Request Delete</button>
                           )}
                         </div>
                       </div>
@@ -1741,8 +1649,8 @@ export default function Admin() {
 
       {/* Settings Modal */}
       {showSettingsModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(0,0,0,0.7)' }}>
-          <div className="card" style={{ maxWidth: 400, width: '100%' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)' }}>
+          <div className="card" style={{ maxWidth: 400, width: '100%', background: 'linear-gradient(135deg,#161616,#111)', border: '1px solid rgba(201,168,76,0.2)', boxShadow: '0 24px 64px rgba(0,0,0,0.7)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h3 style={{ margin: 0, fontSize: 22 }}>ACCOUNT SETTINGS</h3>
               <button onClick={() => setShowSettingsModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer' }}>✕</button>
