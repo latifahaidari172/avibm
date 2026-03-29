@@ -60,10 +60,15 @@ type Vehicle = {
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'avibm2024'
 
+type AdminLog = { id: string; created_at: string; action: string; details: string | null }
+
 export default function Admin() {
   const [authed, setAuthed] = useState(false)
+  const [isOwner, setIsOwner] = useState(false)
   const [pw, setPw] = useState('')
   const [pwError, setPwError] = useState(false)
+  const [adminLogs, setAdminLogs] = useState<AdminLog[]>([])
+  const [showLogsPanel, setShowLogsPanel] = useState(true)
 
   const [customers, setCustomers] = useState<Customer[]>([])
   const [monitorStatus, setMonitorStatus] = useState<{
@@ -93,11 +98,29 @@ export default function Admin() {
   const [sendingReminder, setSendingReminder] = useState<string | null>(null)
 
   const login = () => {
-    if (ADMIN_PASSWORD.split(',').map(p => p.trim()).includes(pw)) {
+    const passwords = ADMIN_PASSWORD.split(',').map(p => p.trim())
+    if (passwords.includes(pw)) {
+      const owner = pw === passwords[0]
       localStorage.setItem('avibm_admin_last_seen', new Date().toISOString())
+      setIsOwner(owner)
       setAuthed(true)
       loadData()
+      if (owner) loadLogs()
     } else setPwError(true)
+  }
+
+  const loadLogs = async () => {
+    const { data } = await supabase
+      .from('admin_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100)
+    if (data) setAdminLogs(data)
+  }
+
+  const logAction = async (action: string, details?: string) => {
+    if (isOwner) return
+    await supabase.from('admin_logs').insert({ action, details: details || null })
   }
 
   const loadData = async () => {
@@ -175,8 +198,12 @@ export default function Admin() {
   const toggleActive = async (id: string, current: boolean) => {
     await supabase.from('customers').update({ active: !current }).eq('id', id)
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, active: !current } : c))
+    const customer = customers.find(c => c.id === id)
+    await logAction(
+      current ? 'Deactivated customer' : 'Activated customer',
+      customer ? `${customer.first_name} ${customer.last_name} (${customer.state})` : id
+    )
     if (!current) {
-      const customer = customers.find(c => c.id === id)
       if (customer) {
         await fetch('/api/activation-confirmation', {
           method: 'POST',
@@ -198,11 +225,18 @@ export default function Admin() {
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, active: !current } : v)
     })))
+    const vehicle = customers.flatMap(c => c.vehicles || []).find(v => v.id === vid)
+    await logAction(
+      current ? 'Deactivated vehicle' : 'Activated vehicle',
+      vehicle ? vehicle.label : vid
+    )
   }
 
   const updateTier = async (id: string, tier: string) => {
     await supabase.from('customers').update({ tier }).eq('id', id)
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, tier: tier as any } : c))
+    const customer = customers.find(c => c.id === id)
+    await logAction('Changed tier', `${customer ? `${customer.first_name} ${customer.last_name}` : id} → ${tier}`)
   }
 
   const sendPaymentRequest = async (c: Customer) => {
@@ -246,6 +280,8 @@ export default function Admin() {
         booked_location: undefined,
       } : v)
     })))
+    const vehicle = customers.flatMap(c => c.vehicles || []).find(v => v.id === vid)
+    await logAction('Updated cutoff date', `${vehicle ? vehicle.label : vid}: ${oldDate} → ${date}`)
   }
 
   const updateManualBooking = async (vid: string, date: string, time: string, location: string) => {
@@ -263,6 +299,8 @@ export default function Admin() {
         booked_location: location || undefined,
       } : v)
     })))
+    const vehicle = customers.flatMap(c => c.vehicles || []).find(v => v.id === vid)
+    await logAction('Set manual booking', `${vehicle ? vehicle.label : vid}: ${date} ${time} @ ${location}`)
   }
 
   const updateSearchAfter = async (vid: string, date: string | null, active: boolean) => {
@@ -317,6 +355,8 @@ export default function Admin() {
     await supabase.from('customers').update(edits).eq('id', id)
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, ...edits } : c))
     setEditingCustomer(null)
+    const customer = customers.find(c => c.id === id)
+    await logAction('Edited customer details', customer ? `${customer.first_name} ${customer.last_name}` : id)
   }
 
   const saveVehicleEdits = async (vid: string) => {
@@ -328,6 +368,8 @@ export default function Admin() {
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, ...edits } : v)
     })))
     setEditingVehicle(null)
+    const vehicle = customers.flatMap(c => c.vehicles || []).find(v => v.id === vid)
+    await logAction('Edited vehicle details', vehicle ? vehicle.label : vid)
   }
 
   const updateNotes = async (vid: string, notes: string) => {
@@ -361,13 +403,17 @@ export default function Admin() {
 
   const deleteCustomer = async (id: string) => {
     if (!confirm('Delete this customer and all their vehicles?')) return
+    const customer = customers.find(c => c.id === id)
     await supabase.from('customers').delete().eq('id', id)
     setCustomers(cs => cs.filter(c => c.id !== id))
+    await logAction('Deleted customer', customer ? `${customer.first_name} ${customer.last_name} (${customer.state})` : id)
   }
 
   const archiveCustomer = async (id: string, current: boolean) => {
     await supabase.from('customers').update({ archived: !current, active: false }).eq('id', id)
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, archived: !current, active: false } : c))
+    const customer = customers.find(c => c.id === id)
+    await logAction(current ? 'Unarchived customer' : 'Archived customer', customer ? `${customer.first_name} ${customer.last_name}` : id)
   }
 
   const archiveVehicle = async (vid: string, current: boolean) => {
@@ -376,6 +422,8 @@ export default function Admin() {
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, archived: !current, active: false } : v)
     })))
+    const vehicle = customers.flatMap(c => c.vehicles || []).find(v => v.id === vid)
+    await logAction(current ? 'Unarchived vehicle' : 'Archived vehicle', vehicle ? vehicle.label : vid)
   }
 
   const pendingPayment = customers.filter(c => !c.active && c.auto_payment_email)
@@ -508,6 +556,60 @@ export default function Admin() {
             100% { transform: scale(1); opacity: 0; }
           }
         `}</style>
+
+        {/* Activity Log — owner only */}
+        {isOwner && (
+          <div style={{ marginBottom: 16 }}>
+            <div onClick={() => setShowLogsPanel(p => !p)} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'var(--dark-2)', border: '1px solid var(--border)',
+              borderRadius: showLogsPanel ? '10px 10px 0 0' : 10, padding: '12px 20px', cursor: 'pointer',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 16 }}>🕵️</span>
+                <div>
+                  <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em' }}>ADMIN 2 ACTIVITY LOG</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{adminLogs.length} action{adminLogs.length !== 1 ? 's' : ''} recorded — only visible to you</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button onClick={e => { e.stopPropagation(); loadLogs() }} style={{
+                  background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)',
+                  padding: '4px 10px', borderRadius: 5, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
+                }}>↻</button>
+                <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{showLogsPanel ? '▲' : '▼'}</span>
+              </div>
+            </div>
+            {showLogsPanel && (
+              <div style={{
+                background: 'var(--dark-3)', border: '1px solid var(--border)', borderTop: 'none',
+                borderRadius: '0 0 10px 10px', padding: 16,
+              }}>
+                {adminLogs.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0, textAlign: 'center', padding: '16px 0' }}>No activity recorded yet.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {adminLogs.map(log => (
+                      <div key={log.id} style={{
+                        display: 'flex', gap: 12, alignItems: 'flex-start',
+                        padding: '8px 12px', background: 'var(--dark-2)', borderRadius: 7,
+                        border: '1px solid var(--border)',
+                      }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', marginTop: 1, minWidth: 130 }}>
+                          {new Date(log.created_at).toLocaleString('en-AU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{log.action}</span>
+                          {log.details && <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>{log.details}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Free Customers Panel */}
         <div style={{ marginBottom: 16 }}>
