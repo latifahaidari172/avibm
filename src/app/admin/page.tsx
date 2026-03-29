@@ -646,11 +646,11 @@ export default function Admin() {
                       cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13, textAlign: 'left',
                     }}>👥 Manage Admins</button>
                   )}
-                  <button onClick={() => { setShowMenu(false); setSettingsSuccess(false); setSettingsError(''); setShowSettingsModal(true) }} style={{
+                  {isOwner && <button onClick={() => { setShowMenu(false); setSettingsSuccess(false); setSettingsError(''); setShowSettingsModal(true) }} style={{
                     width: '100%', padding: '12px 16px', background: 'none', border: 'none',
                     borderBottom: '1px solid var(--border)', color: 'var(--text)',
                     cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13, textAlign: 'left',
-                  }}>⚙️ Change Username / Password</button>
+                  }}>⚙️ Change Username / Password</button>}
                   <button onClick={logout} style={{
                     width: '100%', padding: '12px 16px', background: 'none', border: 'none',
                     color: '#ff6b6b', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13, textAlign: 'left',
