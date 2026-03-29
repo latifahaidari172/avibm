@@ -110,14 +110,13 @@ export default function Admin() {
   const login = async () => {
     if (!username.trim()) { setPwError('Enter your username'); return }
     if (!pw.trim()) { setPwError('Enter your password'); return }
-    const { data } = await supabase
-      .from('admin_users')
-      .select('id, username, role, active')
-      .ilike('username', username.trim())
-      .eq('password', pw.trim())
-      .eq('active', true)
-      .single()
-    if (!data) { setPwError('Incorrect username or password'); return }
+    const res = await fetch('/api/admin-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username.trim(), password: pw.trim() }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setPwError(data.error || 'Incorrect username or password'); return }
     localStorage.setItem('avibm_admin_last_seen', new Date().toISOString())
     setAuthedAdmin({ id: data.id, username: data.username, role: data.role })
     setAuthed(true)
@@ -133,17 +132,16 @@ export default function Admin() {
   }
 
   const loadAdmins = async () => {
-    const { data } = await supabase.from('admin_users').select('*').order('created_at', { ascending: true })
-    if (data) setAdmins(data)
+    const res = await fetch('/api/admin-login?action=list')
+    if (res.ok) { const data = await res.json(); setAdmins(data) }
   }
 
   const addAdmin = async () => {
     if (!newAdminForm.username.trim() || !newAdminForm.password.trim()) return
-    await supabase.from('admin_users').insert({
-      username: newAdminForm.username.trim().toLowerCase(),
-      password: newAdminForm.password.trim(),
-      role: 'admin',
-      active: true,
+    await fetch('/api/admin-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add', username: newAdminForm.username.trim(), password: newAdminForm.password.trim() }),
     })
     setNewAdminForm({ username: '', password: '' })
     setAddingAdmin(false)
@@ -152,7 +150,11 @@ export default function Admin() {
 
   const removeAdmin = async (id: string) => {
     if (!confirm('Remove this admin?')) return
-    await supabase.from('admin_users').delete().eq('id', id)
+    await fetch('/api/admin-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'remove', id }),
+    })
     loadAdmins()
     if (selectedAdmin?.id === id) setSelectedAdmin(null)
   }
