@@ -82,15 +82,20 @@ export default function RegisterSA() {
       })
       if (ve) throw new Error(ve.message)
 
-      // Redirect to Stripe payment
-      const res = await fetch('/api/create-checkout-session', {
+      // Send PayID payment request to customer and notify admin
+      await fetch('/api/notify-registration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier: 'basic', customer_id: customer.id, state: 'SA' }),
+        body: JSON.stringify({
+          name: `${form.first_name} ${form.last_name}`,
+          email: form.email,
+          phone: form.phone,
+          state: 'SA',
+          vehicles: 1,
+          tier: 'basic',
+        }),
       })
-      const { url, error: stripeError } = await res.json()
-      if (stripeError || !url) throw new Error(stripeError || 'Payment setup failed. Please try again.')
-      window.location.href = url
+      setDone(true)
     } catch (e: any) {
       setError(e.message || 'Something went wrong. Please try again.')
     } finally {

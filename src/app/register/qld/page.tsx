@@ -334,15 +334,20 @@ export default function RegisterQLD() {
       if (ve) throw new Error(ve.message)
 
       if (!isFree) {
-        // Redirect to Stripe payment
-        const res = await fetch('/api/create-checkout-session', {
+        // Send PayID payment request to customer and notify admin
+        await fetch('/api/notify-registration', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tier: selectedTier, customer_id: customer.id, state: 'QLD' }),
+          body: JSON.stringify({
+            name: `${owner.first_name} ${owner.last_name}`,
+            email: owner.email,
+            phone: owner.phone,
+            state: 'QLD',
+            vehicles: vehicles.length,
+            tier: selectedTier,
+          }),
         })
-        const { url, error: stripeError } = await res.json()
-        if (stripeError || !url) throw new Error(stripeError || 'Payment setup failed. Please try again.')
-        window.location.href = url
+        setDone(true)
         return
       }
 
