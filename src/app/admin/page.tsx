@@ -8,6 +8,7 @@ type Customer = {
   created_at: string
   active: boolean
   archived?: boolean
+  pending_deletion?: boolean
   state: string
   tier: 'priority' | 'standard' | 'basic'
   auto_payment_email: boolean
@@ -447,6 +448,25 @@ export default function Admin() {
     await logAction('Deleted customer', customer ? `${customer.first_name} ${customer.last_name} (${customer.state})` : id)
   }
 
+  const requestDelete = async (id: string) => {
+    if (!confirm('Request deletion? The owner will need to approve it.')) return
+    const customer = customers.find(c => c.id === id)
+    await supabase.from('customers').update({ pending_deletion: true, active: false }).eq('id', id)
+    setCustomers(cs => cs.map(c => c.id === id ? { ...c, pending_deletion: true, active: false } : c))
+    await logAction('Requested customer deletion', customer ? `${customer.first_name} ${customer.last_name} (${customer.state})` : id)
+  }
+
+  const approveDelete = async (id: string) => {
+    if (!confirm('Permanently delete this customer and all their vehicles?')) return
+    await supabase.from('customers').delete().eq('id', id)
+    setCustomers(cs => cs.filter(c => c.id !== id))
+  }
+
+  const reinstateFromDeletion = async (id: string) => {
+    await supabase.from('customers').update({ pending_deletion: false, active: true }).eq('id', id)
+    setCustomers(cs => cs.map(c => c.id === id ? { ...c, pending_deletion: false, active: true } : c))
+  }
+
   const archiveCustomer = async (id: string, current: boolean) => {
     await supabase.from('customers').update({ archived: !current, active: false }).eq('id', id)
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, archived: !current, active: false } : c))
@@ -783,6 +803,53 @@ export default function Admin() {
           )}
         </div>
 
+        {/* Pending Deletions — owner only */}
+        {isOwner && customers.filter(c => c.pending_deletion).length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              background: '#1a0a0a', border: '1px solid #6a1a1a',
+              borderRadius: 10, padding: '12px 20px',
+            }}>
+              <span style={{ fontSize: 16 }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em', color: '#ff6b6b' }}>
+                  PENDING DELETIONS — {customers.filter(c => c.pending_deletion).length} awaiting approval
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Requested by another admin — confirm to delete permanently or reinstate</div>
+              </div>
+            </div>
+            <div style={{ background: '#120808', border: '1px solid #6a1a1a', borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {customers.filter(c => c.pending_deletion).map(c => (
+                <div key={c.id} style={{ background: 'var(--dark-2)', border: '1px solid #4a1a1a', borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{
+                    background: c.state === 'QLD' ? '#1a2a3a' : '#2a1a2a',
+                    border: `1px solid ${c.state === 'QLD' ? '#2a3a4a' : '#3a2a3a'}`,
+                    color: c.state === 'QLD' ? '#5ab0ff' : '#c080ff',
+                    padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                  }}>{c.state}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{c.first_name} {c.last_name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{c.email} · {c.phone}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => reinstateFromDeletion(c.id)} style={{
+                      padding: '7px 14px', borderRadius: 6, background: 'none',
+                      border: '1px solid #2a4a2a', color: '#5adb5a',
+                      cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12,
+                    }}>↩ Reinstate</button>
+                    <button onClick={() => approveDelete(c.id)} style={{
+                      padding: '7px 14px', borderRadius: 6, background: '#2a0a0a',
+                      border: '1px solid #6a1a1a', color: '#ff6b6b',
+                      cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700,
+                    }}>Confirm Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Pending Payment Section */}
         {pendingPayment.length > 0 && (
           <div style={{ marginBottom: 16 }}>
@@ -830,10 +897,15 @@ export default function Admin() {
                         disabled={sendingReminder === c.id}
                         style={{ padding: '7px 14px', borderRadius: 6, background: '#C9A84C', border: 'none', color: '#000', fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12, opacity: sendingReminder === c.id ? 0.6 : 1, whiteSpace: 'nowrap' }}
                       >{sendingReminder === c.id ? 'Sending...' : '📧 Send Link'}</button>
-                      {isOwner && <button
-                        onClick={() => deleteCustomer(c.id)}
-                        style={{ padding: '7px 12px', borderRadius: 6, background: '#2a0a0a', border: '1px solid #4a1a1a', color: '#ff6b6b', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12 }}
-                      >🗑</button>}
+                      {isOwner ? (
+                        <button onClick={() => deleteCustomer(c.id)}
+                          style={{ padding: '7px 12px', borderRadius: 6, background: '#2a0a0a', border: '1px solid #4a1a1a', color: '#ff6b6b', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12 }}
+                        >🗑</button>
+                      ) : (
+                        <button onClick={() => requestDelete(c.id)}
+                          style={{ padding: '7px 12px', borderRadius: 6, background: '#2a1a0a', border: '1px solid #4a2a1a', color: '#ff9966', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12 }}
+                        >🗑</button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1059,11 +1131,11 @@ export default function Admin() {
                                 {v.active ? '● ON' : '○ OFF'}
                               </span>
                             </div>
-                            {isOwner && <button onClick={() => archiveVehicle(v.id, !!v.archived)} title="Archive vehicle" style={{
+                            <button onClick={() => archiveVehicle(v.id, !!v.archived)} title="Archive vehicle" style={{
                               padding: '3px 8px', borderRadius: 4, background: 'none',
                               border: '1px solid #4a3a1a', color: '#C9A84C', fontSize: 11,
                               cursor: 'pointer', fontFamily: 'DM Sans',
-                            }}>📦</button>}
+                            }}>📦</button>
                           </div>
                         </div>
 
@@ -1362,11 +1434,11 @@ export default function Admin() {
                                 <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{v.label || `${v.make} ${v.model} ${v.year}`}</span>
                                 {v.booked_date && <span style={{ marginLeft: 10, fontSize: 12, color: '#5adb5a' }}>✓ Booked {v.booked_date}{v.booked_time ? ` at ${v.booked_time}` : ''}{v.booked_location ? ` — ${v.booked_location}` : ''}</span>}
                               </div>
-                              {isOwner && <button onClick={() => archiveVehicle(v.id, true)} style={{
+                              <button onClick={() => archiveVehicle(v.id, true)} style={{
                                 padding: '3px 10px', borderRadius: 4, background: 'none',
                                 border: '1px solid #2a4a2a', color: '#5adb5a',
                                 cursor: 'pointer', fontSize: 11, fontFamily: 'DM Sans',
-                              }}>↩ Unarchive</button>}
+                              }}>↩ Unarchive</button>
                             </div>
                           ))}
                         </div>
@@ -1384,16 +1456,23 @@ export default function Admin() {
                       ) : (
                         <div style={{ fontSize: 13, color: '#5adb5a' }}>✅ Customer is active — monitoring running</div>
                       )}
-                      {isOwner && <div style={{ display: 'flex', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => archiveCustomer(c.id, !!c.archived)} style={{
                           background: 'none', border: '1px solid #4a3a1a', color: '#C9A84C',
                           padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
                         }}>📦 Archive Customer</button>
-                        <button onClick={() => deleteCustomer(c.id)} style={{
-                          background: 'none', border: '1px solid #4a1a1a', color: '#ff6b6b',
-                          padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
-                        }}>Delete Customer</button>
-                      </div>}
+                        {isOwner ? (
+                          <button onClick={() => deleteCustomer(c.id)} style={{
+                            background: 'none', border: '1px solid #4a1a1a', color: '#ff6b6b',
+                            padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
+                          }}>Delete Customer</button>
+                        ) : (
+                          <button onClick={() => requestDelete(c.id)} style={{
+                            background: 'none', border: '1px solid #4a2a1a', color: '#ff9966',
+                            padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
+                          }}>🗑 Request Delete</button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1520,12 +1599,12 @@ export default function Admin() {
                                 ) : (
                                   <span className={`badge ${v.active ? 'badge-active' : 'badge-inactive'}`}>{v.active ? '● ON' : '○ OFF'}</span>
                                 )}
-                                {isOwner && <button onClick={() => archiveVehicle(v.id, !!v.archived)} title={v.archived ? 'Unarchive vehicle' : 'Archive vehicle'} style={{
+                                <button onClick={() => archiveVehicle(v.id, !!v.archived)} title={v.archived ? 'Unarchive vehicle' : 'Archive vehicle'} style={{
                                   padding: '3px 8px', borderRadius: 4, background: 'none',
                                   border: `1px solid ${v.archived ? '#2a4a2a' : '#4a3a1a'}`,
                                   color: v.archived ? '#5adb5a' : '#C9A84C',
                                   fontSize: 11, cursor: 'pointer', fontFamily: 'DM Sans',
-                                }}>{v.archived ? '↩ Unarchive' : '📦'}</button>}
+                                }}>{v.archived ? '↩ Unarchive' : '📦'}</button>
                               </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, fontSize: 12 }}>
@@ -1545,16 +1624,23 @@ export default function Admin() {
                         ))}
 
                         {/* Actions */}
-                        {isOwner && <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <button onClick={() => archiveCustomer(c.id, true)} style={{
                             background: 'none', border: '1px solid #2a4a2a', color: '#5adb5a',
                             padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
                           }}>↩ Unarchive Customer</button>
-                          <button onClick={() => deleteCustomer(c.id)} style={{
-                            background: 'none', border: '1px solid #4a1a1a', color: '#ff6b6b',
-                            padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
-                          }}>Delete Customer</button>
-                        </div>}
+                          {isOwner ? (
+                            <button onClick={() => deleteCustomer(c.id)} style={{
+                              background: 'none', border: '1px solid #4a1a1a', color: '#ff6b6b',
+                              padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
+                            }}>Delete Customer</button>
+                          ) : (
+                            <button onClick={() => requestDelete(c.id)} style={{
+                              background: 'none', border: '1px solid #4a2a1a', color: '#ff9966',
+                              padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
+                            }}>🗑 Request Delete</button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
