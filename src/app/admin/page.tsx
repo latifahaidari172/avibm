@@ -93,7 +93,7 @@ export default function Admin() {
   const [sendingReminder, setSendingReminder] = useState<string | null>(null)
 
   const login = () => {
-    if (pw === ADMIN_PASSWORD) {
+    if (ADMIN_PASSWORD.split(',').map(p => p.trim()).includes(pw)) {
       localStorage.setItem('avibm_admin_last_seen', new Date().toISOString())
       setAuthed(true)
       loadData()
