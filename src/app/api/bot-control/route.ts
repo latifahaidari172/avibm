@@ -18,12 +18,28 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { id, enabled } = await request.json()
-    await fetch(`${BASE()}?id=eq.${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      headers: headers(),
-      body: JSON.stringify({ enabled }),
-    })
+    const body = await request.json()
+    const { id, action } = body
+
+    if (action === 'delete') {
+      await fetch(`${BASE()}?id=eq.${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: headers(),
+      })
+    } else if ('display_name' in body) {
+      await fetch(`${BASE()}?id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: headers(),
+        body: JSON.stringify({ display_name: body.display_name || null }),
+      })
+    } else {
+      await fetch(`${BASE()}?id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: headers(),
+        body: JSON.stringify({ enabled: body.enabled }),
+      })
+    }
+
     return NextResponse.json({ ok: true })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
