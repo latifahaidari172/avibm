@@ -63,6 +63,7 @@ const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'avibm2024'
 
 type AdminLog = { id: string; created_at: string; action: string; details: string | null; admin_username: string | null }
 type AdminUser = { id: string; created_at: string; username: string; role: string; active: boolean }
+type BotInstance = { id: string; hostname: string; last_seen: string; enabled: boolean; status: string; created_at: string }
 
 export default function Admin() {
   const [authed, setAuthed] = useState(() => typeof window !== 'undefined' && !!localStorage.getItem('avibm_admin_user'))
@@ -112,6 +113,8 @@ export default function Admin() {
   const [newRegCount, setNewRegCount] = useState(0)
   const [pendingCoupons, setPendingCoupons] = useState<Record<string, string>>({})
   const [sendingReminder, setSendingReminder] = useState<string | null>(null)
+  const [botInstances, setBotInstances] = useState<BotInstance[]>([])
+  const [showDevicesPanel, setShowDevicesPanel] = useState(true)
 
   const isOwner = authedAdmin?.role === 'owner'
 
@@ -149,6 +152,20 @@ export default function Admin() {
   const loadAdmins = async () => {
     const res = await fetch('/api/admin-login?action=list')
     if (res.ok) { const data = await res.json(); setAdmins(data) }
+  }
+
+  const loadBotInstances = async () => {
+    const res = await fetch('/api/bot-control')
+    if (res.ok) { const data = await res.json(); if (Array.isArray(data)) setBotInstances(data) }
+  }
+
+  const toggleBotInstance = async (id: string, enabled: boolean) => {
+    await fetch('/api/bot-control', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, enabled }),
+    })
+    setBotInstances(bs => bs.map(b => b.id === id ? { ...b, enabled } : b))
   }
 
   const addAdmin = async () => {
@@ -234,6 +251,7 @@ export default function Admin() {
   useEffect(() => {
     if (authed) {
       loadData()
+      loadBotInstances()
       if (authedAdmin?.role === 'owner') { loadLogs(); loadAdmins() }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -244,8 +262,10 @@ export default function Admin() {
     const interval = setInterval(async () => {
       const { data } = await supabase.from('monitor_status').select('*').eq('id', 'main').single()
       if (data) setMonitorStatus(data)
+      loadBotInstances()
     }, 30000)
     return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed])
 
   // Poll for new registrations and update tab title
@@ -566,6 +586,11 @@ export default function Admin() {
   }
   const monitorLive = monitorIsLive(monitorStatus?.last_run)
 
+  // Bot instance is "online" if last_seen within 3 minutes
+  const instanceIsOnline = (lastSeen: string) =>
+    (Date.now() - new Date(lastSeen).getTime()) < 3 * 60 * 1000
+  const onlineInstances = botInstances.filter(b => instanceIsOnline(b.last_seen))
+
   const formatLastRun = (lastRun?: string) => {
     if (!lastRun) return 'Never'
     const d = new Date(lastRun)
@@ -741,6 +766,84 @@ export default function Admin() {
         `}</style>
 
         {/* Admin Management — owner only */}
+        {/* Connected Devices */}
+        <div className="admin-section" style={{ marginBottom: 16, borderColor: onlineInstances.length > 0 ? '#1a3a1a' : '#2a1a1a' }}>
+          <div className={`admin-section-header ${onlineInstances.length > 0 ? 'green-border' : 'red-border'}${showDevicesPanel ? ' open' : ''}`}
+            style={{ background: onlineInstances.length > 0 ? '#040e04' : '#0e0404' }}
+            onClick={() => setShowDevicesPanel(p => !p)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ position: 'relative' }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: onlineInstances.length > 0 ? '#4ecb4e' : '#c0392b', boxShadow: onlineInstances.length > 0 ? '0 0 8px rgba(78,203,78,0.5)' : '0 0 6px rgba(192,57,43,0.4)' }} />
+                {onlineInstances.length > 0 && <div style={{ position: 'absolute', top: 0, left: 0, width: 10, height: 10, borderRadius: '50%', background: '#4ecb4e', opacity: 0.4, animation: 'pulse 2s infinite' }} />}
+              </div>
+              <div>
+                <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.06em', color: onlineInstances.length > 0 ? '#4ecb4e' : '#e74c3c' }}>
+                  TERMINALS — {onlineInstances.length} ONLINE
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {botInstances.length === 0 ? 'No devices registered yet' : `${botInstances.length} device${botInstances.length !== 1 ? 's' : ''} known · click to manage`}
+                </div>
+              </div>
+            </div>
+            <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{showDevicesPanel ? '▲' : '▼'}</span>
+          </div>
+          {showDevicesPanel && (
+            <div className="admin-section-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {botInstances.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#444', textAlign: 'center', padding: '12px 0' }}>
+                  No terminals have connected yet. Start the bot and it will appear here.
+                </div>
+              ) : botInstances.map(b => {
+                const online = instanceIsOnline(b.last_seen)
+                return (
+                  <div key={b.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                    background: online ? '#040e04' : '#080808',
+                    border: `1px solid ${online ? '#1a3a1a' : '#1a1a1a'}`,
+                    borderRadius: 8, flexWrap: 'wrap',
+                  }}>
+                    {/* Status dot */}
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: online ? '#4ecb4e' : '#333', boxShadow: online ? '0 0 6px rgba(78,203,78,0.4)' : 'none' }} />
+                      {online && <div style={{ position: 'absolute', top: 0, left: 0, width: 10, height: 10, borderRadius: '50%', background: '#4ecb4e', opacity: 0.4, animation: 'pulse 2s infinite' }} />}
+                    </div>
+
+                    {/* Hostname */}
+                    <div style={{ flex: 1, minWidth: 120 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: online ? 'var(--text)' : '#555' }}>
+                        💻 {b.hostname}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                        {online ? `Online · ${formatLastRun(b.last_seen)}` : `Last seen ${formatLastRun(b.last_seen)}`}
+                        {b.status === 'paused' && <span style={{ color: '#e67e22', marginLeft: 8 }}>● Paused by admin</span>}
+                      </div>
+                    </div>
+
+                    {/* Enable/Disable toggle — owner only */}
+                    {isOwner && (
+                      <button
+                        onClick={() => toggleBotInstance(b.id, !b.enabled)}
+                        className={`admin-toggle ${b.enabled ? 'on' : 'off'}`}
+                        style={{ fontSize: 11 }}
+                      >
+                        {b.enabled ? '● ENABLED' : '○ DISABLED'}
+                      </button>
+                    )}
+                    {!isOwner && (
+                      <span className={`pill ${b.enabled ? 'pill-green' : 'pill-muted'}`}>
+                        {b.enabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+              <div style={{ fontSize: 11, color: '#333', paddingTop: 4 }}>
+                Devices check in every 10–60 seconds. Toggle disables the terminal remotely — it will pause within one cycle.
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Admin tools row — compact side-by-side panels */}
         <div style={{ display: 'grid', gridTemplateColumns: isOwner ? '1fr 1fr' : '1fr', gap: 10, marginBottom: 16 }}>
 
