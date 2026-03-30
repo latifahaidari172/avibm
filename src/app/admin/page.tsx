@@ -886,23 +886,25 @@ export default function Admin() {
                           onClick={() => { setEditingDeviceName(b.id); setDeviceNameDraft(b.display_name || '') }}
                         >Rename</button>
                       )}
-                      <button
-                        onClick={() => toggleBotInstance(b.id, !b.enabled)}
-                        className={`admin-toggle ${b.enabled ? 'on' : 'off'}`}
-                        style={{ fontSize: 11 }}
-                      >
-                        {b.enabled ? '● ENABLED' : '○ DISABLED'}
-                      </button>
                       {online && b.enabled && (
-                        <button
-                          className="admin-btn admin-btn-red"
-                          style={{ padding: '5px 10px', fontSize: 11 }}
-                          onClick={() => {
-                            if (confirm(`Stop the terminal on ${b.display_name || b.hostname}? This will kill the running process.`)) {
-                              toggleBotInstance(b.id, false)
-                            }
-                          }}
-                        >■ Stop</button>
+                        <>
+                          <button
+                            onClick={() => toggleBotInstance(b.id, !b.enabled)}
+                            className={`admin-toggle ${b.enabled ? 'on' : 'off'}`}
+                            style={{ fontSize: 11 }}
+                          >
+                            {b.enabled ? '● ENABLED' : '○ DISABLED'}
+                          </button>
+                          <button
+                            className="admin-btn admin-btn-red"
+                            style={{ padding: '5px 10px', fontSize: 11 }}
+                            onClick={() => {
+                              if (confirm(`Stop the terminal on ${b.display_name || b.hostname}? This will kill the running process.`)) {
+                                toggleBotInstance(b.id, false)
+                              }
+                            }}
+                          >■ Stop</button>
+                        </>
                       )}
                       {!online && (
                         <button
