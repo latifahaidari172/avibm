@@ -590,6 +590,19 @@ export default function Admin() {
   const instanceIsOnline = (lastSeen: string) =>
     (Date.now() - new Date(lastSeen).getTime()) < 3 * 60 * 1000
   const onlineInstances = botInstances.filter(b => instanceIsOnline(b.last_seen))
+  const activeInstances = onlineInstances.filter(b => b.enabled)
+
+  // 'running' = online + enabled, 'paused' = online but all disabled, 'offline' = none online
+  const monitorState: 'running' | 'paused' | 'offline' =
+    activeInstances.length > 0 && monitorLive ? 'running'
+    : onlineInstances.length > 0 ? 'paused'
+    : 'offline'
+
+  const monitorStateConfig = {
+    running: { color: '#4ecb4e', label: 'RUNNING',  cardClass: 'active',   dotShadow: 'rgba(78,203,78,0.5)',   bg: '#040e04', border: '#1a3a1a' },
+    paused:  { color: '#C9A84C', label: 'PAUSED',   cardClass: 'inactive', dotShadow: 'rgba(201,168,76,0.5)',  bg: '#0e0a00', border: '#3a2a00' },
+    offline: { color: '#e74c3c', label: 'OFFLINE',  cardClass: 'inactive', dotShadow: 'rgba(231,76,60,0.4)',   bg: '#080606', border: '#2a1010' },
+  }
 
   const formatLastRun = (lastRun?: string) => {
     if (!lastRun) return 'Never'
@@ -731,31 +744,38 @@ export default function Admin() {
         </div>
 
         {/* Monitor Status */}
-        <div className='monitor-grid' style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10, marginBottom: 20 }}>
-          {[{ label: 'QLD', count: stats.qld }, { label: 'SA', count: stats.sa }].map(m => (
-            <div key={m.label} className={`admin-monitor-card ${monitorLive ? 'active' : 'inactive'}`}>
-              <div style={{ position: 'relative' }}>
-                <div style={{ width: 12, height: 12, borderRadius: '50%', background: monitorLive ? '#5adb5a' : '#c0392b', boxShadow: monitorLive ? '0 0 8px rgba(90,219,90,0.5)' : '0 0 8px rgba(192,57,43,0.4)' }} />
-                {monitorLive && (
-                  <div style={{
-                    position: 'absolute', top: 0, left: 0, width: 12, height: 12, borderRadius: '50%',
-                    background: '#5adb5a', opacity: 0.4, animation: 'pulse 2s infinite',
-                  }} />
-                )}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.06em', color: monitorLive ? '#5adb5a' : '#e74c3c' }}>
-                  {m.label} {monitorLive ? '● RUNNING' : '○ OFFLINE'}
+        {(() => {
+          const cfg = monitorStateConfig[monitorState]
+          return (
+            <div className='monitor-grid' style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10, marginBottom: 20 }}>
+              {[{ label: 'QLD', count: stats.qld }, { label: 'SA', count: stats.sa }].map(m => (
+                <div key={m.label} style={{
+                  borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14,
+                  background: cfg.bg, border: `1px solid ${cfg.border}`, transition: 'border-color 0.2s',
+                }}>
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: '50%', background: cfg.color, boxShadow: `0 0 8px ${cfg.dotShadow}` }} />
+                    {monitorState === 'running' && (
+                      <div style={{ position: 'absolute', top: 0, left: 0, width: 12, height: 12, borderRadius: '50%', background: cfg.color, opacity: 0.4, animation: 'pulse 2s infinite' }} />
+                    )}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.06em', color: cfg.color }}>
+                      {m.label} {monitorState === 'running' ? '● RUNNING' : monitorState === 'paused' ? '◐ PAUSED' : '○ OFFLINE'}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {monitorState === 'paused'
+                        ? `Terminal connected · disabled by admin · ${m.count} customer(s)`
+                        : monitorStatus
+                          ? `${m.count} customer(s) · ${formatLastRun(monitorStatus.last_run)}`
+                          : 'No data yet'}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                  {monitorStatus
-                    ? `${m.count ?? 0} customer(s) · ${formatLastRun(monitorStatus.last_run)}`
-                    : 'No data yet'}
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )
+        })()}
 
         <style>{`
           @keyframes pulse {
