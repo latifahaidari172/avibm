@@ -707,7 +707,7 @@ export default function Admin() {
 
         {/* Monitor Status */}
         <div className='monitor-grid' style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10, marginBottom: 20 }}>
-          {[{ label: 'QLD', count: monitorStatus?.qld_count }, { label: 'SA', count: monitorStatus?.sa_count }].map(m => (
+          {[{ label: 'QLD', count: stats.qld }, { label: 'SA', count: stats.sa }].map(m => (
             <div key={m.label} className={`admin-monitor-card ${monitorLive ? 'active' : 'inactive'}`}>
               <div style={{ position: 'relative' }}>
                 <div style={{ width: 12, height: 12, borderRadius: '50%', background: monitorLive ? '#5adb5a' : '#c0392b', boxShadow: monitorLive ? '0 0 8px rgba(90,219,90,0.5)' : '0 0 8px rgba(192,57,43,0.4)' }} />
