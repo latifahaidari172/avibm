@@ -893,6 +893,17 @@ export default function Admin() {
                       >
                         {b.enabled ? '● ENABLED' : '○ DISABLED'}
                       </button>
+                      {online && b.enabled && (
+                        <button
+                          className="admin-btn admin-btn-red"
+                          style={{ padding: '5px 10px', fontSize: 11 }}
+                          onClick={() => {
+                            if (confirm(`Stop the terminal on ${b.display_name || b.hostname}? This will kill the running process.`)) {
+                              toggleBotInstance(b.id, false)
+                            }
+                          }}
+                        >■ Stop</button>
+                      )}
                       {!online && (
                         <button
                           className="admin-btn admin-btn-red"
@@ -905,7 +916,7 @@ export default function Admin() {
                 )
               })}
               <div style={{ fontSize: 11, color: '#333', paddingTop: 4 }}>
-                Devices check in every 10–60 seconds. Toggle pauses/resumes the terminal remotely. Delete is only available for offline devices.
+                Devices check in every 10–60 seconds. Stop kills the terminal process within 10s. Delete is only available for offline devices.
               </div>
             </div>
           )}
