@@ -63,7 +63,7 @@ const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'avibm2024'
 
 type AdminLog = { id: string; created_at: string; action: string; details: string | null; admin_username: string | null }
 type AdminUser = { id: string; created_at: string; username: string; role: string; active: boolean }
-type BotInstance = { id: string; hostname: string; last_seen: string; enabled: boolean; status: string; created_at: string }
+type BotInstance = { id: string; hostname: string; display_name?: string; last_seen: string; enabled: boolean; status: string; created_at: string }
 
 export default function Admin() {
   const [authed, setAuthed] = useState(() => typeof window !== 'undefined' && !!localStorage.getItem('avibm_admin_user'))
@@ -115,6 +115,8 @@ export default function Admin() {
   const [sendingReminder, setSendingReminder] = useState<string | null>(null)
   const [botInstances, setBotInstances] = useState<BotInstance[]>([])
   const [showDevicesPanel, setShowDevicesPanel] = useState(true)
+  const [editingDeviceName, setEditingDeviceName] = useState<string | null>(null)
+  const [deviceNameDraft, setDeviceNameDraft] = useState('')
 
   const isOwner = authedAdmin?.role === 'owner'
 
@@ -166,6 +168,26 @@ export default function Admin() {
       body: JSON.stringify({ id, enabled }),
     })
     setBotInstances(bs => bs.map(b => b.id === id ? { ...b, enabled } : b))
+  }
+
+  const renameDevice = async (id: string, display_name: string) => {
+    await fetch('/api/bot-control', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, display_name: display_name.trim() || null }),
+    })
+    setBotInstances(bs => bs.map(b => b.id === id ? { ...b, display_name: display_name.trim() || undefined } : b))
+    setEditingDeviceName(null)
+  }
+
+  const deleteDevice = async (id: string, name: string) => {
+    if (!confirm(`Remove "${name}" from the device list?`)) return
+    await fetch('/api/bot-control', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action: 'delete' }),
+    })
+    setBotInstances(bs => bs.filter(b => b.id !== id))
   }
 
   const addAdmin = async () => {
@@ -828,19 +850,42 @@ export default function Admin() {
                       {online && <div style={{ position: 'absolute', top: 0, left: 0, width: 10, height: 10, borderRadius: '50%', background: '#4ecb4e', opacity: 0.4, animation: 'pulse 2s infinite' }} />}
                     </div>
 
-                    {/* Hostname */}
-                    <div style={{ flex: 1, minWidth: 120 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: online ? 'var(--text)' : '#555' }}>
-                        💻 {b.hostname}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                    {/* Name */}
+                    <div style={{ flex: 1, minWidth: 140 }}>
+                      {editingDeviceName === b.id ? (
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <input
+                            value={deviceNameDraft}
+                            onChange={e => setDeviceNameDraft(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') renameDevice(b.id, deviceNameDraft); if (e.key === 'Escape') setEditingDeviceName(null) }}
+                            placeholder={b.hostname}
+                            autoFocus
+                            style={{ fontSize: 13, padding: '4px 8px', width: 160, height: 28 }}
+                          />
+                          <button className="admin-btn admin-btn-gold" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => renameDevice(b.id, deviceNameDraft)}>Save</button>
+                          <button className="admin-btn admin-btn-outline" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => setEditingDeviceName(null)}>Cancel</button>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 14, fontWeight: 600, color: online ? 'var(--text)' : '#555' }}>
+                          💻 {b.display_name || b.hostname}
+                          {b.display_name && <span style={{ fontSize: 10, color: '#444', marginLeft: 5 }}>({b.hostname})</span>}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                         {online ? `Online · ${formatLastRun(b.last_seen)}` : `Last seen ${formatLastRun(b.last_seen)}`}
-                        {b.status === 'paused' && <span style={{ color: '#e67e22', marginLeft: 8 }}>● Paused by admin</span>}
+                        {!b.enabled && online && <span style={{ color: '#C9A84C', marginLeft: 8 }}>● Paused by admin</span>}
                       </div>
                     </div>
 
-                    {/* Enable/Disable toggle — owner only */}
-                    {isOwner && (
+                    {/* Actions */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+                      {editingDeviceName !== b.id && (
+                        <button
+                          className="admin-btn admin-btn-outline"
+                          style={{ padding: '5px 10px', fontSize: 11 }}
+                          onClick={() => { setEditingDeviceName(b.id); setDeviceNameDraft(b.display_name || '') }}
+                        >Rename</button>
+                      )}
                       <button
                         onClick={() => toggleBotInstance(b.id, !b.enabled)}
                         className={`admin-toggle ${b.enabled ? 'on' : 'off'}`}
@@ -848,17 +893,19 @@ export default function Admin() {
                       >
                         {b.enabled ? '● ENABLED' : '○ DISABLED'}
                       </button>
-                    )}
-                    {!isOwner && (
-                      <span className={`pill ${b.enabled ? 'pill-green' : 'pill-muted'}`}>
-                        {b.enabled ? 'Enabled' : 'Disabled'}
-                      </span>
-                    )}
+                      {!online && (
+                        <button
+                          className="admin-btn admin-btn-red"
+                          style={{ padding: '5px 10px', fontSize: 11 }}
+                          onClick={() => deleteDevice(b.id, b.display_name || b.hostname)}
+                        >Delete</button>
+                      )}
+                    </div>
                   </div>
                 )
               })}
               <div style={{ fontSize: 11, color: '#333', paddingTop: 4 }}>
-                Devices check in every 10–60 seconds. Toggle disables the terminal remotely — it will pause within one cycle.
+                Devices check in every 10–60 seconds. Toggle pauses/resumes the terminal remotely. Delete is only available for offline devices.
               </div>
             </div>
           )}
