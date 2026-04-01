@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { emailHtml } from '@/lib/emailTemplate'
+import { checkRateLimit, getIP, tooManyRequests } from '@/lib/rateLimit'
 
 export async function POST(request: Request) {
+  const ip = getIP(request)
+  const { allowed } = checkRateLimit(`reg-confirm:${ip}`, 3, 60 * 60 * 1000)
+  if (!allowed) return tooManyRequests('Too many requests. Please try again later.')
   try {
     const { name, email, state, vehicles, tier } = await request.json()
     const gmailUser = process.env.GMAIL_ADDRESS!
