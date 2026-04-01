@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { emailHtml } from '@/lib/emailTemplate'
+import { checkRateLimit, getIP, tooManyRequests } from '@/lib/rateLimit'
 
 export async function POST(request: Request) {
+  const ip = getIP(request)
+  const { allowed } = checkRateLimit(`notify-reg:${ip}`, 3, 60 * 60 * 1000)
+  if (!allowed) return tooManyRequests('Too many registration attempts. Please try again later.')
   try {
     const { name, email, phone, state, vehicles, tier } = await request.json()
     const gmailUser = process.env.GMAIL_ADDRESS!
@@ -28,7 +32,7 @@ export async function POST(request: Request) {
     if (isFree) {
       // Auto-activate in DB
       const { createClient } = await import('@supabase/supabase-js')
-      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
       await sb.from('customers').update({ active: true, tier: 'priority' }).eq('email', email)
 
       // Notify admin

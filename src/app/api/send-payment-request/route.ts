@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { emailHtml } from '@/lib/emailTemplate'
+import { getAuthToken, unauthorized } from '@/lib/auth'
 
 export async function POST(request: Request) {
+  if (!getAuthToken(request)) return unauthorized()
   try {
     const { customerEmail, customerName, vehicles, tier, price, total, state } = await request.json()
     const gmailUser = process.env.GMAIL_ADDRESS!
