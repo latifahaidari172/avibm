@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
 import { signToken, getAuthToken, unauthorized } from '@/lib/auth'
 import { checkRateLimit, getIP, tooManyRequests } from '@/lib/rateLimit'
 
@@ -9,6 +10,16 @@ const getHeaders = () => ({
   Prefer: 'return=representation',
 })
 const BASE = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/admin_users`
+
+/** Migrate a plaintext password to bcrypt hash in the DB */
+async function migratePassword(id: string, plaintext: string) {
+  const hash = await bcrypt.hash(plaintext, 12)
+  await fetch(`${BASE()}?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: getHeaders(),
+    body: JSON.stringify({ password: hash }),
+  })
+}
 
 export async function GET(request: Request) {
   try {
@@ -41,23 +52,33 @@ export async function POST(request: Request) {
       const url = `${BASE()}?select=id,username,password,role&active=eq.true`
       const res = await fetch(url, { headers: getHeaders() })
       const rows = await res.json()
-
       if (!Array.isArray(rows)) return NextResponse.json({ error: 'Database error' }, { status: 500 })
 
-      const match = rows.find(
-        (r: any) =>
-          r.username?.toLowerCase() === username.trim().toLowerCase() &&
-          r.password === password.trim()
-      )
+      const user = rows.find((r: any) => r.username?.toLowerCase() === username.trim().toLowerCase())
 
-      if (!match) {
-        // Add a small delay on failure to slow brute force
+      const fail = async () => {
         await new Promise(r => setTimeout(r, 500))
         return NextResponse.json({ error: 'Incorrect username or password' }, { status: 401 })
       }
 
-      const token = signToken({ id: match.id, username: match.username, role: match.role })
-      return NextResponse.json({ id: match.id, username: match.username, role: match.role, token })
+      if (!user) return fail()
+
+      const stored: string = user.password || ''
+      const isHashed = stored.startsWith('$2')
+      let valid = false
+
+      if (isHashed) {
+        valid = await bcrypt.compare(password.trim(), stored)
+      } else {
+        // Plaintext — compare then auto-migrate to hash
+        valid = stored === password.trim()
+        if (valid) migratePassword(user.id, password.trim()) // fire-and-forget migration
+      }
+
+      if (!valid) return fail()
+
+      const token = signToken({ id: user.id, username: user.username, role: user.role })
+      return NextResponse.json({ id: user.id, username: user.username, role: user.role, token })
     }
 
     // All other actions require a valid token
@@ -65,10 +86,11 @@ export async function POST(request: Request) {
 
     if (action === 'add') {
       const { username, password } = body
+      const hash = await bcrypt.hash(password.trim(), 12)
       await fetch(BASE(), {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ username: username.trim(), password: password.trim(), role: 'admin', active: true }),
+        body: JSON.stringify({ username: username.trim(), password: hash, role: 'admin', active: true }),
       })
       return NextResponse.json({ ok: true })
     }
@@ -79,10 +101,12 @@ export async function POST(request: Request) {
     }
 
     if (action === 'update') {
+      const updates = { ...body.updates }
+      if (updates.password) updates.password = await bcrypt.hash(updates.password.trim(), 12)
       await fetch(`${BASE()}?id=eq.${body.id}`, {
         method: 'PATCH',
         headers: getHeaders(),
-        body: JSON.stringify(body.updates),
+        body: JSON.stringify(updates),
       })
       return NextResponse.json({ ok: true })
     }
