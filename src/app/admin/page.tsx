@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+
 import Link from 'next/link'
 
 type Customer = {
@@ -145,10 +145,11 @@ export default function Admin() {
   }
 
   const loadLogs = async (filterUsername?: string) => {
-    let query = supabase.from('admin_logs').select('*').order('created_at', { ascending: false }).limit(200)
-    if (filterUsername) query = query.eq('admin_username', filterUsername)
-    const { data } = await query
-    if (data) setAdminLogs(data)
+    const url = filterUsername
+      ? `/api/admin-logs?username=${encodeURIComponent(filterUsername)}`
+      : '/api/admin-logs'
+    const res = await fetch(url)
+    if (res.ok) { const data = await res.json(); if (Array.isArray(data)) setAdminLogs(data) }
   }
 
   const loadAdmins = async () => {
@@ -215,7 +216,11 @@ export default function Admin() {
 
   const logAction = async (action: string, details?: string) => {
     if (isOwner || !authedAdmin) return
-    await supabase.from('admin_logs').insert({ action, details: details || null, admin_username: authedAdmin.username })
+    await fetch('/api/admin-logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, details: details || null, admin_username: authedAdmin.username }),
+    })
   }
 
   const logout = () => {
@@ -254,19 +259,12 @@ export default function Admin() {
 
   const loadData = async () => {
     setLoading(true)
-    const { data: custs } = await supabase
-      .from('customers')
-      .select('*, vehicles(*)')
-      .order('created_at', { ascending: false })
-    setCustomers(custs || [])
-
-    const { data: status } = await supabase
-      .from('monitor_status')
-      .select('*')
-      .eq('id', 'main')
-      .single()
-    if (status) setMonitorStatus(status)
-
+    const res = await fetch('/api/admin-data')
+    if (res.ok) {
+      const { customers: custs, monitorStatus: status } = await res.json()
+      setCustomers(custs || [])
+      if (status) setMonitorStatus(status)
+    }
     setLoading(false)
   }
 
@@ -282,8 +280,8 @@ export default function Admin() {
   useEffect(() => {
     if (!authed) return
     const interval = setInterval(async () => {
-      const { data } = await supabase.from('monitor_status').select('*').eq('id', 'main').single()
-      if (data) setMonitorStatus(data)
+      const res = await fetch('/api/monitor-status')
+      if (res.ok) { const data = await res.json(); if (data) setMonitorStatus(data) }
       loadBotInstances()
     }, 30000)
     return () => clearInterval(interval)
@@ -298,13 +296,8 @@ export default function Admin() {
 
     const check = async () => {
       const lastSeen = getLastSeen()
-      const { data } = await supabase
-        .from('customers')
-        .select('id')
-        .gt('created_at', lastSeen)
-      if (data && data.length > 0) {
-        setNewRegCount(n => n + data.length)
-      }
+      const res = await fetch(`/api/new-registrations?since=${encodeURIComponent(lastSeen)}`)
+      if (res.ok) { const { count } = await res.json(); if (count > 0) setNewRegCount(n => n + count) }
     }
 
     const interval = setInterval(check, 30000)
@@ -336,7 +329,7 @@ export default function Admin() {
   }, [authed, newRegCount])
 
   const toggleActive = async (id: string, current: boolean) => {
-    await supabase.from('customers').update({ active: !current }).eq('id', id)
+    await fetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { active: !current } }) })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, active: !current } : c))
     const customer = customers.find(c => c.id === id)
     await logAction(
@@ -360,7 +353,7 @@ export default function Admin() {
   }
 
   const toggleVehicle = async (vid: string, current: boolean) => {
-    await supabase.from('vehicles').update({ active: !current }).eq('id', vid)
+    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { active: !current } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, active: !current } : v)
@@ -373,7 +366,7 @@ export default function Admin() {
   }
 
   const updateTier = async (id: string, tier: string) => {
-    await supabase.from('customers').update({ tier }).eq('id', id)
+    await fetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { tier } }) })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, tier: tier as any } : c))
     const customer = customers.find(c => c.id === id)
     await logAction('Changed tier', `${customer ? `${customer.first_name} ${customer.last_name}` : id} → ${tier}`)
@@ -402,13 +395,7 @@ export default function Admin() {
   }
 
   const updateCutoff = async (vid: string, date: string, oldDate: string) => {
-    await supabase.from('vehicles').update({
-      cutoff_date: date,
-      previous_cutoff: oldDate,
-      booked_date: null,
-      booked_time: null,
-      booked_location: null,
-    }).eq('id', vid)
+    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { cutoff_date: date, previous_cutoff: oldDate, booked_date: null, booked_time: null, booked_location: null } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? {
@@ -425,11 +412,7 @@ export default function Admin() {
   }
 
   const updateManualBooking = async (vid: string, date: string, time: string, location: string) => {
-    await supabase.from('vehicles').update({
-      booked_date: date || null,
-      booked_time: time || null,
-      booked_location: location || null,
-    }).eq('id', vid)
+    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { booked_date: date || null, booked_time: time || null, booked_location: location || null } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? {
@@ -444,10 +427,7 @@ export default function Admin() {
   }
 
   const updateSearchAfter = async (vid: string, date: string | null, active: boolean) => {
-    await supabase.from('vehicles').update({
-      search_after_date: date,
-      search_after_active: active,
-    }).eq('id', vid)
+    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { search_after_date: date, search_after_active: active } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? {
@@ -474,7 +454,7 @@ export default function Admin() {
   }
 
   const updateLocations = async (vid: string, locs: string[]) => {
-    await supabase.from('vehicles').update({ locations: locs }).eq('id', vid)
+    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { locations: locs } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, locations: locs } : v)
@@ -482,7 +462,7 @@ export default function Admin() {
   }
 
   const updatePriorityLocations = async (vid: string, locs: string[]) => {
-    await supabase.from('vehicles').update({ priority_locations: locs }).eq('id', vid)
+    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { priority_locations: locs } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, priority_locations: locs } : v)
@@ -492,7 +472,7 @@ export default function Admin() {
   const saveCustomerEdits = async (id: string) => {
     const edits = customerEdits[id]
     if (!edits) return
-    await supabase.from('customers').update(edits).eq('id', id)
+    await fetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: edits }) })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, ...edits } : c))
     setEditingCustomer(null)
     const customer = customers.find(c => c.id === id)
@@ -502,7 +482,7 @@ export default function Admin() {
   const saveVehicleEdits = async (vid: string) => {
     const edits = vehicleEdits[vid]
     if (!edits) return
-    await supabase.from('vehicles').update(edits).eq('id', vid)
+    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: edits }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, ...edits } : v)
@@ -513,7 +493,7 @@ export default function Admin() {
   }
 
   const updateNotes = async (vid: string, notes: string) => {
-    await supabase.from('vehicles').update({ notes }).eq('id', vid)
+    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { notes } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, notes } : v)
@@ -544,7 +524,7 @@ export default function Admin() {
   const deleteCustomer = async (id: string) => {
     if (!confirm('Delete this customer and all their vehicles?')) return
     const customer = customers.find(c => c.id === id)
-    await supabase.from('customers').delete().eq('id', id)
+    await fetch('/api/customers', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
     setCustomers(cs => cs.filter(c => c.id !== id))
     await logAction('Deleted customer', customer ? `${customer.first_name} ${customer.last_name} (${customer.state})` : id)
   }
@@ -552,31 +532,31 @@ export default function Admin() {
   const requestDelete = async (id: string) => {
     if (!confirm('Request deletion? The owner will need to approve it.')) return
     const customer = customers.find(c => c.id === id)
-    await supabase.from('customers').update({ pending_deletion: true, active: false }).eq('id', id)
+    await fetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { pending_deletion: true, active: false } }) })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, pending_deletion: true, active: false } : c))
     await logAction('Requested customer deletion', customer ? `${customer.first_name} ${customer.last_name} (${customer.state})` : id)
   }
 
   const approveDelete = async (id: string) => {
     if (!confirm('Permanently delete this customer and all their vehicles?')) return
-    await supabase.from('customers').delete().eq('id', id)
+    await fetch('/api/customers', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
     setCustomers(cs => cs.filter(c => c.id !== id))
   }
 
   const reinstateFromDeletion = async (id: string) => {
-    await supabase.from('customers').update({ pending_deletion: false, active: true }).eq('id', id)
+    await fetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { pending_deletion: false, active: true } }) })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, pending_deletion: false, active: true } : c))
   }
 
   const archiveCustomer = async (id: string, current: boolean) => {
-    await supabase.from('customers').update({ archived: !current, active: false }).eq('id', id)
+    await fetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { archived: !current, active: false } }) })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, archived: !current, active: false } : c))
     const customer = customers.find(c => c.id === id)
     await logAction(current ? 'Unarchived customer' : 'Archived customer', customer ? `${customer.first_name} ${customer.last_name}` : id)
   }
 
   const archiveVehicle = async (vid: string, current: boolean) => {
-    await supabase.from('vehicles').update({ archived: !current, active: false }).eq('id', vid)
+    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { archived: !current, active: false } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, archived: !current, active: false } : v)
@@ -1227,7 +1207,7 @@ export default function Admin() {
                       </select>
                     </div>
                   )}
-                  <div onClick={e => { e.stopPropagation(); supabase.from('customers').update({ auto_payment_email: !c.auto_payment_email }).eq('id', c.id).then(() => setCustomers(cs => cs.map(x => x.id === c.id ? { ...x, auto_payment_email: !c.auto_payment_email } : x))) }} title="Auto-send payment request email when customer registers">
+                  <div onClick={e => { e.stopPropagation(); fetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id, updates: { auto_payment_email: !c.auto_payment_email } }) }).then(() => setCustomers(cs => cs.map(x => x.id === c.id ? { ...x, auto_payment_email: !c.auto_payment_email } : x))) }} title="Auto-send payment request email when customer registers">
                     <button className={`admin-toggle ${c.auto_payment_email ? 'on' : 'off'}`}>
                       {c.auto_payment_email ? '● AUTO' : '○ MANUAL'}
                     </button>
