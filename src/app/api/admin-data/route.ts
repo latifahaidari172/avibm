@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getAuthToken, unauthorized } from '@/lib/auth'
 
 const headers = () => ({
   apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -7,7 +8,8 @@ const headers = () => ({
 })
 const BASE = () => process.env.NEXT_PUBLIC_SUPABASE_URL!
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (!getAuthToken(request)) return unauthorized()
   try {
     const [custsRes, statusRes] = await Promise.all([
       fetch(`${BASE()}/rest/v1/customers?select=*,vehicles(*)&order=created_at.desc`, { headers: headers() }),

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getAuthToken, unauthorized } from '@/lib/auth'
 
 const getHeaders = () => ({
   apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -8,6 +9,7 @@ const getHeaders = () => ({
 const BASE = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/admin_logs`
 
 export async function GET(request: Request) {
+  if (!getAuthToken(request)) return unauthorized()
   try {
     const { searchParams } = new URL(request.url)
     const username = searchParams.get('username')
@@ -21,6 +23,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  if (!getAuthToken(request)) return unauthorized()
   try {
     const { action, details, admin_username } = await request.json()
     if (!action) return NextResponse.json({ error: 'Missing action' }, { status: 400 })

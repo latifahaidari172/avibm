@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { signToken, getAuthToken, unauthorized } from '@/lib/auth'
 
 const getHeaders = () => ({
   apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -10,6 +11,7 @@ const BASE = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/admin_users
 
 export async function GET(request: Request) {
   try {
+    if (!getAuthToken(request)) return unauthorized()
     const { searchParams } = new URL(request.url)
     if (searchParams.get('action') === 'list') {
       const res = await fetch(`${BASE()}?role=neq.owner&select=id,created_at,username,role,active&order=created_at.asc`, { headers: getHeaders() })
@@ -26,6 +28,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { action } = body
 
+    // Login — no auth token required
     if (!action) {
       const { username, password } = body
       if (!username || !password) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -43,8 +46,13 @@ export async function POST(request: Request) {
       )
 
       if (!match) return NextResponse.json({ error: 'Incorrect username or password' }, { status: 401 })
-      return NextResponse.json({ id: match.id, username: match.username, role: match.role })
+
+      const token = signToken({ id: match.id, username: match.username, role: match.role })
+      return NextResponse.json({ id: match.id, username: match.username, role: match.role, token })
     }
+
+    // All other actions require a valid token
+    if (!getAuthToken(request)) return unauthorized()
 
     if (action === 'add') {
       const { username, password } = body

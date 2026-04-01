@@ -120,6 +120,18 @@ export default function Admin() {
 
   const isOwner = authedAdmin?.role === 'owner'
 
+  // Authenticated fetch — attaches the stored JWT to every request
+  const authFetch = (url: string, options: RequestInit = {}) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('avibm_admin_token') || '' : ''
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
   const login = async () => {
     if (!username.trim()) { setPwError('Enter your username'); return }
     if (!pw.trim()) { setPwError('Enter your password'); return }
@@ -135,6 +147,7 @@ export default function Admin() {
       const adminUser = { id: data.id, username: data.username, role: data.role }
       localStorage.setItem('avibm_admin_last_seen', new Date().toISOString())
       localStorage.setItem('avibm_admin_user', JSON.stringify(adminUser))
+      localStorage.setItem('avibm_admin_token', data.token || '')
       setAuthedAdmin(adminUser)
       setAuthed(true)
       loadData()
@@ -148,22 +161,22 @@ export default function Admin() {
     const url = filterUsername
       ? `/api/admin-logs?username=${encodeURIComponent(filterUsername)}`
       : '/api/admin-logs'
-    const res = await fetch(url)
+    const res = await authFetch(url)
     if (res.ok) { const data = await res.json(); if (Array.isArray(data)) setAdminLogs(data) }
   }
 
   const loadAdmins = async () => {
-    const res = await fetch('/api/admin-login?action=list')
+    const res = await authFetch('/api/admin-login?action=list')
     if (res.ok) { const data = await res.json(); setAdmins(data) }
   }
 
   const loadBotInstances = async () => {
-    const res = await fetch('/api/bot-control')
+    const res = await authFetch('/api/bot-control')
     if (res.ok) { const data = await res.json(); if (Array.isArray(data)) setBotInstances(data) }
   }
 
   const toggleBotInstance = async (id: string, enabled: boolean) => {
-    await fetch('/api/bot-control', {
+    await authFetch('/api/bot-control', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, enabled }),
@@ -172,7 +185,7 @@ export default function Admin() {
   }
 
   const renameDevice = async (id: string, display_name: string) => {
-    await fetch('/api/bot-control', {
+    await authFetch('/api/bot-control', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, display_name: display_name.trim() || null }),
@@ -183,7 +196,7 @@ export default function Admin() {
 
   const deleteDevice = async (id: string, name: string) => {
     if (!confirm(`Remove "${name}" from the device list?`)) return
-    await fetch('/api/bot-control', {
+    await authFetch('/api/bot-control', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, action: 'delete' }),
@@ -193,7 +206,7 @@ export default function Admin() {
 
   const addAdmin = async () => {
     if (!newAdminForm.username.trim() || !newAdminForm.password.trim()) return
-    await fetch('/api/admin-login', {
+    await authFetch('/api/admin-login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'add', username: newAdminForm.username.trim(), password: newAdminForm.password.trim() }),
@@ -205,7 +218,7 @@ export default function Admin() {
 
   const removeAdmin = async (id: string) => {
     if (!confirm('Remove this admin?')) return
-    await fetch('/api/admin-login', {
+    await authFetch('/api/admin-login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'remove', id }),
@@ -216,7 +229,7 @@ export default function Admin() {
 
   const logAction = async (action: string, details?: string) => {
     if (isOwner || !authedAdmin) return
-    await fetch('/api/admin-logs', {
+    await authFetch('/api/admin-logs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, details: details || null, admin_username: authedAdmin.username }),
@@ -226,6 +239,7 @@ export default function Admin() {
   const logout = () => {
     localStorage.removeItem('avibm_admin_user')
     localStorage.removeItem('avibm_admin_last_seen')
+    localStorage.removeItem('avibm_admin_token')
     setAuthed(false)
     setAuthedAdmin(null)
     setShowMenu(false)
@@ -243,7 +257,7 @@ export default function Admin() {
     const updates: Record<string, string> = {}
     if (settingsForm.username.trim()) updates.username = settingsForm.username.trim()
     if (settingsForm.newPassword.trim()) updates.password = settingsForm.newPassword.trim()
-    await fetch('/api/admin-login', {
+    await authFetch('/api/admin-login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'update', id: authedAdmin!.id, updates }),
@@ -259,7 +273,7 @@ export default function Admin() {
 
   const loadData = async () => {
     setLoading(true)
-    const res = await fetch('/api/admin-data')
+    const res = await authFetch('/api/admin-data')
     if (res.ok) {
       const { customers: custs, monitorStatus: status } = await res.json()
       setCustomers(custs || [])
@@ -280,7 +294,7 @@ export default function Admin() {
   useEffect(() => {
     if (!authed) return
     const interval = setInterval(async () => {
-      const res = await fetch('/api/monitor-status')
+      const res = await authFetch('/api/monitor-status')
       if (res.ok) { const data = await res.json(); if (data) setMonitorStatus(data) }
       loadBotInstances()
     }, 30000)
@@ -296,7 +310,7 @@ export default function Admin() {
 
     const check = async () => {
       const lastSeen = getLastSeen()
-      const res = await fetch(`/api/new-registrations?since=${encodeURIComponent(lastSeen)}`)
+      const res = await authFetch(`/api/new-registrations?since=${encodeURIComponent(lastSeen)}`)
       if (res.ok) { const { count } = await res.json(); if (count > 0) setNewRegCount(n => n + count) }
     }
 
@@ -329,7 +343,7 @@ export default function Admin() {
   }, [authed, newRegCount])
 
   const toggleActive = async (id: string, current: boolean) => {
-    await fetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { active: !current } }) })
+    await authFetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { active: !current } }) })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, active: !current } : c))
     const customer = customers.find(c => c.id === id)
     await logAction(
@@ -338,7 +352,7 @@ export default function Admin() {
     )
     if (!current) {
       if (customer) {
-        await fetch('/api/activation-confirmation', {
+        await authFetch('/api/activation-confirmation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -353,7 +367,7 @@ export default function Admin() {
   }
 
   const toggleVehicle = async (vid: string, current: boolean) => {
-    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { active: !current } }) })
+    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { active: !current } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, active: !current } : v)
@@ -366,7 +380,7 @@ export default function Admin() {
   }
 
   const updateTier = async (id: string, tier: string) => {
-    await fetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { tier } }) })
+    await authFetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { tier } }) })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, tier: tier as any } : c))
     const customer = customers.find(c => c.id === id)
     await logAction('Changed tier', `${customer ? `${customer.first_name} ${customer.last_name}` : id} → ${tier}`)
@@ -377,7 +391,7 @@ export default function Admin() {
     const price = c.state === 'SA' ? 5 : tierPrices[c.tier || 'standard']
     const vehicleCount = c.vehicles?.length || 1
     const total = (price * vehicleCount).toFixed(2)
-    const res = await fetch('/api/send-payment-request', {
+    const res = await authFetch('/api/send-payment-request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -395,7 +409,7 @@ export default function Admin() {
   }
 
   const updateCutoff = async (vid: string, date: string, oldDate: string) => {
-    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { cutoff_date: date, previous_cutoff: oldDate, booked_date: null, booked_time: null, booked_location: null } }) })
+    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { cutoff_date: date, previous_cutoff: oldDate, booked_date: null, booked_time: null, booked_location: null } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? {
@@ -412,7 +426,7 @@ export default function Admin() {
   }
 
   const updateManualBooking = async (vid: string, date: string, time: string, location: string) => {
-    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { booked_date: date || null, booked_time: time || null, booked_location: location || null } }) })
+    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { booked_date: date || null, booked_time: time || null, booked_location: location || null } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? {
@@ -427,7 +441,7 @@ export default function Admin() {
   }
 
   const updateSearchAfter = async (vid: string, date: string | null, active: boolean) => {
-    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { search_after_date: date, search_after_active: active } }) })
+    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { search_after_date: date, search_after_active: active } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? {
@@ -454,7 +468,7 @@ export default function Admin() {
   }
 
   const updateLocations = async (vid: string, locs: string[]) => {
-    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { locations: locs } }) })
+    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { locations: locs } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, locations: locs } : v)
@@ -462,7 +476,7 @@ export default function Admin() {
   }
 
   const updatePriorityLocations = async (vid: string, locs: string[]) => {
-    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { priority_locations: locs } }) })
+    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { priority_locations: locs } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, priority_locations: locs } : v)
@@ -472,7 +486,7 @@ export default function Admin() {
   const saveCustomerEdits = async (id: string) => {
     const edits = customerEdits[id]
     if (!edits) return
-    await fetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: edits }) })
+    await authFetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: edits }) })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, ...edits } : c))
     setEditingCustomer(null)
     const customer = customers.find(c => c.id === id)
@@ -482,7 +496,7 @@ export default function Admin() {
   const saveVehicleEdits = async (vid: string) => {
     const edits = vehicleEdits[vid]
     if (!edits) return
-    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: edits }) })
+    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: edits }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, ...edits } : v)
@@ -493,7 +507,7 @@ export default function Admin() {
   }
 
   const updateNotes = async (vid: string, notes: string) => {
-    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { notes } }) })
+    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { notes } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, notes } : v)
@@ -503,7 +517,7 @@ export default function Admin() {
   const sendStripeReminder = async (c: Customer, coupon: string) => {
     setSendingReminder(c.id)
     try {
-      const res = await fetch('/api/send-stripe-reminder', {
+      const res = await authFetch('/api/send-stripe-reminder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -524,7 +538,7 @@ export default function Admin() {
   const deleteCustomer = async (id: string) => {
     if (!confirm('Delete this customer and all their vehicles?')) return
     const customer = customers.find(c => c.id === id)
-    await fetch('/api/customers', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    await authFetch('/api/customers', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
     setCustomers(cs => cs.filter(c => c.id !== id))
     await logAction('Deleted customer', customer ? `${customer.first_name} ${customer.last_name} (${customer.state})` : id)
   }
@@ -532,31 +546,31 @@ export default function Admin() {
   const requestDelete = async (id: string) => {
     if (!confirm('Request deletion? The owner will need to approve it.')) return
     const customer = customers.find(c => c.id === id)
-    await fetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { pending_deletion: true, active: false } }) })
+    await authFetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { pending_deletion: true, active: false } }) })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, pending_deletion: true, active: false } : c))
     await logAction('Requested customer deletion', customer ? `${customer.first_name} ${customer.last_name} (${customer.state})` : id)
   }
 
   const approveDelete = async (id: string) => {
     if (!confirm('Permanently delete this customer and all their vehicles?')) return
-    await fetch('/api/customers', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    await authFetch('/api/customers', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
     setCustomers(cs => cs.filter(c => c.id !== id))
   }
 
   const reinstateFromDeletion = async (id: string) => {
-    await fetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { pending_deletion: false, active: true } }) })
+    await authFetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { pending_deletion: false, active: true } }) })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, pending_deletion: false, active: true } : c))
   }
 
   const archiveCustomer = async (id: string, current: boolean) => {
-    await fetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { archived: !current, active: false } }) })
+    await authFetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { archived: !current, active: false } }) })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, archived: !current, active: false } : c))
     const customer = customers.find(c => c.id === id)
     await logAction(current ? 'Unarchived customer' : 'Archived customer', customer ? `${customer.first_name} ${customer.last_name}` : id)
   }
 
   const archiveVehicle = async (vid: string, current: boolean) => {
-    await fetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { archived: !current, active: false } }) })
+    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { archived: !current, active: false } }) })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, archived: !current, active: false } : v)
@@ -1207,7 +1221,7 @@ export default function Admin() {
                       </select>
                     </div>
                   )}
-                  <div onClick={e => { e.stopPropagation(); fetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id, updates: { auto_payment_email: !c.auto_payment_email } }) }).then(() => setCustomers(cs => cs.map(x => x.id === c.id ? { ...x, auto_payment_email: !c.auto_payment_email } : x))) }} title="Auto-send payment request email when customer registers">
+                  <div onClick={e => { e.stopPropagation(); authFetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id, updates: { auto_payment_email: !c.auto_payment_email } }) }).then(() => setCustomers(cs => cs.map(x => x.id === c.id ? { ...x, auto_payment_email: !c.auto_payment_email } : x))) }} title="Auto-send payment request email when customer registers">
                     <button className={`admin-toggle ${c.auto_payment_email ? 'on' : 'off'}`}>
                       {c.auto_payment_email ? '● AUTO' : '○ MANUAL'}
                     </button>

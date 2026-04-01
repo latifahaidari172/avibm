@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getAuthToken, unauthorized } from '@/lib/auth'
 
 const headers = () => ({
   apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -7,7 +8,8 @@ const headers = () => ({
 })
 const BASE = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/bot_instances`
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (!getAuthToken(request)) return unauthorized()
   try {
     const res = await fetch(`${BASE()}?select=*&order=last_seen.desc`, { headers: headers() })
     return NextResponse.json(await res.json())
@@ -17,6 +19,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!getAuthToken(request)) return unauthorized()
   try {
     const body = await request.json()
     const { id, action } = body
