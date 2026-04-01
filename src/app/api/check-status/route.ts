@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
+import { checkRateLimit, getIP, tooManyRequests } from '@/lib/rateLimit'
 
 export async function POST(request: Request) {
+  const ip = getIP(request)
+  const { allowed } = checkRateLimit(`check-status:${ip}`, 10, 15 * 60 * 1000)
+  if (!allowed) return tooManyRequests('Too many requests. Please try again later.')
   try {
     const { email, phone } = await request.json()
     const cleanEmail = (email || '').toLowerCase().trim()

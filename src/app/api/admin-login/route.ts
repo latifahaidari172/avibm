@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { signToken, getAuthToken, unauthorized } from '@/lib/auth'
+import { checkRateLimit, getIP, tooManyRequests } from '@/lib/rateLimit'
 
 const getHeaders = () => ({
   apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -28,8 +29,12 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { action } = body
 
-    // Login — no auth token required
+    // Login — rate limited, no token required
     if (!action) {
+      const ip = getIP(request)
+      const { allowed } = checkRateLimit(`login:${ip}`, 5, 15 * 60 * 1000)
+      if (!allowed) return tooManyRequests('Too many login attempts. Try again in 15 minutes.')
+
       const { username, password } = body
       if (!username || !password) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
@@ -45,7 +50,11 @@ export async function POST(request: Request) {
           r.password === password.trim()
       )
 
-      if (!match) return NextResponse.json({ error: 'Incorrect username or password' }, { status: 401 })
+      if (!match) {
+        // Add a small delay on failure to slow brute force
+        await new Promise(r => setTimeout(r, 500))
+        return NextResponse.json({ error: 'Incorrect username or password' }, { status: 401 })
+      }
 
       const token = signToken({ id: match.id, username: match.username, role: match.role })
       return NextResponse.json({ id: match.id, username: match.username, role: match.role, token })
