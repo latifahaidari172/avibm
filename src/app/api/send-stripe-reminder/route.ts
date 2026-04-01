@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { emailHtml } from '@/lib/emailTemplate'
+import { getAuthToken, unauthorized } from '@/lib/auth'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -11,6 +12,7 @@ const TIER_PRICES: Record<string, { amount: number; label: string }> = {
 }
 
 export async function POST(request: Request) {
+  if (!getAuthToken(request)) return unauthorized()
   try {
     const { customer_id, tier, state, coupon_code, customer_name, customer_email } = await request.json()
     const price = TIER_PRICES[tier] || TIER_PRICES.basic
