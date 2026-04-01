@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getAuthToken, unauthorized } from '@/lib/auth'
 
 const getHeaders = () => ({
   apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -8,6 +9,7 @@ const getHeaders = () => ({
 const BASE = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/vehicles`
 
 export async function PATCH(request: Request) {
+  if (!getAuthToken(request)) return unauthorized()
   try {
     const { id, updates } = await request.json()
     if (!id || !updates) return NextResponse.json({ error: 'Missing id or updates' }, { status: 400 })
