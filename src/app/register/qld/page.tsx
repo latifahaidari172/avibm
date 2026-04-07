@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
 const DAMAGE_OPTIONS = ['HAIL DAMAGE', 'WATER DAMAGE', 'MALICIOUS DAMAGE', 'FIRE DAMAGE', 'STRUCTURAL DAMAGE', 'IMPACT DAMAGE DRIVERS FRONT', 'IMPACT DAMAGE PASSENGER FRONT', 'IMPACT DAMAGE DRIVERS SIDE', 'IMPACT DAMAGE PASSENGER SIDE', 'IMPACT DAMAGE DRIVERS REAR', 'IMPACT DAMAGE PASSENGER REAR', 'OTHER']
@@ -294,44 +293,43 @@ export default function RegisterQLD() {
       const whitelistData = await whitelistRes.json()
       const isFree = whitelistData?.whitelisted === true
 
-      const { data: customer, error: ce } = await supabase
-        .from('customers')
-        .insert({
-          state: 'QLD',
-          active: isFree,  // auto-activate if whitelisted
-          tier: isFree ? 'priority' : selectedTier,
-          auto_payment_email: !isFree,
-          ...owner,
-        })
-        .select('id').single()
-      if (ce || !customer) throw new Error(ce?.message || 'Failed to save')
-
-      const vehicleRows = vehicles.map(v => ({
-        customer_id: customer.id,
-        state: 'QLD',
-        active: true,
-        label: v.label || `${v.make} ${v.model}`,
-        vehicle_type: v.vehicle_type,
-        vin: v.vin,
-        make: v.make,
-        model: v.model,
-        year: v.year,
-        colour: v.colour,
-        build_month: v.build_month,
-        damage: v.damage,
-        purchase_method: v.purchase_method,
-        purchased_from: v.purchased_from,
-        // Store current booking date as cutoff_date
-        cutoff_date: v.current_booking_date,
-        // Store booking details for display
-        booked_date: v.current_booking_date,
-        booked_time: v.current_booking_time,
-        booked_location: v.current_booking_location,
-        locations: v.locations,
-        priority_locations: v.priority_locations,
-      }))
-      const { error: ve } = await supabase.from('vehicles').insert(vehicleRows)
-      if (ve) throw new Error(ve.message)
+      const regRes = await fetch('/api/register-customer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer: {
+            state: 'QLD',
+            active: isFree,
+            tier: isFree ? 'priority' : selectedTier,
+            auto_payment_email: !isFree,
+            ...owner,
+          },
+          vehicles: vehicles.map(v => ({
+            state: 'QLD',
+            active: true,
+            label: v.label || `${v.make} ${v.model}`,
+            vehicle_type: v.vehicle_type,
+            vin: v.vin,
+            make: v.make,
+            model: v.model,
+            year: v.year,
+            colour: v.colour,
+            build_month: v.build_month,
+            damage: v.damage,
+            purchase_method: v.purchase_method,
+            purchased_from: v.purchased_from,
+            cutoff_date: v.current_booking_date,
+            booked_date: v.current_booking_date,
+            booked_time: v.current_booking_time,
+            booked_location: v.current_booking_location,
+            locations: v.locations,
+            priority_locations: v.priority_locations,
+          })),
+        }),
+      })
+      const regData = await regRes.json()
+      if (!regRes.ok || !regData.customer_id) throw new Error(regData.error || 'Failed to save')
+      const customerId = regData.customer_id
 
       if (!isFree) {
         // Send PayID payment request to customer and notify admin

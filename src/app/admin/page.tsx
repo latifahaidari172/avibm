@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect } from 'react'
-
 import Link from 'next/link'
 
 type Customer = {
@@ -271,13 +270,27 @@ export default function Admin() {
     setSettingsForm({ username: '', newPassword: '', confirmPassword: '' })
   }
 
+  const adminFetch = (url: string, opts?: RequestInit) => fetch(url, opts).then(r => r.json())
+  const adminPatch = (table: string, id: string, updates: object) =>
+    fetch('/api/admin/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ table, id, updates }) })
+  const adminDelete = (table: string, id: string) =>
+    fetch('/api/admin/customers', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ table, id }) })
+
   const loadData = async () => {
     setLoading(true)
-    const res = await authFetch('/api/admin-data')
-    if (res.ok) {
-      const { customers: custs, monitorStatus: status } = await res.json()
-      setCustomers(custs || [])
-      if (status) setMonitorStatus(status)
+    try {
+      const custs = await adminFetch('/api/admin/customers')
+      if (!Array.isArray(custs)) {
+        console.error('[admin] customers API error:', custs)
+        alert(`Failed to load customers: ${JSON.stringify(custs)}`)
+      }
+      setCustomers(Array.isArray(custs) ? custs : [])
+
+      const status = await adminFetch('/api/admin/customers?type=monitor_status')
+      if (status && !status.error) setMonitorStatus(status)
+    } catch (e: any) {
+      console.error('[admin] loadData error:', e)
+      alert(`Load error: ${e.message}`)
     }
     setLoading(false)
   }
@@ -294,9 +307,8 @@ export default function Admin() {
   useEffect(() => {
     if (!authed) return
     const interval = setInterval(async () => {
-      const res = await authFetch('/api/monitor-status')
-      if (res.ok) { const data = await res.json(); if (data) setMonitorStatus(data) }
-      loadBotInstances()
+      const status = await adminFetch('/api/admin/customers?type=monitor_status')
+      if (status && !status.error) setMonitorStatus(status)
     }, 30000)
     return () => clearInterval(interval)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -310,8 +322,10 @@ export default function Admin() {
 
     const check = async () => {
       const lastSeen = getLastSeen()
-      const res = await authFetch(`/api/new-registrations?since=${encodeURIComponent(lastSeen)}`)
-      if (res.ok) { const { count } = await res.json(); if (count > 0) setNewRegCount(n => n + count) }
+      const data = await adminFetch(`/api/admin/customers?type=new_since&since=${encodeURIComponent(lastSeen)}`)
+      if (Array.isArray(data) && data.length > 0) {
+        setNewRegCount(n => n + data.length)
+      }
     }
 
     const interval = setInterval(check, 30000)
@@ -343,7 +357,7 @@ export default function Admin() {
   }, [authed, newRegCount])
 
   const toggleActive = async (id: string, current: boolean) => {
-    await authFetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { active: !current } }) })
+    await adminPatch('customers', id, { active: !current })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, active: !current } : c))
     const customer = customers.find(c => c.id === id)
     await logAction(
@@ -367,7 +381,7 @@ export default function Admin() {
   }
 
   const toggleVehicle = async (vid: string, current: boolean) => {
-    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { active: !current } }) })
+    await adminPatch('vehicles', vid, { active: !current })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, active: !current } : v)
@@ -380,7 +394,7 @@ export default function Admin() {
   }
 
   const updateTier = async (id: string, tier: string) => {
-    await authFetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { tier } }) })
+    await adminPatch('customers', id, { tier })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, tier: tier as any } : c))
     const customer = customers.find(c => c.id === id)
     await logAction('Changed tier', `${customer ? `${customer.first_name} ${customer.last_name}` : id} → ${tier}`)
@@ -409,7 +423,13 @@ export default function Admin() {
   }
 
   const updateCutoff = async (vid: string, date: string, oldDate: string) => {
-    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { cutoff_date: date, previous_cutoff: oldDate, booked_date: null, booked_time: null, booked_location: null } }) })
+    await adminPatch('vehicles', vid, {
+      cutoff_date: date,
+      previous_cutoff: oldDate,
+      booked_date: null,
+      booked_time: null,
+      booked_location: null,
+    })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? {
@@ -426,7 +446,11 @@ export default function Admin() {
   }
 
   const updateManualBooking = async (vid: string, date: string, time: string, location: string) => {
-    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { booked_date: date || null, booked_time: time || null, booked_location: location || null } }) })
+    await adminPatch('vehicles', vid, {
+      booked_date: date || null,
+      booked_time: time || null,
+      booked_location: location || null,
+    })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? {
@@ -441,7 +465,10 @@ export default function Admin() {
   }
 
   const updateSearchAfter = async (vid: string, date: string | null, active: boolean) => {
-    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { search_after_date: date, search_after_active: active } }) })
+    await adminPatch('vehicles', vid, {
+      search_after_date: date,
+      search_after_active: active,
+    })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? {
@@ -468,7 +495,7 @@ export default function Admin() {
   }
 
   const updateLocations = async (vid: string, locs: string[]) => {
-    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { locations: locs } }) })
+    await adminPatch('vehicles', vid, { locations: locs })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, locations: locs } : v)
@@ -476,7 +503,7 @@ export default function Admin() {
   }
 
   const updatePriorityLocations = async (vid: string, locs: string[]) => {
-    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { priority_locations: locs } }) })
+    await adminPatch('vehicles', vid, { priority_locations: locs })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, priority_locations: locs } : v)
@@ -486,7 +513,7 @@ export default function Admin() {
   const saveCustomerEdits = async (id: string) => {
     const edits = customerEdits[id]
     if (!edits) return
-    await authFetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: edits }) })
+    await adminPatch('customers', id, edits)
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, ...edits } : c))
     setEditingCustomer(null)
     const customer = customers.find(c => c.id === id)
@@ -496,7 +523,7 @@ export default function Admin() {
   const saveVehicleEdits = async (vid: string) => {
     const edits = vehicleEdits[vid]
     if (!edits) return
-    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: edits }) })
+    await adminPatch('vehicles', vid, edits)
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, ...edits } : v)
@@ -507,7 +534,7 @@ export default function Admin() {
   }
 
   const updateNotes = async (vid: string, notes: string) => {
-    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { notes } }) })
+    await adminPatch('vehicles', vid, { notes })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, notes } : v)
@@ -538,7 +565,7 @@ export default function Admin() {
   const deleteCustomer = async (id: string) => {
     if (!confirm('Delete this customer and all their vehicles?')) return
     const customer = customers.find(c => c.id === id)
-    await authFetch('/api/customers', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    await adminDelete('customers', id)
     setCustomers(cs => cs.filter(c => c.id !== id))
     await logAction('Deleted customer', customer ? `${customer.first_name} ${customer.last_name} (${customer.state})` : id)
   }
@@ -546,14 +573,14 @@ export default function Admin() {
   const requestDelete = async (id: string) => {
     if (!confirm('Request deletion? The owner will need to approve it.')) return
     const customer = customers.find(c => c.id === id)
-    await authFetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { pending_deletion: true, active: false } }) })
+    await adminPatch('customers', id, { pending_deletion: true, active: false })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, pending_deletion: true, active: false } : c))
     await logAction('Requested customer deletion', customer ? `${customer.first_name} ${customer.last_name} (${customer.state})` : id)
   }
 
   const approveDelete = async (id: string) => {
     if (!confirm('Permanently delete this customer and all their vehicles?')) return
-    await authFetch('/api/customers', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    await adminDelete('customers', id)
     setCustomers(cs => cs.filter(c => c.id !== id))
   }
 
@@ -563,14 +590,14 @@ export default function Admin() {
   }
 
   const archiveCustomer = async (id: string, current: boolean) => {
-    await authFetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { archived: !current, active: false } }) })
+    await adminPatch('customers', id, { archived: !current, active: false })
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, archived: !current, active: false } : c))
     const customer = customers.find(c => c.id === id)
     await logAction(current ? 'Unarchived customer' : 'Archived customer', customer ? `${customer.first_name} ${customer.last_name}` : id)
   }
 
   const archiveVehicle = async (vid: string, current: boolean) => {
-    await authFetch('/api/vehicles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vid, updates: { archived: !current, active: false } }) })
+    await adminPatch('vehicles', vid, { archived: !current, active: false })
     setCustomers(cs => cs.map(c => ({
       ...c,
       vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, archived: !current, active: false } : v)
@@ -1221,10 +1248,15 @@ export default function Admin() {
                       </select>
                     </div>
                   )}
-                  <div onClick={e => { e.stopPropagation(); authFetch('/api/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id, updates: { auto_payment_email: !c.auto_payment_email } }) }).then(() => setCustomers(cs => cs.map(x => x.id === c.id ? { ...x, auto_payment_email: !c.auto_payment_email } : x))) }} title="Auto-send payment request email when customer registers">
-                    <button className={`admin-toggle ${c.auto_payment_email ? 'on' : 'off'}`}>
-                      {c.auto_payment_email ? '● AUTO' : '○ MANUAL'}
-                    </button>
+                  <div onClick={e => { e.stopPropagation(); adminPatch('customers', c.id, { auto_payment_email: !c.auto_payment_email }).then(() => setCustomers(cs => cs.map(x => x.id === c.id ? { ...x, auto_payment_email: !c.auto_payment_email } : x))) }} title="Auto-send payment request email when customer registers">
+                    <span style={{
+                      cursor: 'pointer', fontSize: 12, padding: '4px 10px', borderRadius: 4,
+                      background: c.auto_payment_email ? '#1a2a1a' : 'var(--dark-4)',
+                      border: `1px solid ${c.auto_payment_email ? '#2a4a2a' : 'var(--border)'}`,
+                      color: c.auto_payment_email ? '#5adb5a' : 'var(--text-muted)',
+                    }}>
+                      {c.auto_payment_email ? '● AUTO EMAIL' : '○ MANUAL'}
+                    </span>
                   </div>
                   <div onClick={e => { e.stopPropagation(); toggleActive(c.id, c.active) }}>
                     <span className={`badge ${c.active ? 'badge-active' : 'badge-pending'}`} style={{ cursor: 'pointer' }}>
