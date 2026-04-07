@@ -1,6 +1,5 @@
 'use client'
 import { useState, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
 export default function RegisterSA() {
@@ -58,29 +57,31 @@ export default function RegisterSA() {
     if (!/^\S+@\S+\.\S+$/.test(form.email)) { setError('Please enter a valid email.'); return }
     setError(''); setLoading(true)
     try {
-      const { data: customer, error: ce } = await supabase
-        .from('customers')
-        .insert({
-          state: 'SA', active: false, tier: 'basic',
-          first_name: form.first_name, last_name: form.last_name,
-          email: form.email, phone: form.phone,
-          address: form.address, suburb: form.suburb, postcode: form.postcode,
-          licence_number: form.licence_number, date_of_birth: form.date_of_birth,
-        })
-        .select('id').single()
-      if (ce || !customer) throw new Error(ce?.message || 'Failed to save')
-
-      const { error: ve } = await supabase.from('vehicles').insert({
-        customer_id: customer.id,
-        state: 'SA',
-        active: true,
-        label: 'SA Inspection Vehicle',
-        vehicle_type: 'Car',
-        vin: '', make: '', model: '', year: '', colour: '',
-        build_month: '', damage: '', purchase_method: '', purchased_from: '',
-        cutoff_date: form.cutoff_date,
+      const regRes = await fetch('/api/register-customer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer: {
+            state: 'SA', active: false, tier: 'basic',
+            first_name: form.first_name, last_name: form.last_name,
+            email: form.email, phone: form.phone,
+            address: form.address, suburb: form.suburb, postcode: form.postcode,
+            licence_number: form.licence_number, date_of_birth: form.date_of_birth,
+          },
+          vehicles: [{
+            state: 'SA',
+            active: true,
+            label: 'SA Inspection Vehicle',
+            vehicle_type: 'Car',
+            vin: '', make: '', model: '', year: '', colour: '',
+            build_month: '', damage: '', purchase_method: '', purchased_from: '',
+            cutoff_date: form.cutoff_date,
+          }],
+        }),
       })
-      if (ve) throw new Error(ve.message)
+      const regData = await regRes.json()
+      if (!regRes.ok || !regData.customer_id) throw new Error(regData.error || 'Failed to save')
+      const customerId = regData.customer_id
 
       // Send PayID payment request to customer and notify admin
       await fetch('/api/notify-registration', {
