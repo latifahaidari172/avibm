@@ -25,9 +25,15 @@ export async function GET(request: Request) {
   try {
     if (!getAuthToken(request)) return unauthorized()
     const { searchParams } = new URL(request.url)
-    if (searchParams.get('action') === 'list') {
+    const action = searchParams.get('action')
+    if (action === 'list') {
       const res = await fetch(`${BASE()}?role=neq.owner&select=id,created_at,username,role,active&order=created_at.asc`, { headers: getHeaders() })
       return NextResponse.json(await res.json())
+    }
+    if (action === 'refresh') {
+      const payload = getAuthToken(request) as { id: string; username: string; role: string }
+      const token = signToken({ id: payload.id, username: payload.username, role: payload.role })
+      return NextResponse.json({ token })
     }
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
   } catch (e: any) {

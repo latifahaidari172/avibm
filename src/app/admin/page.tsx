@@ -116,19 +116,37 @@ export default function Admin() {
   const [showDevicesPanel, setShowDevicesPanel] = useState(true)
   const [editingDeviceName, setEditingDeviceName] = useState<string | null>(null)
   const [deviceNameDraft, setDeviceNameDraft] = useState('')
+  const [scanSettings, setScanSettings] = useState({
+    scan_start_hour: 7, scan_start_minute: 30,
+    scan_fast_end_hour: 11, scan_fast_end_minute: 0,
+    scan_end_hour: 19, scan_end_minute: 0,
+    fast_interval: 10, slow_interval: 60, sa_interval: 60,
+  })
+  const [scanSettingsSaving, setScanSettingsSaving] = useState(false)
+  const [scanSettingsSaved, setScanSettingsSaved] = useState(false)
+  const [showScanSettings, setShowScanSettings] = useState(false)
 
   const isOwner = authedAdmin?.role === 'owner'
 
-  // Authenticated fetch — attaches the stored JWT to every request
-  const authFetch = (url: string, options: RequestInit = {}) => {
+  // Authenticated fetch — attaches the stored JWT to every request, auto-logs out on 401
+  const authFetch = async (url: string, options: RequestInit = {}) => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('avibm_admin_token') || '' : ''
-    return fetch(url, {
+    const res = await fetch(url, {
       ...options,
       headers: {
         ...(options.headers || {}),
         'Authorization': `Bearer ${token}`,
       },
     })
+    if (res.status === 401) {
+      localStorage.removeItem('avibm_admin_user')
+      localStorage.removeItem('avibm_admin_last_seen')
+      localStorage.removeItem('avibm_admin_token')
+      setAuthed(false)
+      setAuthedAdmin(null)
+      setShowMenu(false)
+    }
+    return res
   }
 
   const login = async () => {
@@ -172,6 +190,26 @@ export default function Admin() {
   const loadBotInstances = async () => {
     const res = await authFetch('/api/bot-control')
     if (res.ok) { const data = await res.json(); if (Array.isArray(data)) setBotInstances(data) }
+  }
+
+  const loadScanSettings = async () => {
+    const res = await authFetch('/api/bot-settings')
+    if (res.ok) {
+      const data = await res.json()
+      if (data && !data.error) setScanSettings(s => ({ ...s, ...data }))
+    }
+  }
+
+  const saveScanSettings = async () => {
+    setScanSettingsSaving(true)
+    await authFetch('/api/bot-settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(scanSettings),
+    })
+    setScanSettingsSaving(false)
+    setScanSettingsSaved(true)
+    setTimeout(() => setScanSettingsSaved(false), 3000)
   }
 
   const toggleBotInstance = async (id: string, enabled: boolean) => {
@@ -297,8 +335,16 @@ export default function Admin() {
 
   useEffect(() => {
     if (authed) {
+      // Silently refresh token on every page load so it never expires
+      authFetch('/api/admin-login?action=refresh').then(async res => {
+        if (res.ok) {
+          const data = await res.json()
+          if (data.token) localStorage.setItem('avibm_admin_token', data.token)
+        }
+      })
       loadData()
       loadBotInstances()
+      loadScanSettings()
       if (authedAdmin?.role === 'owner') { loadLogs(); loadAdmins() }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -606,7 +652,7 @@ export default function Admin() {
     await logAction(current ? 'Unarchived vehicle' : 'Archived vehicle', vehicle ? vehicle.label : vid)
   }
 
-  const pendingPayment = customers.filter(c => !c.active && c.auto_payment_email)
+  const pendingPayment = customers.filter(c => !c.active && c.auto_payment_email && !c.archived)
 
   const archived = customers.filter(c => c.archived)
 
@@ -635,16 +681,21 @@ export default function Admin() {
   const onlineInstances = botInstances.filter(b => instanceIsOnline(b.last_seen))
   const activeInstances = onlineInstances.filter(b => b.enabled)
 
-  // 'running' = online + enabled, 'paused' = online but all disabled, 'offline' = none online
-  const monitorState: 'running' | 'paused' | 'offline' =
+  // 'running' = online + enabled + active hours, 'sleeping' = online + enabled + outside hours, 'paused' = online but disabled, 'offline' = none online
+  const isSleeping = onlineInstances.some(b => b.status === 'sleeping')
+  const isPaused = onlineInstances.length > 0 && onlineInstances.every(b => b.status === 'paused' || !b.enabled)
+  const monitorState: 'running' | 'sleeping' | 'paused' | 'offline' =
     activeInstances.length > 0 && monitorLive ? 'running'
+    : isPaused ? 'paused'
+    : isSleeping ? 'sleeping'
     : onlineInstances.length > 0 ? 'paused'
     : 'offline'
 
   const monitorStateConfig = {
-    running: { color: '#4ecb4e', label: 'RUNNING',  cardClass: 'active',   dotShadow: 'rgba(78,203,78,0.5)',   bg: '#040e04', border: '#1a3a1a' },
-    paused:  { color: '#C9A84C', label: 'PAUSED',   cardClass: 'inactive', dotShadow: 'rgba(201,168,76,0.5)',  bg: '#0e0a00', border: '#3a2a00' },
-    offline: { color: '#e74c3c', label: 'OFFLINE',  cardClass: 'inactive', dotShadow: 'rgba(231,76,60,0.4)',   bg: '#080606', border: '#2a1010' },
+    running:  { color: '#4ecb4e', label: 'RUNNING',  cardClass: 'active',   dotShadow: 'rgba(78,203,78,0.5)',   bg: '#040e04', border: '#1a3a1a' },
+    sleeping: { color: '#5b9bd5', label: 'SLEEPING', cardClass: 'inactive', dotShadow: 'rgba(91,155,213,0.4)',  bg: '#04080e', border: '#101a2a' },
+    paused:   { color: '#C9A84C', label: 'PAUSED',   cardClass: 'inactive', dotShadow: 'rgba(201,168,76,0.5)',  bg: '#0e0a00', border: '#3a2a00' },
+    offline:  { color: '#e74c3c', label: 'OFFLINE',  cardClass: 'inactive', dotShadow: 'rgba(231,76,60,0.4)',   bg: '#080606', border: '#2a1010' },
   }
 
   const formatLastRun = (lastRun?: string) => {
@@ -858,16 +909,21 @@ export default function Admin() {
                 </div>
               ) : botInstances.map(b => {
                 const online = instanceIsOnline(b.last_seen)
+                const sleeping = online && b.status === 'sleeping'
+                const dotColor = !online ? '#333' : sleeping ? '#5b9bd5' : '#4ecb4e'
+                const dotShadow = !online ? 'none' : sleeping ? '0 0 6px rgba(91,155,213,0.4)' : '0 0 6px rgba(78,203,78,0.4)'
+                const bgColor = !online ? '#080808' : sleeping ? '#04080e' : '#040e04'
+                const borderColor = !online ? '#1a1a1a' : sleeping ? '#101a2a' : '#1a3a1a'
                 return (
                   <div key={b.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                    background: online ? '#040e04' : '#080808',
-                    border: `1px solid ${online ? '#1a3a1a' : '#1a1a1a'}`,
+                    background: bgColor,
+                    border: `1px solid ${borderColor}`,
                     borderRadius: 8, flexWrap: 'wrap',
                   }}>
                     {/* Status dot */}
                     <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: online ? '#4ecb4e' : '#333', boxShadow: online ? '0 0 6px rgba(78,203,78,0.4)' : 'none' }} />
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: dotColor, boxShadow: dotShadow }} />
                       {online && <div style={{ position: 'absolute', top: 0, left: 0, width: 10, height: 10, borderRadius: '50%', background: '#4ecb4e', opacity: 0.4, animation: 'pulse 2s infinite' }} />}
                     </div>
 
@@ -907,7 +963,7 @@ export default function Admin() {
                           onClick={() => { setEditingDeviceName(b.id); setDeviceNameDraft(b.display_name || '') }}
                         >Rename</button>
                       )}
-                      {online && b.enabled && (
+                      {online && (
                         <>
                           <button
                             onClick={() => toggleBotInstance(b.id, !b.enabled)}
@@ -916,15 +972,17 @@ export default function Admin() {
                           >
                             {b.enabled ? '● ENABLED' : '○ DISABLED'}
                           </button>
-                          <button
-                            className="admin-btn admin-btn-red"
-                            style={{ padding: '5px 10px', fontSize: 11 }}
-                            onClick={() => {
-                              if (confirm(`Stop the terminal on ${b.display_name || b.hostname}? This will kill the running process.`)) {
-                                toggleBotInstance(b.id, false)
-                              }
-                            }}
-                          >■ Stop</button>
+                          {b.enabled && (
+                            <button
+                              className="admin-btn admin-btn-red"
+                              style={{ padding: '5px 10px', fontSize: 11 }}
+                              onClick={() => {
+                                if (confirm(`Stop the terminal on ${b.display_name || b.hostname}? This will kill the running process.`)) {
+                                  toggleBotInstance(b.id, false)
+                                }
+                              }}
+                            >■ Stop</button>
+                          )}
                         </>
                       )}
                       {!online && (
@@ -940,6 +998,96 @@ export default function Admin() {
               })}
               <div style={{ fontSize: 11, color: '#333', paddingTop: 4 }}>
                 Devices check in every 10–60 seconds. Stop kills the terminal process within 10s. Delete is only available for offline devices.
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Scan Settings Panel */}
+        <div className="admin-section" style={{ marginBottom: 16 }}>
+          <div className={`admin-section-header blue-border${showScanSettings ? ' open' : ''}`}
+            style={{ background: '#04080e', cursor: 'pointer' }}
+            onClick={() => setShowScanSettings(p => !p)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.06em', color: '#5b9bd5' }}>⚙ Scan Schedule &amp; Intervals</div>
+            </div>
+            <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{showScanSettings ? '▲' : '▼'}</span>
+          </div>
+          {showScanSettings && (
+            <div className="admin-section-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {(() => {
+                // Helpers: convert 24h hour ↔ 12h display
+                const to12 = (h: number) => ({ hour: h === 0 ? 12 : h > 12 ? h - 12 : h, ampm: h < 12 ? 'AM' : 'PM' })
+                const to24 = (h: number, ampm: string) => ampm === 'AM' ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12)
+
+                const TimeInput = ({ label, hour24, min, onHourChange, onMinChange }: {
+                  label: string; hour24: number; min: number
+                  onHourChange: (h24: number) => void; onMinChange: (m: number) => void
+                }) => {
+                  const { hour, ampm } = to12(hour24)
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span style={{ fontSize: 10, color: '#5b9bd5', fontWeight: 600, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{label}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
+                        <input type="number" min={1} max={12} value={hour}
+                          onChange={e => onHourChange(to24(Math.min(12, Math.max(1, +e.target.value)), ampm))}
+                          className="admin-input" style={{ width: 42, textAlign: 'center', padding: '3px 4px', fontSize: 12 }} />
+                        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>:</span>
+                        <input type="text" value={String(min).padStart(2, '0')}
+                          onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) onMinChange(Math.min(59, Math.max(0, v))) }}
+                          className="admin-input" style={{ width: 42, textAlign: 'center', padding: '3px 4px', fontSize: 12 }} />
+                        <select value={ampm}
+                          onChange={e => onHourChange(to24(hour, e.target.value))}
+                          className="admin-input" style={{ padding: '3px 2px', fontSize: 11, width: 50 }}>
+                          <option>AM</option><option>PM</option>
+                        </select>
+                      </div>
+                    </div>
+                  )
+                }
+
+                const SI = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ fontSize: 10, color: '#5b9bd5', fontWeight: 600, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <input type="number" min={1} max={3600} value={value}
+                        onChange={e => onChange(Math.max(1, +e.target.value))}
+                        className="admin-input" style={{ width: 52, textAlign: 'center', padding: '3px 4px', fontSize: 12 }} />
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>sec</span>
+                    </div>
+                  </div>
+                )
+
+                const Divider = () => <div style={{ width: 1, background: '#222', alignSelf: 'stretch', margin: '0 6px' }} />
+
+                return (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+                    <TimeInput label="QLD Scan starts"
+                      hour24={scanSettings.scan_start_hour} min={scanSettings.scan_start_minute}
+                      onHourChange={v => setScanSettings(s => ({ ...s, scan_start_hour: v }))}
+                      onMinChange={v => setScanSettings(s => ({ ...s, scan_start_minute: v }))} />
+                    <TimeInput label="QLD Scan ends"
+                      hour24={scanSettings.scan_end_hour} min={scanSettings.scan_end_minute}
+                      onHourChange={v => setScanSettings(s => ({ ...s, scan_end_hour: v }))}
+                      onMinChange={v => setScanSettings(s => ({ ...s, scan_end_minute: v }))} />
+                    <Divider />
+                    <TimeInput label="Switch fast → slow at"
+                      hour24={scanSettings.scan_fast_end_hour} min={scanSettings.scan_fast_end_minute}
+                      onHourChange={v => setScanSettings(s => ({ ...s, scan_fast_end_hour: v }))}
+                      onMinChange={v => setScanSettings(s => ({ ...s, scan_fast_end_minute: v }))} />
+                    <Divider />
+                    <SI label="QLD fast interval" value={scanSettings.fast_interval} onChange={v => setScanSettings(s => ({ ...s, fast_interval: v }))} />
+                    <SI label="QLD slow interval" value={scanSettings.slow_interval} onChange={v => setScanSettings(s => ({ ...s, slow_interval: v }))} />
+                    <Divider />
+                    <SI label="SA check interval" value={scanSettings.sa_interval} onChange={v => setScanSettings(s => ({ ...s, sa_interval: v }))} />
+                  </div>
+                )
+              })()}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button className="admin-btn admin-btn-gold" style={{ padding: '5px 14px', fontSize: 11 }} onClick={saveScanSettings} disabled={scanSettingsSaving}>
+                  {scanSettingsSaving ? 'Saving...' : 'Save'}
+                </button>
+                {scanSettingsSaved && <span style={{ color: '#4ecb4e', fontSize: 11 }}>✓ Saved — bot picks up within 5 min</span>}
               </div>
             </div>
           )}
@@ -990,7 +1138,7 @@ export default function Admin() {
                         color: a.active ? '#5adb5a' : '#ff6b6b',
                       }}>{a.active ? 'Active' : 'Inactive'}</span>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                        Added {new Date(a.created_at).toLocaleDateString('en-AU')}
+                        Added {new Date(a.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}
                       </span>
                       <button onClick={() => removeAdmin(a.id)} className="admin-btn admin-btn-red" style={{ fontSize: 11 }}>Remove</button>
                     </div>
@@ -1019,7 +1167,7 @@ export default function Admin() {
                             padding: '7px 12px', background: 'var(--dark-2)', borderRadius: 6, border: '1px solid var(--border)',
                           }}>
                             <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', minWidth: 120 }}>
-                              {new Date(log.created_at).toLocaleString('en-AU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              {new Date(log.created_at).toLocaleString('en-AU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Adelaide' })}
                             </div>
                             <div style={{ flex: 1 }}>
                               <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{log.action}</span>
@@ -1151,7 +1299,7 @@ export default function Admin() {
                         <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{c.email} · {c.phone}</div>
                       </div>
                       <div style={{ fontSize: 11, color: TIER_CONFIG[c.tier]?.color }}>{TIER_CONFIG[c.tier]?.label}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Date(c.created_at).toLocaleDateString('en-AU')}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Date(c.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <input
@@ -1166,6 +1314,12 @@ export default function Admin() {
                         className="admin-btn admin-btn-gold"
                         style={{ opacity: sendingReminder === c.id ? 0.6 : 1, whiteSpace: 'nowrap' }}
                       >{sendingReminder === c.id ? 'Sending...' : '📧 Send Link'}</button>
+                      <button
+                        onClick={() => archiveCustomer(c.id, !!c.archived)}
+                        className="admin-btn admin-btn-amber"
+                        title="Close — hides from this list but keeps customer + vehicle history"
+                        style={{ whiteSpace: 'nowrap' }}
+                      >📦 Close</button>
                       {isOwner ? (
                         <button onClick={() => deleteCustomer(c.id)} className="admin-btn admin-btn-red">🗑</button>
                       ) : (
@@ -1231,7 +1385,7 @@ export default function Admin() {
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>VEHICLE{(c.vehicles?.length || 0) !== 1 ? 'S' : ''}</div>
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 90, textAlign: 'right' }}>
-                    {new Date(c.created_at).toLocaleDateString('en-AU')}
+                    {new Date(c.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}
                   </div>
                   {c.state === 'QLD' && (
                     <div onClick={e => e.stopPropagation()}>
@@ -1759,7 +1913,7 @@ export default function Admin() {
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>VEHICLE{(c.vehicles?.length || 0) !== 1 ? 'S' : ''}</div>
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 90, textAlign: 'right' }}>
-                        {new Date(c.created_at).toLocaleDateString('en-AU')}
+                        {new Date(c.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}
                       </div>
                       <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#1a1200', border: '1px solid #4a3a00', color: '#C9A84C' }}>📦 ARCHIVED</span>
                       <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{expandedId === c.id ? '▲' : '▼'}</div>
