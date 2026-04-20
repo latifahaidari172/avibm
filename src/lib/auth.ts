@@ -20,8 +20,6 @@ export function verifyToken(token: string): Record<string, unknown> | null {
     const expected = createHmac('sha256', getSecret()).update(data).digest('base64url')
     if (sig !== expected) return null
     const payload = JSON.parse(Buffer.from(data, 'base64url').toString())
-    // Expire after 24 hours
-    if (Date.now() - payload.iat > 24 * 60 * 60 * 1000) return null
     return payload
   } catch {
     return null
