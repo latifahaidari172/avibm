@@ -47,6 +47,7 @@ type Vehicle = {
   booked_date?: string
   booked_time?: string
   booked_location?: string
+  booked_at?: string   // UTC timestamp of the moment the bot confirmed the booking
   previous_cutoff?: string
   priority_locations?: string[]
   locations?: string[]
@@ -1585,6 +1586,11 @@ export default function Admin() {
                               {v.booked_time && <div style={{ fontSize: 13, color: '#5ab0ff', marginBottom: 2 }}>⏰ {v.booked_time}</div>}
                               {v.booked_location && <div style={{ fontSize: 13, color: '#5ab0ff' }}>📍 {v.booked_location}</div>}
                               {!v.booked_time && !v.booked_location && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Time/location updating next run</div>}
+                              {v.booked_at && (
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, paddingTop: 6, borderTop: '1px solid #1f3a1f' }}>
+                                  Booked {new Date(v.booked_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <div style={{ background: '#0a0a0a', border: '1px solid #141414', borderRadius: 6, padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2005,6 +2011,7 @@ export default function Admin() {
                                   <div style={{ color: '#5adb5a', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>✅ Booked</div>
                                   <div style={{ fontWeight: 600, color: '#5adb5a' }}>{v.booked_date}{v.booked_time ? ` · ${v.booked_time}` : ''}</div>
                                   {v.booked_location && <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>{v.booked_location}</div>}
+                                  {v.booked_at && <div style={{ color: 'var(--text-muted)', fontSize: 10, marginTop: 4 }}>Booked {new Date(v.booked_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</div>}
                                 </div>
                               )}
                             </div>
