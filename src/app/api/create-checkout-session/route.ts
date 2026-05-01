@@ -3,14 +3,12 @@ import Stripe from 'stripe'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
-// Prices include Stripe fee pass-through so user nets exact amount
-// Priority: nets $10.00 → charge $10.49
-// Standard: nets $7.50 → charge $7.94
-// Basic:    nets $5.00 → charge $5.40
+// Customer-facing price = exact amount charged. Stripe fees absorbed by us.
+// Priority: $5.00 / Standard: $3.00 / Basic: $1.50
 const TIER_PRICES: Record<string, { amount: number; label: string }> = {
-  priority: { amount: 1049, label: 'Priority Monitoring' },
-  standard: { amount: 794,  label: 'Standard Monitoring' },
-  basic:    { amount: 540,  label: 'Basic Monitoring' },
+  priority: { amount: 500, label: 'Priority Monitoring' },
+  standard: { amount: 300, label: 'Standard Monitoring' },
+  basic:    { amount: 150, label: 'Basic Monitoring' },
 }
 
 export async function POST(request: Request) {

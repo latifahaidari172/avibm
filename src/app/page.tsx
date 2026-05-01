@@ -130,9 +130,9 @@ export default function Home() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, maxWidth: 700, margin: '0 auto' }}>
             {[
-              { icon: '🥇', tier: 'Priority', price: '$10', color: 'var(--gold)', border: 'var(--gold)', desc: 'First in queue — books immediately' },
-              { icon: '🥈', tier: 'Standard', price: '$7.50', color: '#aaa', border: 'var(--border)', desc: '30 second delay after Priority' },
-              { icon: '🥉', tier: 'Basic', price: '$5', color: '#888', border: 'var(--border)', desc: '60 second delay after Standard' },
+              { icon: '🥇', tier: 'Priority', price: '$5', color: 'var(--gold)', border: 'var(--gold)', desc: 'First in queue — books immediately' },
+              { icon: '🥈', tier: 'Standard', price: '$3', color: '#aaa', border: 'var(--border)', desc: '30 second delay after Priority' },
+              { icon: '🥉', tier: 'Basic', price: '$1.50', color: '#888', border: 'var(--border)', desc: '60 second delay after Standard' },
             ].map(t => (
               <div key={t.tier} style={{
                 background: 'var(--dark-2)', border: `1px solid ${t.border}`,
