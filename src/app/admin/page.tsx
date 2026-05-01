@@ -449,7 +449,7 @@ export default function Admin() {
 
   const sendPaymentRequest = async (c: Customer) => {
     const tierPrices: Record<string, number> = { priority: 5, standard: 3, basic: 1.5 }
-    const price = c.state === 'SA' ? 5 : tierPrices[c.tier || 'standard']
+    const price = c.state === 'SA' ? 0 : tierPrices[c.tier || 'standard']
     const vehicleCount = c.vehicles?.length || 1
     const total = (price * vehicleCount).toFixed(2)
     const res = await authFetch('/api/send-payment-request', {

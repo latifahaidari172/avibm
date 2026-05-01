@@ -159,9 +159,9 @@ export default function Home() {
           }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>🥇</div>
             <div style={{ fontFamily: 'Bebas Neue', fontSize: 18, color: 'var(--gold)', letterSpacing: '0.1em' }}>Priority</div>
-            <div style={{ fontFamily: 'Bebas Neue', fontSize: 40, color: 'var(--gold)', lineHeight: 1, margin: '6px 0' }}>$5</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Per Vehicle</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>Flat rate — always priority, checks every minute 24/7</div>
+            <div style={{ fontFamily: 'Bebas Neue', fontSize: 40, color: 'var(--gold)', lineHeight: 1, margin: '6px 0' }}>FREE</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>No charge</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>Always priority, checks every minute 24/7</div>
           </div>
         </div>
       </section>
