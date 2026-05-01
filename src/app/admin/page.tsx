@@ -25,9 +25,9 @@ type Customer = {
 }
 
 const TIER_CONFIG = {
-  priority: { label: '🥇 Priority — $10/vehicle', color: '#C9A84C', bg: '#2a1a00', border: '#4a3a00' },
-  standard: { label: '🥈 Standard — $7.50/vehicle', color: '#888', bg: 'var(--dark-4)', border: 'var(--border)' },
-  basic:    { label: '🥉 Basic — $5/vehicle',    color: '#666', bg: 'var(--dark-4)', border: 'var(--border)' },
+  priority: { label: '🥇 Priority — $5/vehicle',     color: '#C9A84C', bg: '#2a1a00', border: '#4a3a00' },
+  standard: { label: '🥈 Standard — $3/vehicle',     color: '#888', bg: 'var(--dark-4)', border: 'var(--border)' },
+  basic:    { label: '🥉 Basic — $1.50/vehicle',     color: '#666', bg: 'var(--dark-4)', border: 'var(--border)' },
 }
 
 type Vehicle = {
@@ -448,7 +448,7 @@ export default function Admin() {
   }
 
   const sendPaymentRequest = async (c: Customer) => {
-    const tierPrices: Record<string, number> = { priority: 10, standard: 7.5, basic: 5 }
+    const tierPrices: Record<string, number> = { priority: 5, standard: 3, basic: 1.5 }
     const price = c.state === 'SA' ? 5 : tierPrices[c.tier || 'standard']
     const vehicleCount = c.vehicles?.length || 1
     const total = (price * vehicleCount).toFixed(2)
@@ -1397,9 +1397,9 @@ export default function Admin() {
                         color: TIER_CONFIG[c.tier || 'standard'].color,
                         cursor: 'pointer', minWidth: 110,
                       }}>
-                        <option value="priority">🥇 Priority — $10</option>
-                        <option value="standard">🥈 Standard — $7.50</option>
-                        <option value="basic">🥉 Basic — $5</option>
+                        <option value="priority">🥇 Priority — $5</option>
+                        <option value="standard">🥈 Standard — $3</option>
+                        <option value="basic">🥉 Basic — $1.50</option>
                       </select>
                     </div>
                   )}

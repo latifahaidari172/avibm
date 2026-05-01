@@ -20,8 +20,8 @@ export async function POST(request: Request) {
       e === email?.toLowerCase() || e === phone?.replace(/\s/g, '')
     )
 
-    const tierPrices: Record<string, number> = { priority: 10, standard: 7.5, basic: 5 }
-    const price = state === 'SA' ? 5 : (tierPrices[tier] || 7.5)
+    const tierPrices: Record<string, number> = { priority: 5, standard: 3, basic: 1.5 }
+    const price = state === 'SA' ? 5 : (tierPrices[tier] || 3)
     const total = (price * vehicles).toFixed(2)
     const tierLabel: Record<string, string> = { priority: '🥇 Priority', standard: '🥈 Standard', basic: '🥉 Basic' }
 

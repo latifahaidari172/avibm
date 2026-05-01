@@ -6,9 +6,9 @@ import { getAuthToken, unauthorized } from '@/lib/auth'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
 const TIER_PRICES: Record<string, { amount: number; label: string }> = {
-  priority: { amount: 1049, label: 'Priority Monitoring' },
-  standard: { amount: 794,  label: 'Standard Monitoring' },
-  basic:    { amount: 540,  label: 'Basic Monitoring' },
+  priority: { amount: 500, label: 'Priority Monitoring' },
+  standard: { amount: 300, label: 'Standard Monitoring' },
+  basic:    { amount: 150, label: 'Basic Monitoring' },
 }
 
 export async function POST(request: Request) {

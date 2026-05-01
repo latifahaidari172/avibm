@@ -498,9 +498,9 @@ export default function RegisterQLD() {
             <div className="section-label" style={{ marginBottom: 12 }}>Select Your Plan</div>
             <div className='tier-grid-3' style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
               {[
-                { id: 'priority', icon: '🥇', label: 'Priority', price: '$10', desc: 'First in queue. Books immediately when a slot is found.', color: 'var(--gold)' },
-                { id: 'standard', icon: '🥈', label: 'Standard', price: '$7.50', desc: 'Second in queue. 30 second delay after Priority customers.', color: '#aaa' },
-                { id: 'basic',    icon: '🥉', label: 'Basic',    price: '$5', desc: 'Third in queue. 60 second delay after Standard customers.', color: '#888' },
+                { id: 'priority', icon: '🥇', label: 'Priority', price: '$5',    desc: 'First in queue. Books immediately when a slot is found.', color: 'var(--gold)' },
+                { id: 'standard', icon: '🥈', label: 'Standard', price: '$3',    desc: 'Second in queue. 30 second delay after Priority customers.', color: '#aaa' },
+                { id: 'basic',    icon: '🥉', label: 'Basic',    price: '$1.50', desc: 'Third in queue. 60 second delay after Standard customers.', color: '#888' },
               ].map(t => (
                 <div key={t.id} onClick={() => setSelectedTier(t.id as any)} style={{
                   border: `1px solid ${selectedTier === t.id ? t.color : 'var(--border)'}`,
