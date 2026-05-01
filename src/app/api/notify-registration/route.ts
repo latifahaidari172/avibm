@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     )
 
     const tierPrices: Record<string, number> = { priority: 5, standard: 3, basic: 1.5 }
-    const price = state === 'SA' ? 5 : (tierPrices[tier] || 3)
+    const price = state === 'SA' ? 0 : (tierPrices[tier] || 3)
     const total = (price * vehicles).toFixed(2)
     const tierLabel: Record<string, string> = { priority: '🥇 Priority', standard: '🥈 Standard', basic: '🥉 Basic' }
 
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
             <tr><td style="padding:5px 0;font-size:13px;color:#666;">Email</td><td style="padding:5px 0;font-size:13px;color:#fff;">${email}</td></tr>
             <tr><td style="padding:5px 0;font-size:13px;color:#666;">Phone</td><td style="padding:5px 0;font-size:13px;color:#fff;">${phone}</td></tr>
             <tr><td style="padding:5px 0;font-size:13px;color:#666;">State</td><td style="padding:5px 0;font-size:13px;color:#fff;">${state}</td></tr>
-            <tr><td style="padding:5px 0;font-size:13px;color:#666;">Plan</td><td style="padding:5px 0;font-size:13px;color:#fff;">${state === 'SA' ? '🥇 Priority (SA flat rate)' : (tierLabel[tier] || tier)}</td></tr>
+            <tr><td style="padding:5px 0;font-size:13px;color:#666;">Plan</td><td style="padding:5px 0;font-size:13px;color:#fff;">${state === 'SA' ? '🥇 Priority (SA — FREE)' : (tierLabel[tier] || tier)}</td></tr>
             <tr><td style="padding:5px 0;font-size:13px;color:#666;">Vehicles</td><td style="padding:5px 0;font-size:13px;color:#fff;">${vehicles}</td></tr>
             <tr style="border-top:1px solid #2a2a2a;">
               <td style="padding:10px 0 5px;font-size:14px;color:#fff;font-weight:700;">Amount Due</td>
