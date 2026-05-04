@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { IconSignal, IconArchive, IconTrash, IconArrowUturnLeft } from '@/components/icons'
 
 type Customer = {
   id: string
@@ -798,7 +799,8 @@ export default function Admin() {
           <Link href="/admin/logs" style={{
             border: '1px solid #2a4a2a', color: '#5adb5a',
             padding: '8px 14px', borderRadius: 6, fontSize: 13, fontFamily: 'DM Sans', textDecoration: 'none',
-          }}>● Live Logs</Link>
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+          }}><IconSignal size={15} />Live Logs</Link>
           <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>← Site</Link>
           {/* Account menu */}
           <div style={{ position: 'relative' }}>
@@ -1580,9 +1582,9 @@ export default function Admin() {
                                 {v.active ? '● ON' : '○ OFF'}
                               </span>
                             </div>
-                            <button onClick={() => archiveVehicle(v.id, !!v.archived)} title="Archive vehicle" className="admin-btn admin-btn-amber" style={{ fontSize: 11 }}>📦</button>
+                            <button onClick={() => archiveVehicle(v.id, !!v.archived)} title="Archive vehicle" className="admin-btn admin-btn-amber" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center' }}><IconArchive size={14} /></button>
                             {isOwner && (
-                              <button onClick={() => deleteVehicle(v.id)} title="Delete vehicle (permanent)" className="admin-btn admin-btn-red" style={{ fontSize: 11 }}>🗑</button>
+                              <button onClick={() => deleteVehicle(v.id)} title="Delete vehicle (permanent)" className="admin-btn admin-btn-red" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center' }}><IconTrash size={14} /></button>
                             )}
                           </div>
                         </div>
@@ -2023,14 +2025,16 @@ export default function Admin() {
                                   border: `1px solid ${v.archived ? '#2a4a2a' : '#4a3a1a'}`,
                                   color: v.archived ? '#5adb5a' : '#C9A84C',
                                   fontSize: 11, cursor: 'pointer', fontFamily: 'DM Sans',
-                                }}>{v.archived ? '↩ Unarchive' : '📦'}</button>
+                                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                                }}>{v.archived ? <><IconArrowUturnLeft size={13} />Unarchive</> : <IconArchive size={13} />}</button>
                                 {isOwner && (
                                   <button onClick={() => deleteVehicle(v.id)} title="Delete vehicle (permanent)" style={{
                                     padding: '3px 8px', borderRadius: 4, background: 'none',
                                     border: '1px solid #4a1a1a',
                                     color: '#ff6b6b',
                                     fontSize: 11, cursor: 'pointer', fontFamily: 'DM Sans',
-                                  }}>🗑</button>
+                                    display: 'inline-flex', alignItems: 'center',
+                                  }}><IconTrash size={13} /></button>
                                 )}
                               </div>
                             </div>

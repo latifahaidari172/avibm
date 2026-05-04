@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { IconSignal, IconArrowLeft, IconArrowPath, IconExclamationCircle } from '@/components/icons'
 
 // Live tail of avibm.log via SSE.
 //
@@ -107,15 +108,17 @@ function LogsView() {
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#eee', fontFamily: 'DM Sans, sans-serif', padding: '20px 16px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <p style={{ marginBottom: 12 }}>
-          <Link href="/admin" style={{ color: '#5ab0ff', fontSize: 13, textDecoration: 'underline' }}>← Back to admin</Link>
+          <Link href="/admin" style={{ color: '#5ab0ff', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <IconArrowLeft size={14} />Back to admin
+          </Link>
         </p>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
           <h1 style={h1}>AVIBM live log</h1>
-          <span style={statusPill(status)}>
-            {status === 'live' && '● Live'}
-            {status === 'connecting' && '○ Connecting…'}
-            {status === 'disconnected' && '◌ Reconnecting…'}
-            {status === 'error' && '✕ Error'}
+          <span style={{ ...statusPill(status), display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {status === 'live' && <><IconSignal size={13} />Live</>}
+            {status === 'connecting' && <><IconArrowPath size={13} />Connecting…</>}
+            {status === 'disconnected' && <><IconArrowPath size={13} />Reconnecting…</>}
+            {status === 'error' && <><IconExclamationCircle size={13} />Error</>}
           </span>
         </div>
         {status === 'error' && errorMsg && (
@@ -166,7 +169,7 @@ function LogsView() {
 function lineColor(line: string): string {
   if (/\b(error|exception|traceback|failed|fail|critical)\b/i.test(line)) return '#f87171'
   if (/\b(warn|warning|retry)\b/i.test(line)) return '#fbbf24'
-  if (/\b(booked|success|✓)/i.test(line)) return '#5adb5a'
+  if (/\b(booked|success)\b/i.test(line) || /[✅✓]/.test(line)) return '#5adb5a'
   if (/\b(debug)\b/i.test(line)) return '#666'
   return '#ddd'
 }
