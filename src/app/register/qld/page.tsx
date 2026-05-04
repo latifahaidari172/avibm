@@ -227,10 +227,17 @@ export default function RegisterQLD() {
 
   const selectAddress = (place: any) => {
     const a = place.address || {}
-    const streetNum  = a.house_number || ''
-    const street     = a.road || ''
-    const suburb     = a.suburb || a.town || a.city_district || a.village || ''
-    const postcode   = a.postcode || ''
+    let streetNum   = a.house_number || ''
+    const street    = a.road || ''
+    const suburb    = a.suburb || a.town || a.city_district || a.village || ''
+    const postcode  = a.postcode || ''
+    // Nominatim often lacks house numbers for Australian residential
+    // addresses. If the geocoder didn't return one but the user already
+    // typed a leading number, keep it instead of throwing it away.
+    if (!streetNum) {
+      const m = (owner.address || '').trim().match(/^(\d+[A-Za-z]?(?:\/\d+[A-Za-z]?)?)\b/)
+      if (m) streetNum = m[1]
+    }
     const fullStreet = [streetNum, street].filter(Boolean).join(' ')
     setOwner(p => ({
       ...p,
