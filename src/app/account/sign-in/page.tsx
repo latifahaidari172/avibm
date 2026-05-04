@@ -82,8 +82,11 @@ function SignInInner() {
         </p>
         <div style={{ background: 'linear-gradient(135deg,#161616,#111)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: 32 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <h1 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 32, letterSpacing: '0.08em', color: '#C9A84C', margin: 0 }}>SIGN IN</h1>
-          <p style={{ color: '#888', fontSize: 14, marginTop: 8 }}>Continue to your AVIBM profile</p>
+          <h1 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 32, letterSpacing: '0.08em', color: '#C9A84C', margin: 0 }}>SIGN IN / SIGN UP</h1>
+          <p style={{ color: '#888', fontSize: 14, marginTop: 8, lineHeight: 1.5 }}>
+            New to AVIBM? Use one of the options below — your account is created automatically.
+            Already a customer? Same buttons sign you in.
+          </p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
