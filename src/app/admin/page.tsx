@@ -783,6 +783,10 @@ export default function Admin() {
             background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)',
             padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontFamily: 'DM Sans',
           }}>↻ Refresh</button>
+          <Link href="/admin/logs" style={{
+            border: '1px solid #2a4a2a', color: '#5adb5a',
+            padding: '8px 14px', borderRadius: 6, fontSize: 13, fontFamily: 'DM Sans', textDecoration: 'none',
+          }}>● Live Logs</Link>
           <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>← Site</Link>
           {/* Account menu */}
           <div style={{ position: 'relative' }}>

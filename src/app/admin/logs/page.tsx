@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 // Live tail of avibm.log via SSE.
 //
@@ -105,6 +106,9 @@ function LogsView() {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#eee', fontFamily: 'DM Sans, sans-serif', padding: '20px 16px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <p style={{ marginBottom: 12 }}>
+          <Link href="/admin" style={{ color: '#5ab0ff', fontSize: 13, textDecoration: 'underline' }}>← Back to admin</Link>
+        </p>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
           <h1 style={h1}>AVIBM live log</h1>
           <span style={statusPill(status)}>
