@@ -1,6 +1,6 @@
 'use client'
 
-import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, validateCrn } from '@/lib/validators'
+import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, validateCrn, validateStreetAddress, validateSuburb } from '@/lib/validators'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 
@@ -147,6 +147,10 @@ export default function RegisterQLD() {
     if (!/^\S+@\S+\.\S+$/.test(r.email)) return 'Please enter a valid email.'
     const phoneErr = validateAuMobile(r.phone)
     if (phoneErr) return phoneErr
+    const addrErr = validateStreetAddress(r.address)
+    if (addrErr) return addrErr
+    const subErr = validateSuburb(r.suburb)
+    if (subErr) return subErr
     const pcErr = validatePostcode(r.postcode, 'QLD')
     if (pcErr) return pcErr
     const crnErr = validateCrn(r.crn)
@@ -515,7 +519,7 @@ export default function RegisterQLD() {
               </div>
               <div><label>Mobile</label><input autoComplete="tel" inputMode="numeric" value={owner.phone} onChange={e => updateOwner('phone', normaliseAuMobile(e.target.value))} placeholder="0412345678" /></div>
               <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
-                <label>Street Address</label>
+                <label>Street Address <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 11 }}>(street number + name only)</span></label>
                 <div style={{ position: 'relative' }}>
                   <input
                     value={owner.address}
@@ -526,7 +530,7 @@ export default function RegisterQLD() {
                     }}
                     onFocus={() => setAddrFocused(true)}
                     onBlur={() => setTimeout(() => setAddrFocused(false), 200)}
-                    placeholder="Start typing your address..."
+                    placeholder="20 Flint Place"
                     autoComplete="off"
                   />
                   {addrLoading && (
@@ -573,8 +577,11 @@ export default function RegisterQLD() {
                   </div>
                 )}
               </div>
-              <div><label>Suburb</label><input value={owner.suburb} onChange={e => updateOwner('suburb', e.target.value)} placeholder="Brisbane" /></div>
-              <div><label>Postcode</label><input value={owner.postcode} onChange={e => updateOwner('postcode', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="4000" inputMode="numeric" maxLength={4} /></div>
+              <div><label>Suburb</label><input value={owner.suburb} onChange={e => updateOwner('suburb', e.target.value.replace(/[\d]/g, ''))} placeholder="Park Ridge" /></div>
+              <div><label>Postcode</label><input value={owner.postcode} onChange={e => updateOwner('postcode', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="4125" inputMode="numeric" maxLength={4} /></div>
+              <div style={{ gridColumn: '1 / -1', fontSize: 11, color: 'var(--text-muted)', marginTop: -4 }}>
+                Tip: pick an address suggestion above to autofill suburb + postcode. Suburb = your suburb name only (e.g. <strong>Park Ridge</strong>, not <strong>Brisbane 4125</strong>).
+              </div>
             </div>
             <hr className="divider" />
             <div className="section-label" style={{ marginBottom: 12 }}>Select Your Plan</div>
