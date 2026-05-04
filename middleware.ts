@@ -2,10 +2,11 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 // Domains that should 301 to the canonical avibm.com host.
-// Anything matching here returns immediately; the Supabase session
-// refresh below only runs for the canonical host.
+// Temporarily empty until avibm.com DNS has fully propagated to the
+// owner's network — re-add 'avibm.vercel.app' here once the new domain
+// resolves cleanly from their ISP. www.avibm.com still redirects since
+// CF DNS resolves it correctly from the moment we created the record.
 const REDIRECT_HOSTS = new Set([
-  'avibm.vercel.app',
   'www.avibm.com',
 ])
 
