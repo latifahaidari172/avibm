@@ -1,10 +1,27 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-// Middleware refreshes the Supabase session cookie on every request.
-// Without this, sessions expire and OAuth-signed-in customers get
-// silently logged out after a short while.
+// Domains that should 301 to the canonical avibm.com host.
+// Anything matching here returns immediately; the Supabase session
+// refresh below only runs for the canonical host.
+const REDIRECT_HOSTS = new Set([
+  'avibm.vercel.app',
+  'www.avibm.com',
+])
+
+// Middleware:
+//  1. Redirects legacy / www hosts to avibm.com (301, path + query preserved)
+//  2. Refreshes the Supabase session cookie on every request to the canonical
+//     host so OAuth-signed-in customers don't get silently logged out.
 export async function middleware(request: NextRequest) {
+  const host = request.headers.get('host') || ''
+  if (REDIRECT_HOSTS.has(host)) {
+    const url = new URL(request.url)
+    url.host = 'avibm.com'
+    url.protocol = 'https:'
+    return NextResponse.redirect(url, 301)
+  }
+
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
