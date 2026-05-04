@@ -594,7 +594,7 @@ export default function RegisterQLD() {
                     }}
                     onFocus={() => setAddrFocused(true)}
                     onBlur={() => setTimeout(() => setAddrFocused(false), 200)}
-                    placeholder="20 Flint Place"
+                    placeholder="e.g. 123 Example Street"
                     autoComplete="off"
                   />
                   {addrLoading && (
@@ -641,10 +641,10 @@ export default function RegisterQLD() {
                   </div>
                 )}
               </div>
-              <div><label>Suburb</label><input value={owner.suburb} onChange={e => updateOwner('suburb', e.target.value.replace(/[\d]/g, ''))} placeholder="Park Ridge" /></div>
-              <div><label>Postcode</label><input value={owner.postcode} onChange={e => updateOwner('postcode', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="4125" inputMode="numeric" maxLength={4} /></div>
+              <div><label>Suburb</label><input value={owner.suburb} onChange={e => updateOwner('suburb', e.target.value.replace(/[\d]/g, ''))} placeholder="Your suburb name" /></div>
+              <div><label>Postcode</label><input value={owner.postcode} onChange={e => updateOwner('postcode', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="4 digits" inputMode="numeric" maxLength={4} /></div>
               <div style={{ gridColumn: '1 / -1', fontSize: 11, color: 'var(--text-muted)', marginTop: -4 }}>
-                Tip: pick an address suggestion above to autofill suburb + postcode. Suburb = your suburb name only (e.g. <strong>Park Ridge</strong>, not <strong>Brisbane 4125</strong>).
+                Tip: pick an address suggestion above to autofill suburb + postcode. Suburb = your suburb name only (no postcode, no city — just the suburb).
               </div>
             </div>
             <hr className="divider" />

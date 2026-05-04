@@ -217,7 +217,7 @@ export default function AddVehiclePage() {
               <Field label="Suburb (no postcode)" value={c.suburb} onChange={x => updC('suburb', x.replace(/\d/g, ''))} error={c.suburb ? validateSuburb(c.suburb) : null} />
               <Field label="Postcode" value={c.postcode} onChange={x => updC('postcode', x.replace(/\D/g, '').slice(0, 4))} error={c.postcode ? validatePostcode(c.postcode, c.state) : null} />
               <div style={{ gridColumn: 'span 2', fontSize: 11, color: '#888', marginTop: -4 }}>
-                Suburb is just your suburb name (e.g. <strong>Park Ridge</strong>) — not <strong>Brisbane 4125</strong>.
+                Suburb is just your suburb name — not the city, and not including the postcode.
               </div>
               {c.state === 'QLD' && <Field label="CRN" value={c.crn} onChange={x => updC('crn', x.replace(/\D/g, '').slice(0, 10))} error={c.crn ? validateCrn(c.crn) : null} />}
               {c.state === 'SA' && <Field label="Licence number" value={c.licence_number} onChange={x => updC('licence_number', x)} />}
