@@ -4,10 +4,12 @@ import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createSupabaseBrowser } from '@/lib/supabase/client'
 
-// Customer-facing sign-in. Three OAuth buttons (Google / Microsoft /
-// Apple) and a magic-link email fallback for everything else (Yahoo,
-// ProtonMail, BigPond, etc). No password storage anywhere — Supabase
-// Auth handles all session state.
+// Customer-facing sign-in. Google OAuth + a magic-link email fallback
+// (covers everyone else — Outlook, Hotmail, Yahoo, ProtonMail, BigPond,
+// iCloud, etc., all just type their address and get a one-click link).
+// Microsoft / Apple buttons removed — too much setup overhead (Azure
+// tenant config / paid Apple Developer Program) for marginal gain. No
+// password storage anywhere — Supabase Auth handles all session state.
 //
 // Supports ?next=/some/path — that path is forwarded through OAuth and
 // magic-link flows so callers (e.g. /register/qld) can drop the
@@ -28,14 +30,13 @@ function SignInInner() {
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const supabase = createSupabaseBrowser()
 
-  async function signInWithProvider(provider: 'google' | 'azure' | 'apple') {
+  async function signInWithProvider(provider: 'google') {
     setBusy(provider)
     setMsg(null)
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
-        scopes: provider === 'azure' ? 'email profile openid' : undefined,
       },
     })
     if (error) {
@@ -83,22 +84,6 @@ function SignInInner() {
             <GoogleLogo />
             <span>{busy === 'google' ? 'Redirecting…' : 'Continue with Google'}</span>
           </button>
-          <button
-            onClick={() => signInWithProvider('azure')}
-            disabled={busy !== null}
-            style={btn('#fff', '#000', '1px solid #ddd')}
-          >
-            <MicrosoftLogo />
-            <span>{busy === 'azure' ? 'Redirecting…' : 'Continue with Microsoft'}</span>
-          </button>
-          <button
-            onClick={() => signInWithProvider('apple')}
-            disabled={busy !== null}
-            style={btn('#000', '#fff', '1px solid #444')}
-          >
-            <AppleLogo />
-            <span>{busy === 'apple' ? 'Redirecting…' : 'Continue with Apple'}</span>
-          </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '24px 0', color: '#555', fontSize: 12 }}>
@@ -131,7 +116,7 @@ function SignInInner() {
         )}
 
         <p style={{ marginTop: 24, fontSize: 12, color: '#555', textAlign: 'center' }}>
-          We never store your password. Sign-in is handled by Google / Microsoft / Apple.
+          We never store your password. Sign-in is handled by Google or a one-time email link.
         </p>
       </div>
     </div>
@@ -163,23 +148,6 @@ function GoogleLogo() {
       <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
       <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
       <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
-    </svg>
-  )
-}
-function MicrosoftLogo() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 23 23" xmlns="http://www.w3.org/2000/svg">
-      <rect x="1" y="1" width="10" height="10" fill="#F25022"/>
-      <rect x="12" y="1" width="10" height="10" fill="#7FBA00"/>
-      <rect x="1" y="12" width="10" height="10" fill="#00A4EF"/>
-      <rect x="12" y="12" width="10" height="10" fill="#FFB900"/>
-    </svg>
-  )
-}
-function AppleLogo() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-      <path d="M17.05 12.04c-.03-3.09 2.52-4.57 2.64-4.65-1.44-2.11-3.69-2.4-4.49-2.43-1.91-.19-3.73 1.13-4.7 1.13-.97 0-2.46-1.1-4.04-1.07-2.08.03-4 1.21-5.07 3.07-2.16 3.75-.55 9.31 1.55 12.36 1.03 1.49 2.25 3.17 3.85 3.11 1.55-.06 2.13-1 4-1 1.86 0 2.39 1 4.03.97 1.66-.03 2.71-1.52 3.73-3.02 1.17-1.74 1.66-3.42 1.69-3.51-.04-.02-3.24-1.24-3.27-4.96zM14.21 4.43c.85-1.04 1.43-2.47 1.27-3.91-1.23.05-2.72.82-3.61 1.85-.79.92-1.49 2.39-1.3 3.79 1.38.11 2.79-.7 3.64-1.73z"/>
     </svg>
   )
 }
