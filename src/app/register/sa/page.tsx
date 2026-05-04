@@ -107,7 +107,7 @@ export default function RegisterSA() {
     if (emailErr) { setError(emailErr); return }
     const phoneErr = validateAuMobile(form.phone)
     if (phoneErr) { setError(phoneErr); return }
-    const pcErr = validatePostcode(form.postcode)
+    const pcErr = validatePostcode(form.postcode, 'SA')
     if (pcErr) { setError(pcErr); return }
     const cutoffErr = validateCutoffDate(form.cutoff_date)
     if (cutoffErr) { setError(cutoffErr); return }

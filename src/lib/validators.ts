@@ -36,11 +36,33 @@ export function validateYear(raw: string): string | null {
   return null
 }
 
-// AU postcode — exactly 4 digits.
-export function validatePostcode(raw: string): string | null {
+// AU postcode — exactly 4 digits, and (optionally) inside the official
+// Australia Post range for the customer's state. Source: Australia Post
+// Standard Postcode File (March 2026).
+const POSTCODE_RANGES: Record<string, [number, number][]> = {
+  NSW: [[1000, 2599], [2620, 2899], [2921, 2999]],
+  VIC: [[3000, 3999], [8000, 8999]],
+  QLD: [[4000, 4999], [9000, 9999]],
+  SA:  [[5000, 5999]],
+  WA:  [[6000, 6999]],
+  TAS: [[7000, 7999]],
+  ACT: [[200, 299], [2600, 2619], [2900, 2920]],
+  NT:  [[800, 999]],
+}
+
+export function validatePostcode(raw: string, state?: string): string | null {
   const v = (raw || '').trim()
   if (!v) return 'Postcode is required.'
   if (!/^\d{4}$/.test(v)) return 'Postcode must be 4 digits.'
+  if (state && POSTCODE_RANGES[state]) {
+    const n = parseInt(v, 10)
+    const ranges = POSTCODE_RANGES[state]
+    const inAny = ranges.some(([lo, hi]) => n >= lo && n <= hi)
+    if (!inAny) {
+      const fmtRanges = ranges.map(([lo, hi]) => lo === hi ? String(lo) : `${lo.toString().padStart(4, '0')}–${hi.toString().padStart(4, '0')}`).join(', ')
+      return `Postcode ${v} doesn't look like a ${state} postcode. ${state} postcodes are ${fmtRanges}.`
+    }
+  }
   return null
 }
 
