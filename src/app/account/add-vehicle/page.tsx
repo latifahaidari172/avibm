@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowser } from '@/lib/supabase/client'
-import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, normaliseAuMobile, validateCrn, validateStreetAddress, validateSuburb } from '@/lib/validators'
+import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, normaliseAuMobile, validateCrn, validateStreetAddress, validateSuburb, clampYearInput, validateMake, validateModel } from '@/lib/validators'
 
 const WOVI_LOCATIONS = [
   'Brisbane', 'Bundaberg', 'Burleigh Heads', 'Cairns', 'Mackay',
@@ -120,7 +120,8 @@ export default function AddVehiclePage() {
     const pcErr    = validatePostcode(c.postcode, c.state); if (pcErr)    return pcErr
     if (c.state === 'QLD') { const ce = validateCrn(c.crn); if (ce) return ce }
     if (c.state === 'SA' && !c.licence_number.trim()) return 'Licence number is required for SA.'
-    if (!v.make || !v.model) return 'Fill in vehicle make and model.'
+    const makeErr   = validateMake(v.make);                if (makeErr)   return makeErr
+    const modelErr  = validateModel(v.model);              if (modelErr)  return modelErr
     const yearErr   = validateYear(v.year);                if (yearErr)   return yearErr
     const vinErr    = validateVin(v.vin);                  if (vinErr)    return vinErr
     const cutoffErr = validateCutoffDate(v.cutoff_date);   if (cutoffErr) return cutoffErr
@@ -263,11 +264,11 @@ export default function AddVehiclePage() {
           <Section title="Vehicle details">
             <Grid>
               <Field label="Nickname (optional)" value={v.label} onChange={x => updV('label', x)} fullRow />
-              <Field label="Make" value={v.make} onChange={x => updV('make', x)} />
-              <Field label="Model" value={v.model} onChange={x => updV('model', x)} />
-              <Field label="Year" value={v.year} onChange={x => updV('year', x)} />
-              <Field label="Colour" value={v.colour} onChange={x => updV('colour', x)} />
-              <Field label="VIN" value={v.vin} onChange={x => updV('vin', x.toUpperCase())} fullRow />
+              <Field label="Make" value={v.make} onChange={x => updV('make', x.replace(/[^A-Za-z0-9\s\-/]/g, '').slice(0, 30))} />
+              <Field label="Model" value={v.model} onChange={x => updV('model', x.replace(/[^A-Za-z0-9\s\-/.]/g, '').slice(0, 40))} />
+              <Field label="Year" value={v.year} onChange={x => updV('year', clampYearInput(x))} />
+              <Field label="Colour" value={v.colour} onChange={x => updV('colour', x.replace(/[^A-Za-z\s\-/]/g, '').slice(0, 30))} />
+              <Field label="VIN" value={v.vin} onChange={x => updV('vin', x.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17))} fullRow />
               <Select label="Vehicle Type" value={v.vehicle_type} options={VEHICLE_TYPES} onChange={x => updV('vehicle_type', x)} />
               <Select label="Build Month" value={v.build_month} options={['', ...MONTHS]} onChange={x => updV('build_month', x)} />
               <Select label="Damage type" value={v.damage} options={['', ...DAMAGES]} onChange={x => updV('damage', x)} fullRow />
