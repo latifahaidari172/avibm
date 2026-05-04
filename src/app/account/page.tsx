@@ -124,7 +124,7 @@ export default async function AccountPage() {
         </div>
       </Section>
 
-      <Section title="Preferred inspection locations">
+      {customer.state !== "SA" && <Section title="Preferred inspection locations">
         {(() => {
           const fromMeta = (user.user_metadata?.preferred_locations as string[] | undefined) || []
           const list = fromMeta.length > 0 ? fromMeta : (Array.isArray(customer.locations) ? customer.locations : [])
@@ -138,7 +138,7 @@ export default async function AccountPage() {
           <p style={muted}>No preferred locations set yet.</p>
         )
         })()}
-      </Section>
+      </Section>}
     </Page>
   )
 }
