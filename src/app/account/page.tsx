@@ -87,8 +87,12 @@ export default async function AccountPage() {
 
       <Section title="Personal details">
         <Detail label="Address" value={`${customer.address || ''}${customer.suburb ? ', ' + customer.suburb : ''} ${customer.postcode || ''}`.trim()} />
-        <Detail label="CRN (QLD)" value={customer.crn || '—'} />
-        <Detail label="Licence" value={customer.licence_number || '—'} />
+        {(customer.state === 'QLD' || customer.crn) && (
+          <Detail label="CRN (QLD)" value={customer.crn || '—'} />
+        )}
+        {(customer.state === 'SA' || customer.licence_number) && (
+          <Detail label="Licence (SA)" value={customer.licence_number || '—'} />
+        )}
         <Detail label="DOB" value={customer.date_of_birth || '—'} />
       </Section>
 

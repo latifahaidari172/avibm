@@ -119,6 +119,7 @@ export default function AddVehiclePage() {
     const phoneErr = validateAuMobile(c.phone); if (phoneErr) return setErr(phoneErr)
     const pcErr = validatePostcode(c.postcode, c.state); if (pcErr) return setErr(pcErr)
     if (c.state === 'QLD') { const ce = validateCrn(c.crn); if (ce) return setErr(ce) }
+    if (c.state === 'SA' && !c.licence_number.trim()) return setErr('Licence number is required for SA.')
     if (!v.make || !v.model) return setErr('Fill in vehicle make and model.')
     const yearErr = validateYear(v.year); if (yearErr) return setErr(yearErr)
     const vinErr = validateVin(v.vin); if (vinErr) return setErr(vinErr)
@@ -132,7 +133,9 @@ export default function AddVehiclePage() {
         customer_patch: {
           first_name: c.first_name, last_name: c.last_name, phone: c.phone,
           address: c.address, suburb: c.suburb, postcode: c.postcode,
-          crn: c.crn, licence_number: c.licence_number, date_of_birth: c.date_of_birth,
+          ...(c.state === 'QLD' ? { crn: c.crn } : {}),
+          ...(c.state === 'SA' ? { licence_number: c.licence_number } : {}),
+          date_of_birth: c.date_of_birth,
           state: c.state, tier: c.tier, active: true, archived: false,
         },
         preferred_locations: locations,
@@ -186,7 +189,7 @@ export default function AddVehiclePage() {
               <Field label="Suburb" value={c.suburb} onChange={x => updC('suburb', x)} />
               <Field label="Postcode" value={c.postcode} onChange={x => updC('postcode', x)} />
               {c.state === 'QLD' && <Field label="CRN" value={c.crn} onChange={x => updC('crn', x.replace(/\D/g, '').slice(0, 10))} />}
-              <Field label="Licence number" value={c.licence_number} onChange={x => updC('licence_number', x)} />
+              {c.state === 'SA' && <Field label="Licence number" value={c.licence_number} onChange={x => updC('licence_number', x)} />}
               <Field label="Date of birth" type="date" value={c.date_of_birth} onChange={x => updC('date_of_birth', x)} />
             </Grid>
           </Section>
