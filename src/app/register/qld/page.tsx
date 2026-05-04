@@ -1,9 +1,11 @@
 'use client'
 
 import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, validateCrn, validateStreetAddress, validateSuburb, clampYearInput, validateMake, validateModel } from '@/lib/validators'
-import { IconCheckCircle, IconArrowLeft, IconCalendar, IconMapPin, IconExclamationTriangle, IconCheck } from '@/components/icons'
+import { IconCheckCircle, IconArrowLeft, IconCalendar, IconMapPin, IconExclamationTriangle, IconCheck, IconUser, IconArrowRight } from '@/components/icons'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { createSupabaseBrowser } from '@/lib/supabase/client'
 
 const DAMAGE_OPTIONS = ['HAIL DAMAGE', 'WATER DAMAGE', 'MALICIOUS DAMAGE', 'FIRE DAMAGE', 'STRUCTURAL DAMAGE', 'IMPACT DAMAGE DRIVERS FRONT', 'IMPACT DAMAGE PASSENGER FRONT', 'IMPACT DAMAGE DRIVERS SIDE', 'IMPACT DAMAGE PASSENGER SIDE', 'IMPACT DAMAGE DRIVERS REAR', 'IMPACT DAMAGE PASSENGER REAR', 'OTHER']
 const PURCHASE_OPTIONS = ['Auction', 'Private Sale', 'Insurance', 'Other']
@@ -120,11 +122,29 @@ function suggestEmailFix(email: string): string | null {
 }
 
 export default function RegisterQLD() {
+  const router = useRouter()
   const [step, setStep] = useState(1)
   const [selectedTier, setSelectedTier] = useState<'priority'|'standard'|'basic'>('priority')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
+  const [authChecked, setAuthChecked] = useState(false)
+
+  // Bounce signed-in customers straight to the prefilled add-vehicle
+  // flow — no point making them re-type their own details.
+  useEffect(() => {
+    (async () => {
+      try {
+        const supabase = createSupabaseBrowser()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.user_metadata?.customer_id) {
+          router.replace('/account/add-vehicle')
+          return
+        }
+      } catch {}
+      setAuthChecked(true)
+    })()
+  }, [router])
 
   const [owner, setOwner] = useState({
     first_name: '', last_name: '', email: '', phone: '',
@@ -490,10 +510,45 @@ export default function RegisterQLD() {
           }}>{error}</div>
         )}
 
+        {/* Sign-in CTA — only shown to unauthenticated visitors on step 1 */}
+        {step === 1 && authChecked && (
+          <div style={{
+            background: 'linear-gradient(135deg, #1a1200, #0e0a00)',
+            border: '1px solid rgba(201,168,76,0.35)',
+            borderRadius: 12, padding: '18px 22px', marginBottom: 16,
+            display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+          }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+              background: 'rgba(201,168,76,0.12)', color: 'var(--gold)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: '1px solid rgba(201,168,76,0.4)',
+            }}><IconUser size={20} /></div>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, color: 'var(--gold)', letterSpacing: '0.05em' }}>ALREADY REGISTERED?</div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+                Sign in and we&apos;ll skip the personal details — just add your new vehicle.
+              </div>
+            </div>
+            <Link
+              href={`/account/sign-in?next=${encodeURIComponent('/account/add-vehicle')}`}
+              style={{
+                background: 'var(--gold)', color: '#000', padding: '10px 18px',
+                borderRadius: 6, fontSize: 13, fontWeight: 700, textDecoration: 'none',
+                fontFamily: 'DM Sans, sans-serif', display: 'inline-flex', alignItems: 'center', gap: 6,
+                whiteSpace: 'nowrap',
+              }}
+            >Sign in<IconArrowRight size={14} /></Link>
+          </div>
+        )}
+
         {/* ── STEP 1: Owner Details ── */}
         {step === 1 && (
           <div className="card">
-            <h3 style={{ fontSize: 24, marginBottom: 24 }}>OWNER DETAILS</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+              <h3 style={{ fontSize: 24, margin: 0 }}>OWNER DETAILS</h3>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>New customer</div>
+            </div>
             <div className='register-grid-2' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label>QLD Driver&apos;s Licence / CRN</label>
