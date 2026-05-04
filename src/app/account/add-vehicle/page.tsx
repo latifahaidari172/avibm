@@ -170,6 +170,24 @@ export default function AddVehiclePage() {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#eee', fontFamily: 'DM Sans, sans-serif', padding: '32px 16px' }}>
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
+        {/* Signed-in banner — lets the customer switch to a different account */}
+        {c.email && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+            background: '#0f1a0a', border: '1px solid #1a3a1a', borderRadius: 8,
+            padding: '8px 12px', marginBottom: 16, fontSize: 12,
+          }}>
+            <span style={{ color: '#5adb5a', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Signed in</span>
+            <span style={{ color: '#aaa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{c.email}</span>
+            <form action="/auth/sign-out" method="post" style={{ margin: 0 }}>
+              <button type="submit" style={{
+                background: 'none', border: '1px solid #333', color: '#888',
+                padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontFamily: 'inherit',
+              }}>Sign out</button>
+            </form>
+          </div>
+        )}
+
         <h1 style={h1}>ADD ANOTHER VEHICLE</h1>
         <p style={{ color: '#888', fontSize: 13, marginBottom: 24 }}>
           Your saved details are filled in below. Edit anything that's different for this booking.
