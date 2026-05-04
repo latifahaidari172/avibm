@@ -656,6 +656,18 @@ export default function Admin() {
     await logAction(current ? 'Unarchived vehicle' : 'Archived vehicle', vehicle ? vehicle.label : vid)
   }
 
+  const deleteVehicle = async (vid: string) => {
+    const vehicle = customers.flatMap(c => c.vehicles || []).find(v => v.id === vid)
+    const label = vehicle ? `${vehicle.label || `${vehicle.make} ${vehicle.model}`} (VIN ${vehicle.vin})` : vid
+    if (!confirm(`Permanently delete this vehicle?\n\n${label}\n\nThis cannot be undone.`)) return
+    await adminDelete('vehicles', vid)
+    setCustomers(cs => cs.map(c => ({
+      ...c,
+      vehicles: c.vehicles?.filter(v => v.id !== vid),
+    })))
+    await logAction('Deleted vehicle', label)
+  }
+
   const pendingPayment = customers.filter(c => !c.active && c.auto_payment_email && !c.archived)
 
   const archived = customers.filter(c =>
@@ -1569,6 +1581,9 @@ export default function Admin() {
                               </span>
                             </div>
                             <button onClick={() => archiveVehicle(v.id, !!v.archived)} title="Archive vehicle" className="admin-btn admin-btn-amber" style={{ fontSize: 11 }}>📦</button>
+                            {isOwner && (
+                              <button onClick={() => deleteVehicle(v.id)} title="Delete vehicle (permanent)" className="admin-btn admin-btn-red" style={{ fontSize: 11 }}>🗑</button>
+                            )}
                           </div>
                         </div>
 
@@ -2009,6 +2024,14 @@ export default function Admin() {
                                   color: v.archived ? '#5adb5a' : '#C9A84C',
                                   fontSize: 11, cursor: 'pointer', fontFamily: 'DM Sans',
                                 }}>{v.archived ? '↩ Unarchive' : '📦'}</button>
+                                {isOwner && (
+                                  <button onClick={() => deleteVehicle(v.id)} title="Delete vehicle (permanent)" style={{
+                                    padding: '3px 8px', borderRadius: 4, background: 'none',
+                                    border: '1px solid #4a1a1a',
+                                    color: '#ff6b6b',
+                                    fontSize: 11, cursor: 'pointer', fontFamily: 'DM Sans',
+                                  }}>🗑</button>
+                                )}
                               </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, fontSize: 12 }}>
