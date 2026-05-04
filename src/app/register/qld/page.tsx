@@ -1,6 +1,6 @@
 'use client'
 
-import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, validateCrn, validateStreetAddress, validateSuburb } from '@/lib/validators'
+import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, validateCrn, validateStreetAddress, validateSuburb, clampYearInput, validateMake, validateModel } from '@/lib/validators'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 
@@ -167,7 +167,9 @@ export default function RegisterQLD() {
       if (!v.vin) missing.push('VIN')
       else { const vinErr = validateVin(v.vin); if (vinErr) return vinErr }
       if (!v.make) missing.push('Make')
+      else { const mkErr = validateMake(v.make); if (mkErr) return mkErr }
       if (!v.model) missing.push('Model')
+      else { const mdErr = validateModel(v.model); if (mdErr) return mdErr }
       if (!v.year) missing.push('Year')
       else { const yErr = validateYear(v.year); if (yErr) return yErr }
       if (!v.colour) missing.push('Colour')
@@ -646,9 +648,9 @@ export default function RegisterQLD() {
                     </select>
                   </div>
                   <div><label>VIN / Chassis Number</label><input value={v.vin} onChange={e => updateVehicle(i, 'vin', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17))} placeholder="17-character VIN" maxLength={17} style={{ textTransform: 'uppercase', fontFamily: 'ui-monospace, monospace' }} /></div>
-                  <div><label>Make</label><input value={v.make} onChange={e => updateVehicle(i, 'make', e.target.value)} placeholder="e.g. Toyota" /></div>
-                  <div><label>Model</label><input value={v.model} onChange={e => updateVehicle(i, 'model', e.target.value)} placeholder="e.g. Camry" /></div>
-                  <div><label>Year</label><input value={v.year} onChange={e => updateVehicle(i, 'year', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="e.g. 2023" inputMode="numeric" maxLength={4} /></div>
+                  <div><label>Make</label><input value={v.make} onChange={e => updateVehicle(i, 'make', e.target.value.replace(/[^A-Za-z0-9\s\-/]/g, '').slice(0, 30))} placeholder="e.g. Toyota" /></div>
+                  <div><label>Model</label><input value={v.model} onChange={e => updateVehicle(i, 'model', e.target.value.replace(/[^A-Za-z0-9\s\-/.]/g, '').slice(0, 40))} placeholder="e.g. Camry" /></div>
+                  <div><label>Year</label><input value={v.year} onChange={e => updateVehicle(i, 'year', clampYearInput(e.target.value))} placeholder="e.g. 2023" inputMode="numeric" maxLength={4} /></div>
                   <div><label>Colour</label><input value={v.colour} onChange={e => updateVehicle(i, 'colour', e.target.value)} placeholder="e.g. White" /></div>
                   <div>
                     <label>Build Month</label>

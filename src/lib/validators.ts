@@ -59,6 +59,40 @@ export function validateYear(raw: string): string | null {
   return null
 }
 
+// Live input clamp for the year field. Strips non-digits, caps at 4
+// chars, and clamps the numeric value to [1900, currentYear+1] once a
+// full 4-digit number is entered. Partial entries (< 4 digits) are
+// passed through so the user can still type "20" on the way to "2024".
+export function clampYearInput(raw: string): string {
+  const digits = (raw || '').replace(/\D/g, '').slice(0, 4)
+  if (digits.length < 4) return digits
+  const n = parseInt(digits, 10)
+  const max = new Date().getFullYear() + 1
+  if (n > max) return String(max)
+  if (n < 1900) return '1900'
+  return digits
+}
+
+// Make / Model — letters, digits, spaces, hyphens, slashes (handles
+// "F-150", "MX-5", "S-Class"). Length 2-30. Catches single-letter junk
+// like the user typing "f" or "a" by accident.
+export function validateMake(raw: string): string | null {
+  const v = (raw || '').trim()
+  if (!v) return 'Make is required.'
+  if (v.length < 2) return 'Make is too short — please enter the full make (e.g. Toyota).'
+  if (v.length > 30) return 'Make is too long.'
+  if (!/^[A-Za-z0-9\s\-/]+$/.test(v)) return 'Make should only contain letters (e.g. Toyota, Mercedes-Benz).'
+  return null
+}
+export function validateModel(raw: string): string | null {
+  const v = (raw || '').trim()
+  if (!v) return 'Model is required.'
+  if (v.length < 1) return 'Model is required.'
+  if (v.length > 40) return 'Model is too long.'
+  if (!/^[A-Za-z0-9\s\-/.]+$/.test(v)) return 'Model contains characters that don\'t belong (e.g. !, @). Use letters, numbers, hyphens.'
+  return null
+}
+
 // AU postcode — exactly 4 digits, and (optionally) inside the official
 // Australia Post range for the customer's state. Source: Australia Post
 // Standard Postcode File (March 2026).
