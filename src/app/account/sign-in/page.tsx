@@ -1,8 +1,10 @@
 'use client'
 
 import { Suspense, useState } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createSupabaseBrowser } from '@/lib/supabase/client'
+import { IconArrowLeft } from '@/components/icons'
 
 // Customer-facing sign-in. Google OAuth + a magic-link email fallback
 // (covers everyone else — Outlook, Hotmail, Yahoo, ProtonMail, BigPond,
@@ -69,7 +71,16 @@ function SignInInner() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: '#0a0a0a', color: '#eee', fontFamily: 'DM Sans, sans-serif' }}>
-      <div style={{ maxWidth: 420, width: '100%', background: 'linear-gradient(135deg,#161616,#111)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: 32 }}>
+      <div style={{ maxWidth: 420, width: '100%' }}>
+        <p style={{ marginBottom: 16 }}>
+          <Link
+            href="/"
+            style={{ color: '#888', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <IconArrowLeft size={14} />Back to home
+          </Link>
+        </p>
+        <div style={{ background: 'linear-gradient(135deg,#161616,#111)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: 32 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <h1 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 32, letterSpacing: '0.08em', color: '#C9A84C', margin: 0 }}>SIGN IN</h1>
           <p style={{ color: '#888', fontSize: 14, marginTop: 8 }}>Continue to your AVIBM profile</p>
@@ -118,6 +129,7 @@ function SignInInner() {
         <p style={{ marginTop: 24, fontSize: 12, color: '#555', textAlign: 'center' }}>
           We never store your password. Sign-in is handled by Google or a one-time email link.
         </p>
+        </div>
       </div>
     </div>
   )
