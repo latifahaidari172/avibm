@@ -69,6 +69,14 @@ const emptyVehicle = (): Vehicle => ({
   priority_locations: [],
 })
 
+// Normalize an Australian mobile to 04XXXXXXXX. Strips non-digits, then
+// rewrites a leading 61 (or +61 input) to 0. Returns at most 10 digits.
+function normaliseAuMobile(input: string): string {
+  let p = (input || '').replace(/\D/g, '')
+  if (p.startsWith('61') && p.length > 9) p = '0' + p.slice(2)
+  return p.slice(0, 10)
+}
+
 export default function RegisterQLD() {
   const [step, setStep] = useState(1)
   const [selectedTier, setSelectedTier] = useState<'priority'|'standard'|'basic'>('priority')
@@ -95,6 +103,7 @@ export default function RegisterQLD() {
     if (!r.first_name || !r.last_name || !r.email || !r.phone || !r.address || !r.suburb || !r.postcode || !r.crn)
       return 'Please fill in all owner details.'
     if (!/^\S+@\S+\.\S+$/.test(r.email)) return 'Please enter a valid email.'
+    if (!/^04\d{8}$/.test(r.phone)) return 'Mobile must be 10 digits starting with 04 (e.g. 0412345678). Country code 61 is auto-converted.';
     return ''
   }
 
@@ -431,7 +440,7 @@ export default function RegisterQLD() {
               <div><label>First Name</label><input autoComplete="given-name" value={owner.first_name} onChange={e => updateOwner('first_name', e.target.value)} placeholder="John" /></div>
               <div><label>Last Name</label><input autoComplete="family-name" value={owner.last_name} onChange={e => updateOwner('last_name', e.target.value)} placeholder="Smith" /></div>
               <div><label>Email</label><input type="email" autoComplete="email" value={owner.email} onChange={e => updateOwner('email', e.target.value.toLowerCase())} placeholder="john@email.com" style={{ textTransform: 'lowercase' }} /></div>
-              <div><label>Mobile</label><input autoComplete="tel" inputMode="numeric" value={owner.phone} onChange={e => updateOwner('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="0412345678" /></div>
+              <div><label>Mobile</label><input autoComplete="tel" inputMode="numeric" value={owner.phone} onChange={e => updateOwner('phone', normaliseAuMobile(e.target.value))} placeholder="0412345678" /></div>
               <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
                 <label>Street Address</label>
                 <div style={{ position: 'relative' }}>

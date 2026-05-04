@@ -2,6 +2,14 @@
 import { useState, useRef } from 'react'
 import Link from 'next/link'
 
+// Normalize an Australian mobile to 04XXXXXXXX. Strips non-digits, then
+// rewrites a leading 61 (or +61 input) to 0. Returns at most 10 digits.
+function normaliseAuMobile(input: string): string {
+  let p = (input || '').replace(/\D/g, '')
+  if (p.startsWith('61') && p.length > 9) p = '0' + p.slice(2)
+  return p.slice(0, 10)
+}
+
 export default function RegisterSA() {
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
