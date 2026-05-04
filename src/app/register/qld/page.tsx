@@ -80,7 +80,7 @@ const emptyVehicle = (): Vehicle => ({
   current_booking_date: '',
   current_booking_time: '',
   current_booking_location: '',
-  locations: WOVI_LOCATIONS.map(l => l.name),
+  locations: [],
   priority_locations: [],
 })
 
