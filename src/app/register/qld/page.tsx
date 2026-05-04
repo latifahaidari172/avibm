@@ -431,10 +431,12 @@ export default function RegisterQLD() {
             damage: v.damage,
             purchase_method: v.purchase_method,
             purchased_from: v.purchased_from,
+            // The customer's existing WOVI booking is the cutoff — the
+            // date the bot tries to BEAT. booked_* must NOT be written
+            // here; those are reserved for slots the BOT actually
+            // lands. Otherwise the dashboard mistakenly shows every
+            // newly registered vehicle as already booked.
             cutoff_date: v.current_booking_date,
-            booked_date: v.current_booking_date,
-            booked_time: v.current_booking_time,
-            booked_location: v.current_booking_location,
             locations: v.locations,
             priority_locations: v.priority_locations,
           })),
