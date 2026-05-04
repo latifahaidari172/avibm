@@ -1,6 +1,6 @@
 'use client'
 
-import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate } from '@/lib/validators'
+import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, validateCrn } from '@/lib/validators'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 
