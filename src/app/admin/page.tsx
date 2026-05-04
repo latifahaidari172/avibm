@@ -1254,17 +1254,71 @@ export default function Admin() {
               {freeList.length === 0 ? (
                 <div style={{ fontSize: 11, color: '#444' }}>No entries yet</div>
               ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                  {freeList.map(entry => (
-                    <div key={entry} style={{
-                      display: 'flex', alignItems: 'center', gap: 5, padding: '3px 8px',
-                      borderRadius: 20, fontSize: 11, background: '#1a1200',
-                      border: '1px solid rgba(201,168,76,0.3)', color: 'var(--gold)',
-                    }}>
-                      {entry}
-                      <span onClick={() => removeFreeEntry(entry)} style={{ cursor: 'pointer', color: '#ff6b6b', fontWeight: 700 }}>×</span>
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {freeList.map(entry => {
+                    const isEmail = entry.includes('@')
+                    const digits = entry.replace(/\D/g, '')
+                    const matched = customers.find(c =>
+                      isEmail
+                        ? (c.email || '').toLowerCase() === entry
+                        : (c.phone || '').replace(/\D/g, '') === digits
+                    )
+                    const initials = matched
+                      ? `${(matched.first_name || '?')[0]}${(matched.last_name || '')[0] || ''}`.toUpperCase()
+                      : (isEmail ? entry[0] : '#').toUpperCase()
+                    return (
+                      <div key={entry} style={{
+                        display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+                        borderRadius: 8, background: matched ? 'var(--dark-3)' : '#1a1200',
+                        border: `1px solid ${matched ? 'var(--border)' : 'rgba(201,168,76,0.3)'}`,
+                      }}>
+                        <div style={{
+                          width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: matched ? 'var(--dark-4)' : '#2a1a00',
+                          color: matched ? 'var(--text)' : 'var(--gold)',
+                          border: `1px solid ${matched ? 'var(--border)' : 'rgba(201,168,76,0.3)'}`,
+                          fontFamily: 'Bebas Neue', fontSize: 12, letterSpacing: '0.05em',
+                        }}>{initials}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {matched ? (
+                            <>
+                              <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                <span>{matched.first_name} {matched.last_name}</span>
+                                {matched.state && (
+                                  <span className={`pill pill-${matched.state.toLowerCase()}`} style={{ fontSize: 10 }}>{matched.state}</span>
+                                )}
+                                {!matched.active && !matched.archived && (
+                                  <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: '#2a1a00', color: '#C9A84C', border: '1px solid #4a3a00' }}>PENDING</span>
+                                )}
+                                {matched.archived && (
+                                  <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: '#1a1200', color: '#C9A84C', border: '1px solid #4a3a00' }}>ARCHIVED</span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {entry} {matched.email && entry !== matched.email.toLowerCase() && <span style={{ opacity: 0.6 }}>· {matched.email}</span>}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)' }}>{entry}</div>
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Whitelisted — no profile registered yet</div>
+                            </>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFreeEntry(entry)}
+                          title="Remove from free list"
+                          style={{
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            color: '#ff6b6b', display: 'inline-flex', alignItems: 'center',
+                            padding: 4, borderRadius: 4,
+                          }}
+                        ><IconX size={14} /></button>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
