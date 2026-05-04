@@ -194,14 +194,14 @@ export default function AddVehiclePage() {
               <Field label="First name" value={c.first_name} onChange={x => updC('first_name', x)} />
               <Field label="Last name"  value={c.last_name}  onChange={x => updC('last_name', x)} />
               <Field label="Email" value={c.email} onChange={x => updC('email', x.toLowerCase())} fullRow />
-              <Field label="Mobile (04…)" value={c.phone} onChange={x => updC('phone', x.replace(/\D/g, '').replace(/^61/, '0').slice(0, 10))} fullRow />
-              <Field label="Street address (number + name)" value={c.address} onChange={x => updC('address', x)} fullRow />
-              <Field label="Suburb (no postcode)" value={c.suburb} onChange={x => updC('suburb', x.replace(/\d/g, ''))} />
-              <Field label="Postcode" value={c.postcode} onChange={x => updC('postcode', x.replace(/\D/g, '').slice(0, 4))} />
+              <Field label="Mobile (04…)" value={c.phone} onChange={x => updC('phone', x.replace(/\D/g, '').replace(/^61/, '0').slice(0, 10))} fullRow error={c.phone ? validateAuMobile(c.phone) : null} />
+              <Field label="Street address (number + name)" value={c.address} onChange={x => updC('address', x)} fullRow error={c.address ? validateStreetAddress(c.address) : null} />
+              <Field label="Suburb (no postcode)" value={c.suburb} onChange={x => updC('suburb', x.replace(/\d/g, ''))} error={c.suburb ? validateSuburb(c.suburb) : null} />
+              <Field label="Postcode" value={c.postcode} onChange={x => updC('postcode', x.replace(/\D/g, '').slice(0, 4))} error={c.postcode ? validatePostcode(c.postcode, c.state) : null} />
               <div style={{ gridColumn: 'span 2', fontSize: 11, color: '#888', marginTop: -4 }}>
                 Suburb is just your suburb name (e.g. <strong>Park Ridge</strong>) — not <strong>Brisbane 4125</strong>.
               </div>
-              {c.state === 'QLD' && <Field label="CRN" value={c.crn} onChange={x => updC('crn', x.replace(/\D/g, '').slice(0, 10))} />}
+              {c.state === 'QLD' && <Field label="CRN" value={c.crn} onChange={x => updC('crn', x.replace(/\D/g, '').slice(0, 10))} error={c.crn ? validateCrn(c.crn) : null} />}
               {c.state === 'SA' && <Field label="Licence number" value={c.licence_number} onChange={x => updC('licence_number', x)} />}
               <Field label="Date of birth" type="date" value={c.date_of_birth} onChange={x => updC('date_of_birth', x)} />
             </Grid>
@@ -264,21 +264,29 @@ export default function AddVehiclePage() {
           <Section title="Vehicle details">
             <Grid>
               <Field label="Nickname (optional)" value={v.label} onChange={x => updV('label', x)} fullRow />
-              <Field label="Make" value={v.make} onChange={x => updV('make', x.replace(/[^A-Za-z0-9\s\-/]/g, '').slice(0, 30))} />
-              <Field label="Model" value={v.model} onChange={x => updV('model', x.replace(/[^A-Za-z0-9\s\-/.]/g, '').slice(0, 40))} />
-              <Field label="Year" value={v.year} onChange={x => updV('year', clampYearInput(x))} />
+              <Field label="Make" value={v.make} onChange={x => updV('make', x.replace(/[^A-Za-z0-9\s\-/]/g, '').slice(0, 30))} error={v.make ? validateMake(v.make) : null} />
+              <Field label="Model" value={v.model} onChange={x => updV('model', x.replace(/[^A-Za-z0-9\s\-/.]/g, '').slice(0, 40))} error={v.model ? validateModel(v.model) : null} />
+              <Field label="Vehicle year" value={v.year} onChange={x => updV('year', clampYearInput(x))} error={v.year ? validateYear(v.year) : null} />
               <Field label="Colour" value={v.colour} onChange={x => updV('colour', x.replace(/[^A-Za-z\s\-/]/g, '').slice(0, 30))} />
-              <Field label="VIN" value={v.vin} onChange={x => updV('vin', x.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17))} fullRow />
+              <Field label="VIN" value={v.vin} onChange={x => updV('vin', x.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17))} fullRow error={v.vin ? validateVin(v.vin) : null} />
               <Select label="Vehicle Type" value={v.vehicle_type} options={VEHICLE_TYPES} onChange={x => updV('vehicle_type', x)} />
               <Select label="Build Month" value={v.build_month} options={['', ...MONTHS]} onChange={x => updV('build_month', x)} />
               <Select label="Damage type" value={v.damage} options={['', ...DAMAGES]} onChange={x => updV('damage', x)} fullRow />
               <Select label="Purchased via" value={v.purchase_method} options={['', ...PURCHASE_METHODS]} onChange={x => updV('purchase_method', x)} />
               <Field label="Purchased from" value={v.purchased_from} onChange={x => updV('purchased_from', x)} />
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={lbl}>Latest acceptable WOVI date (your existing booking)</label>
-                <input type="date" value={v.cutoff_date} onChange={e => updV('cutoff_date', e.target.value)} style={inp} />
-                <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>The bot will only book slots earlier than this date.</div>
-              </div>
+              {(() => {
+                const cutoffErr = v.cutoff_date ? validateCutoffDate(v.cutoff_date) : null
+                return (
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={lbl}>Latest acceptable WOVI date (your existing booking)</label>
+                    <input type="date" value={v.cutoff_date} onChange={e => updV('cutoff_date', e.target.value)} style={{ ...inp, borderColor: cutoffErr ? '#a33' : '#222' }} />
+                    {cutoffErr
+                      ? <p style={{ fontSize: 11, color: '#f87171', margin: '4px 0 0 0' }}>{cutoffErr}</p>
+                      : <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>The bot will only book slots earlier than this date.</div>
+                    }
+                  </div>
+                )
+              })()}
             </Grid>
           </Section>
 
@@ -316,11 +324,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Grid({ children }: { children: React.ReactNode }) {
   return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>{children}</div>
 }
-function Field({ label, value, onChange, fullRow = false, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; fullRow?: boolean; type?: string }) {
+function Field({ label, value, onChange, fullRow = false, type = 'text', error = null }: { label: string; value: string; onChange: (v: string) => void; fullRow?: boolean; type?: string; error?: string | null }) {
   return (
     <div style={{ gridColumn: fullRow ? 'span 2' : undefined }}>
       <label style={lbl}>{label}</label>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)} style={inp} />
+      <input type={type} value={value} onChange={e => onChange(e.target.value)} style={{ ...inp, borderColor: error ? '#a33' : '#222' }} />
+      {error && <p style={{ fontSize: 11, color: '#f87171', margin: '4px 0 0 0' }}>{error}</p>}
     </div>
   )
 }

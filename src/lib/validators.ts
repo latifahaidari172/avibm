@@ -50,12 +50,12 @@ export function validateVin(raw: string): string | null {
 // year releases that happen ahead of the calendar year).
 export function validateYear(raw: string): string | null {
   const v = (raw || '').trim()
-  if (!v) return 'Year is required.'
-  if (!/^\d{4}$/.test(v)) return 'Year must be 4 digits (e.g. 2023).'
+  if (!v) return 'Vehicle year is required.'
+  if (!/^\d{4}$/.test(v)) return 'Vehicle year must be 4 digits (e.g. 2023).'
   const y = parseInt(v, 10)
   const current = new Date().getFullYear()
-  if (y < 1900) return 'Year too far in the past. Must be 1900 or later.'
-  if (y > current + 1) return `Year too far in the future. Latest allowed is ${current + 1}.`
+  if (y < 1900) return 'Vehicle year too far in the past. Must be 1900 or later.'
+  if (y > current + 1) return `Vehicle year too far in the future. Latest allowed is ${current + 1}.`
   return null
 }
 
