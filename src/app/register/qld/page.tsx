@@ -335,9 +335,11 @@ export default function RegisterQLD() {
     document.head.appendChild(script)
   }, [])
 
+  const step1Err = validateStep1()
+  const step1Valid = step1Err === ''
+
   const handleNext = () => {
-    const err = validateStep1()
-    if (err) { setError(err); return }
+    if (!step1Valid) { setError(step1Err); return }
     setError(''); setStep(2)
   }
 
@@ -606,7 +608,18 @@ export default function RegisterQLD() {
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>
               One-time fee per vehicle. You will receive payment details after submitting your registration.
             </p>
-            <button className="btn-gold" onClick={handleNext}>NEXT: ADD VEHICLES →</button>
+            <button
+              className="btn-gold"
+              onClick={handleNext}
+              disabled={!step1Valid}
+              style={!step1Valid ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+              title={step1Valid ? '' : step1Err}
+            >NEXT: ADD VEHICLES →</button>
+            {!step1Valid && (
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
+                {step1Err}
+              </p>
+            )}
           </div>
         )}
 

@@ -51,23 +51,24 @@ export default function RegisterSA() {
 
   const update = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
 
-  const handleSubmit = async () => {
+  const validateForm = (): string => {
     const required = ['first_name','last_name','email','phone','address','suburb','postcode','licence_number','date_of_birth','cutoff_date']
     for (const k of required) {
-      if (!form[k as keyof typeof form]) { setError('Please fill in all fields.'); return }
+      if (!form[k as keyof typeof form]) return 'Please fill in all fields.'
     }
-    const emailErr = validateEmail(form.email)
-    if (emailErr) { setError(emailErr); return }
-    const phoneErr = validateAuMobile(form.phone)
-    if (phoneErr) { setError(phoneErr); return }
-    const addrErr = validateStreetAddress(form.address)
-    if (addrErr) { setError(addrErr); return }
-    const subErr = validateSuburb(form.suburb)
-    if (subErr) { setError(subErr); return }
-    const pcErr = validatePostcode(form.postcode, 'SA')
-    if (pcErr) { setError(pcErr); return }
-    const cutoffErr = validateCutoffDate(form.cutoff_date)
-    if (cutoffErr) { setError(cutoffErr); return }
+    const emailErr = validateEmail(form.email);             if (emailErr)  return emailErr
+    const phoneErr = validateAuMobile(form.phone);          if (phoneErr)  return phoneErr
+    const addrErr  = validateStreetAddress(form.address);   if (addrErr)   return addrErr
+    const subErr   = validateSuburb(form.suburb);           if (subErr)    return subErr
+    const pcErr    = validatePostcode(form.postcode, 'SA'); if (pcErr)     return pcErr
+    const cutoffErr = validateCutoffDate(form.cutoff_date); if (cutoffErr) return cutoffErr
+    return ''
+  }
+  const formErr = validateForm()
+  const formValid = formErr === ''
+
+  const handleSubmit = async () => {
+    if (!formValid) { setError(formErr); return }
     setError(''); setLoading(true)
     try {
       const regRes = await fetch('/api/register-customer', {
@@ -231,9 +232,18 @@ export default function RegisterSA() {
             </div>
           </div>
           <div style={{ marginTop: 24 }}>
-            <button className="btn-gold" onClick={handleSubmit} disabled={loading}>
+            <button
+              className="btn-gold"
+              onClick={handleSubmit}
+              disabled={loading || !formValid}
+              style={!formValid && !loading ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+              title={formValid ? '' : formErr}
+            >
               {loading ? 'SUBMITTING...' : 'SUBMIT REGISTRATION'}
             </button>
+            {!formValid && !loading && (
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>{formErr}</p>
+            )}
           </div>
         </div>
       </div>
