@@ -1,13 +1,28 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createSupabaseBrowser } from '@/lib/supabase/client'
 
 // Customer-facing sign-in. Three OAuth buttons (Google / Microsoft /
 // Apple) and a magic-link email fallback for everything else (Yahoo,
 // ProtonMail, BigPond, etc). No password storage anywhere — Supabase
 // Auth handles all session state.
+//
+// Supports ?next=/some/path — that path is forwarded through OAuth and
+// magic-link flows so callers (e.g. /register/qld) can drop the
+// customer back where they wanted to land after sign-in.
 export default function SignInPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignInInner />
+    </Suspense>
+  )
+}
+
+function SignInInner() {
+  const searchParams = useSearchParams()
+  const next = searchParams.get('next') || '/account'
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
@@ -19,7 +34,7 @@ export default function SignInPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
         scopes: provider === 'azure' ? 'email profile openid' : undefined,
       },
     })
@@ -38,7 +53,7 @@ export default function SignInPage() {
     setMsg(null)
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
     })
     setBusy(null)
     if (error) {
