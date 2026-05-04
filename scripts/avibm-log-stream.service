@@ -1,0 +1,19 @@
+[Unit]
+Description=AVIBM live log stream API (tails avibm.log over SSE)
+After=network.target
+
+[Service]
+Type=simple
+User=auction
+WorkingDirectory=/home/auction/gdrive/AI Projects/avibm
+EnvironmentFile=/etc/avibm-log-stream.env
+Environment="AVIBM_LOG_PATH=/home/auction/gdrive/AI Projects/avibm/avibm.log"
+ExecStart=/usr/bin/python3 -m uvicorn avibm_log_stream:app --host 127.0.0.1 --port 8090 --log-level warning --app-dir /home/auction/gdrive/AI\x20Projects/avibm/scripts
+Restart=always
+RestartSec=5
+
+# Cap memory so a runaway tail can't OOM the box
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target
