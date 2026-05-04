@@ -700,19 +700,23 @@ export default function Admin() {
   const onlineInstances = botInstances.filter(b => instanceIsOnline(b.last_seen))
   const activeInstances = onlineInstances.filter(b => b.enabled)
 
-  // 'running' = online + enabled + active hours, 'sleeping' = online + enabled + outside hours, 'paused' = online but disabled, 'offline' = none online
-  const isSleeping = onlineInstances.some(b => b.status === 'sleeping')
-  const isPaused = onlineInstances.length > 0 && onlineInstances.every(b => b.status === 'paused' || !b.enabled)
+  // State priority:
+  //   running   -> at least one enabled+online instance currently in active hours (monitorLive)
+  //   paused    -> at least one online instance that the admin has DISABLED (enabled=false)
+  //   sleeping  -> all online instances are enabled but reporting paused/sleeping (off-hours)
+  //   offline   -> no instances online
+  const isAdminDisabled = onlineInstances.length > 0 && onlineInstances.some(b => !b.enabled)
+  const isOffHours = onlineInstances.length > 0 && onlineInstances.every(b => b.enabled && (b.status === 'paused' || b.status === 'sleeping'))
   const monitorState: 'running' | 'sleeping' | 'paused' | 'offline' =
     activeInstances.length > 0 && monitorLive ? 'running'
-    : isPaused ? 'paused'
-    : isSleeping ? 'sleeping'
-    : onlineInstances.length > 0 ? 'paused'
+    : isAdminDisabled ? 'paused'
+    : isOffHours ? 'sleeping'
+    : onlineInstances.length > 0 ? 'sleeping'
     : 'offline'
 
   const monitorStateConfig = {
     running:  { color: '#4ecb4e', label: 'RUNNING',  cardClass: 'active',   dotShadow: 'rgba(78,203,78,0.5)',   bg: '#040e04', border: '#1a3a1a' },
-    sleeping: { color: '#5b9bd5', label: 'SLEEPING', cardClass: 'inactive', dotShadow: 'rgba(91,155,213,0.4)',  bg: '#04080e', border: '#101a2a' },
+    sleeping: { color: '#5b9bd5', label: 'OFF-HOURS', cardClass: 'inactive', dotShadow: 'rgba(91,155,213,0.4)',  bg: '#04080e', border: '#101a2a' },
     paused:   { color: '#C9A84C', label: 'PAUSED',   cardClass: 'inactive', dotShadow: 'rgba(201,168,76,0.5)',  bg: '#0e0a00', border: '#3a2a00' },
     offline:  { color: '#e74c3c', label: 'OFFLINE',  cardClass: 'inactive', dotShadow: 'rgba(231,76,60,0.4)',   bg: '#080606', border: '#2a1010' },
   }
@@ -880,14 +884,15 @@ export default function Admin() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.06em', color: cfg.color }}>
-                      {m.label} {monitorState === 'running' ? 'RUNNING' : monitorState === 'paused' ? 'PAUSED' : 'OFFLINE'}
+                      {m.label} {cfg.label}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                      {monitorState === 'paused'
-                        ? `Terminal connected · disabled by admin · ${m.count} customer(s)`
-                        : monitorStatus
-                          ? `${m.count} customer(s) · ${formatLastRun(monitorStatus.last_run)}`
-                          : 'No data yet'}
+                      {monitorState === 'paused' && `Terminal connected · disabled by admin · ${m.count} customer(s)`}
+                      {monitorState === 'sleeping' && `Outside active hours · resumes in scan window · ${m.count} customer(s)`}
+                      {monitorState === 'offline' && `No terminal connected · ${m.count} customer(s) waiting`}
+                      {monitorState === 'running' && (monitorStatus
+                        ? `${m.count} customer(s) · ${formatLastRun(monitorStatus.last_run)}`
+                        : `${m.count} customer(s)`)}
                     </div>
                   </div>
                 </div>
