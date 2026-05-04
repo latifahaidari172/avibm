@@ -20,9 +20,9 @@ const DAMAGES = [
 const PURCHASE_METHODS = ['Auction', 'Private Sale', 'Insurance', 'Other']
 
 const TIERS = [
-  { id: 'priority', label: '🥇 Priority', price: '$5',    desc: 'First in queue. Books immediately when a slot is found.' },
-  { id: 'standard', label: '🥈 Standard', price: '$3',    desc: 'Standard monitoring cadence.' },
-  { id: 'basic',    label: '🥉 Basic',    price: '$1.50', desc: 'Slowest monitoring, lowest priority.' },
+  { id: 'priority', label: 'Priority', price: '$5',    desc: 'First in queue. Books immediately when a slot is found.' },
+  { id: 'standard', label: 'Standard', price: '$3',    desc: 'Standard monitoring cadence.' },
+  { id: 'basic',    label: 'Basic',    price: '$1.50', desc: 'Slowest monitoring, lowest priority.' },
 ]
 
 // Single-page "add a vehicle" for signed-in customers. Mirrors the

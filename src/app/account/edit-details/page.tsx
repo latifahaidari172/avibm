@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createSupabaseBrowser } from '@/lib/supabase/client'
+import { IconArrowLeft } from '@/components/icons'
 import {
   validateAuMobile, validatePostcode, validateStreetAddress, validateSuburb,
   validateCrn, normaliseAuMobile,
@@ -121,7 +122,9 @@ export default function EditDetailsPage() {
   return (
     <Page>
       <p style={{ marginBottom: 12 }}>
-        <Link href="/account" style={link}>← Back to dashboard</Link>
+        <Link href="/account" style={{ ...link, display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
+          <IconArrowLeft size={14} />Back to dashboard
+        </Link>
       </p>
 
       <h1 style={h1}>Edit details</h1>

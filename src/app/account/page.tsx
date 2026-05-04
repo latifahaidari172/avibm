@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createHash } from 'crypto'
 import { createSupabaseServer } from '@/lib/supabase/server'
+import { IconCheck, IconChevronRight } from '@/components/icons'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -113,7 +114,9 @@ export default async function AccountPage() {
         )}
         <Detail label="DOB" value={customer.date_of_birth || '—'} />
         <div style={{ marginTop: 10 }}>
-          <Link href="/account/edit-details" style={link}>Edit details →</Link>
+          <Link href="/account/edit-details" style={{ ...link, display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
+            Edit details<IconChevronRight size={13} />
+          </Link>
         </div>
       </Section>
 
@@ -134,8 +137,9 @@ export default async function AccountPage() {
                       </div>
                       <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>VIN: {v.vin}</div>
                       {v.booked_date ? (
-                        <div style={{ fontSize: 12, color: '#5adb5a', marginTop: 6 }}>
-                          ✓ Booked: {v.booked_date}{v.booked_time ? ` at ${v.booked_time}` : ''}{v.booked_location ? ` — ${v.booked_location}` : ''}
+                        <div style={{ fontSize: 12, color: '#5adb5a', marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <IconCheck size={13} />
+                          <span>Booked: {v.booked_date}{v.booked_time ? ` at ${v.booked_time}` : ''}{v.booked_location ? ` — ${v.booked_location}` : ''}</span>
                         </div>
                       ) : v.cutoff_date ? (
                         <div style={{ fontSize: 12, color: '#888', marginTop: 6 }}>
@@ -146,7 +150,7 @@ export default async function AccountPage() {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                       <span style={{ ...statusBadge, color: s.color, background: s.bg, borderColor: s.color }}>{s.label}</span>
-                      <span style={{ color: '#666', fontSize: 16 }}>›</span>
+                      <IconChevronRight size={14} style={{ color: '#666' }} />
                     </div>
                   </div>
                 </Link>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { validateCutoffDate } from '@/lib/validators'
+import { IconArrowLeft, IconPlay, IconPause } from '@/components/icons'
 
 const WOVI_LOCATIONS = [
   'Brisbane', 'Bundaberg', 'Burleigh Heads', 'Cairns', 'Mackay',
@@ -109,7 +110,9 @@ export default function VehiclePage() {
   return (
     <Page>
       <p style={{ marginBottom: 12 }}>
-        <Link href="/account" style={link}>← Back to dashboard</Link>
+        <Link href="/account" style={{ ...link, display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
+          <IconArrowLeft size={14} />Back to dashboard
+        </Link>
       </p>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
@@ -166,9 +169,10 @@ export default function VehiclePage() {
           <button
             type="button"
             onClick={() => update('active', !v.active)}
-            style={{ ...toggleBtn, background: v.active ? 'rgba(90,219,90,0.12)' : '#1a1a1a', borderColor: v.active ? '#5adb5a' : '#333', color: v.active ? '#5adb5a' : '#888' }}
+            style={{ ...toggleBtn, background: v.active ? 'rgba(90,219,90,0.12)' : '#1a1a1a', borderColor: v.active ? '#5adb5a' : '#333', color: v.active ? '#5adb5a' : '#888', display: 'flex', alignItems: 'center', gap: 8 }}
           >
-            {v.active ? '● Active — bot is searching' : '○ Paused — click to resume'}
+            {v.active ? <IconPlay size={14} /> : <IconPause size={14} />}
+            <span>{v.active ? 'Active — bot is searching' : 'Paused — click to resume'}</span>
           </button>
           <p style={muted}>Pausing stops the bot from searching for new slots. Your current booking (if any) is unaffected.</p>
         </Field>
