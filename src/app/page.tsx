@@ -73,7 +73,7 @@ export default function Home() {
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--gold)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}
             >
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🦘</div>
+              <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, color: 'var(--gold)', letterSpacing: '0.2em', marginBottom: 8 }}>QLD</div>
               <h2 style={{ fontSize: 'clamp(24px,5vw,36px)', color: 'var(--text)', marginBottom: 8 }}>QUEENSLAND</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.6, marginBottom: 40 }}>
                 WOVI — Written Off Vehicle Inspections<br />
@@ -93,7 +93,7 @@ export default function Home() {
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--gold)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}
             >
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🏜️</div>
+              <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, color: 'var(--gold)', letterSpacing: '0.2em', marginBottom: 8 }}>SA</div>
               <h2 style={{ fontSize: 'clamp(24px,5vw,36px)', color: 'var(--text)', marginBottom: 8 }}>SOUTH AUSTRALIA</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.6, marginBottom: 40 }}>
                 Service SA — Vehicle Inspection Bookings<br />
@@ -130,15 +130,15 @@ export default function Home() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, maxWidth: 700, margin: '0 auto' }}>
             {[
-              { icon: '🥇', tier: 'Priority', price: '$5', color: 'var(--gold)', border: 'var(--gold)', desc: 'First in queue — books immediately' },
-              { icon: '🥈', tier: 'Standard', price: '$3', color: '#aaa', border: 'var(--border)', desc: '30 second delay after Priority' },
-              { icon: '🥉', tier: 'Basic', price: '$1.50', color: '#888', border: 'var(--border)', desc: '60 second delay after Standard' },
+              { rank: '1', tier: 'Priority', price: '$5', color: 'var(--gold)', border: 'var(--gold)', desc: 'First in queue — books immediately' },
+              { rank: '2', tier: 'Standard', price: '$3', color: '#aaa', border: 'var(--border)', desc: '30 second delay after Priority' },
+              { rank: '3', tier: 'Basic', price: '$1.50', color: '#888', border: 'var(--border)', desc: '60 second delay after Standard' },
             ].map(t => (
               <div key={t.tier} style={{
                 background: 'var(--dark-2)', border: `1px solid ${t.border}`,
                 borderRadius: 10, padding: '24px 16px', textAlign: 'center',
               }}>
-                <div style={{ fontSize: 28, marginBottom: 8 }}>{t.icon}</div>
+                <div style={{ width: 36, height: 36, margin: '0 auto 10px', borderRadius: '50%', border: `1px solid ${t.color}`, color: t.color, fontFamily: 'Bebas Neue', fontSize: 18, lineHeight: '34px', letterSpacing: '0.05em' }}>{t.rank}</div>
                 <div style={{ fontFamily: 'Bebas Neue', fontSize: 18, color: t.color, letterSpacing: '0.1em' }}>{t.tier}</div>
                 <div style={{ fontFamily: 'Bebas Neue', fontSize: 40, color: t.color, lineHeight: 1, margin: '6px 0' }}>{t.price}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Per Vehicle</div>
@@ -157,7 +157,7 @@ export default function Home() {
             background: 'var(--dark-2)', border: '1px solid var(--gold)',
             borderRadius: 10, padding: '24px 16px', textAlign: 'center',
           }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>🥇</div>
+            <div style={{ width: 36, height: 36, margin: '0 auto 10px', borderRadius: '50%', border: '1px solid var(--gold)', color: 'var(--gold)', fontFamily: 'Bebas Neue', fontSize: 18, lineHeight: '34px', letterSpacing: '0.05em' }}>1</div>
             <div style={{ fontFamily: 'Bebas Neue', fontSize: 18, color: 'var(--gold)', letterSpacing: '0.1em' }}>Priority</div>
             <div style={{ fontFamily: 'Bebas Neue', fontSize: 40, color: 'var(--gold)', lineHeight: 1, margin: '6px 0' }}>FREE</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>No charge</div>

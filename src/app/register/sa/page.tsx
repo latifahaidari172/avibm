@@ -1,6 +1,7 @@
 'use client'
 
 import { validateEmail, validatePostcode, validateAuMobile, validateCutoffDate, normaliseAuMobile, suggestEmailFix, validateStreetAddress, validateSuburb } from '@/lib/validators'
+import { IconCheckCircle, IconArrowLeft } from '@/components/icons'
 import { useState, useRef } from 'react'
 import Link from 'next/link'
 
@@ -121,12 +122,14 @@ export default function RegisterSA() {
   if (done) return (
     <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
       <div className="card" style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
-        <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
+        <div style={{ marginBottom: 16, color: '#5adb5a', display: 'inline-flex' }}><IconCheckCircle size={56} /></div>
         <h2 style={{ fontSize: 36, marginBottom: 12 }}>REGISTRATION SUBMITTED</h2>
         <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 24 }}>
           Your details have been received. We'll review and activate your monitoring shortly. You'll receive an email once you're live.
         </p>
-        <Link href="/" style={{ color: 'var(--gold)', fontSize: 14, textDecoration: 'none' }}>← Back to home</Link>
+        <Link href="/" style={{ color: 'var(--gold)', fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <IconArrowLeft size={14} />Back to home
+        </Link>
       </div>
     </main>
   )
@@ -134,7 +137,9 @@ export default function RegisterSA() {
   return (
     <main className='register-main' style={{ minHeight: '100vh', padding: '40px 20px' }}>
       <div style={{ maxWidth: 680, margin: '0 auto 32px' }}>
-        <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>← Back</Link>
+        <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <IconArrowLeft size={14} />Back
+        </Link>
         <div style={{ marginTop: 24 }}>
           <div className="section-label">South Australia — Service SA</div>
           <h1 style={{ fontSize: 48, lineHeight: 1 }}>REGISTER YOUR<br /><span className="gold">VEHICLE</span></h1>

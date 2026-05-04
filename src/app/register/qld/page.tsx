@@ -1,6 +1,7 @@
 'use client'
 
 import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, validateCrn, validateStreetAddress, validateSuburb, clampYearInput, validateMake, validateModel } from '@/lib/validators'
+import { IconCheckCircle, IconArrowLeft, IconCalendar, IconMapPin, IconExclamationTriangle, IconCheck } from '@/components/icons'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 
@@ -264,7 +265,7 @@ export default function RegisterQLD() {
       className: '', iconAnchor: [9, 9],
     })
     L.marker([coords.lat, coords.lng], { icon: homeIcon, title: 'Your location' })
-      .addTo(map).bindPopup('<b style="color:#ff3333">📍 Your Location</b>')
+      .addTo(map).bindPopup('<b style="color:#ff3333">Your Location</b>')
     const circle = L.circle([coords.lat, coords.lng], {
       radius: r * 1000, color: '#C9A84C', weight: 2,
       fillColor: '#C9A84C', fillOpacity: 0.08, dashArray: '6 4',
@@ -438,12 +439,14 @@ export default function RegisterQLD() {
   if (done) return (
     <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
       <div className="card" style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
-        <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
+        <div style={{ marginBottom: 16, color: '#5adb5a', display: 'inline-flex' }}><IconCheckCircle size={56} /></div>
         <h2 style={{ fontSize: 36, marginBottom: 12 }}>REGISTRATION SUBMITTED</h2>
         <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 24 }}>
           Your details have been received. We&apos;ll review your registration and activate your monitoring shortly. You&apos;ll receive an email confirmation once you&apos;re live.
         </p>
-        <Link href="/" style={{ color: 'var(--gold)', fontSize: 14, textDecoration: 'none' }}>← Back to home</Link>
+        <Link href="/" style={{ color: 'var(--gold)', fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <IconArrowLeft size={14} />Back to home
+        </Link>
       </div>
     </main>
   )
@@ -452,7 +455,9 @@ export default function RegisterQLD() {
     <main className='register-main' style={{ minHeight: '100vh', padding: '40px 20px' }}>
       {/* Header */}
       <div style={{ maxWidth: 680, margin: '0 auto 32px' }}>
-        <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>← Back</Link>
+        <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <IconArrowLeft size={14} />Back
+        </Link>
         <div style={{ marginTop: 24 }}>
           <div className="section-label">Queensland — WOVI</div>
           <h1 style={{ fontSize: 48, lineHeight: 1 }}>REGISTER YOUR<br /><span className="gold">VEHICLES</span></h1>
@@ -591,16 +596,16 @@ export default function RegisterQLD() {
             <div className="section-label" style={{ marginBottom: 12 }}>Select Your Plan</div>
             <div className='tier-grid-3' style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
               {[
-                { id: 'priority', icon: '🥇', label: 'Priority', price: '$5',    desc: 'First in queue. Books immediately when a slot is found.', color: 'var(--gold)' },
-                { id: 'standard', icon: '🥈', label: 'Standard', price: '$3',    desc: 'Second in queue. 30 second delay after Priority customers.', color: '#aaa' },
-                { id: 'basic',    icon: '🥉', label: 'Basic',    price: '$1.50', desc: 'Third in queue. 60 second delay after Standard customers.', color: '#888' },
+                { id: 'priority', rank: '1', label: 'Priority', price: '$5',    desc: 'First in queue. Books immediately when a slot is found.', color: 'var(--gold)' },
+                { id: 'standard', rank: '2', label: 'Standard', price: '$3',    desc: 'Second in queue. 30 second delay after Priority customers.', color: '#aaa' },
+                { id: 'basic',    rank: '3', label: 'Basic',    price: '$1.50', desc: 'Third in queue. 60 second delay after Standard customers.', color: '#888' },
               ].map(t => (
                 <div key={t.id} onClick={() => setSelectedTier(t.id as any)} style={{
                   border: `1px solid ${selectedTier === t.id ? t.color : 'var(--border)'}`,
                   background: selectedTier === t.id ? 'var(--dark-3)' : 'var(--dark-4)',
                   borderRadius: 8, padding: '16px 14px', cursor: 'pointer', transition: 'all 0.2s',
                 }}>
-                  <div style={{ fontSize: 24, marginBottom: 6 }}>{t.icon}</div>
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid ${t.color}`, color: t.color, fontFamily: 'Bebas Neue', fontSize: 14, lineHeight: '26px', textAlign: 'center', letterSpacing: '0.05em', marginBottom: 6 }}>{t.rank}</div>
                   <div style={{ fontFamily: 'Bebas Neue', fontSize: 18, color: t.color, letterSpacing: '0.05em' }}>{t.label}</div>
                   <div style={{ fontFamily: 'Bebas Neue', fontSize: 28, color: t.color, letterSpacing: '0.05em', marginTop: 4 }}>{t.price}<span style={{ fontSize: 13, fontFamily: 'DM Sans', fontWeight: 400 }}> /vehicle</span></div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5 }}>{t.desc}</div>
@@ -691,8 +696,8 @@ export default function RegisterQLD() {
                           style={{ marginTop: 3, width: 16, height: 16, flexShrink: 0, cursor: 'pointer' }}
                         />
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: 14, color: hasBookingConfirmed ? '#5adb5a' : '#ff6b6b' }}>
-                            {hasBookingConfirmed ? '✅ Confirmed — I have an existing WOVI booking' : '⚠️ I confirm I have already booked a WOVI inspection and paid the $100 deposit'}
+                          <div style={{ fontWeight: 600, fontSize: 14, color: hasBookingConfirmed ? '#5adb5a' : '#ff6b6b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {hasBookingConfirmed ? <><IconCheckCircle size={14} />Confirmed — I have an existing WOVI booking</> : <><IconExclamationTriangle size={14} />I confirm I have already booked a WOVI inspection and paid the $100 deposit</>}
                           </div>
                           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
                             AVIBM can only reschedule an <strong>existing</strong> booking to an earlier date. You must first go to{' '}
@@ -706,8 +711,8 @@ export default function RegisterQLD() {
                     {/* Booking date fields — only shown once confirmed */}
                     {hasBookingConfirmed && (
                       <div style={{ background: 'var(--dark-4)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
-                        <div style={{ color: 'var(--gold)', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>
-                          📅 Current Inspection Booking
+                        <div style={{ color: 'var(--gold)', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <IconCalendar size={13} />Current Inspection Booking
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                           <div>
@@ -777,7 +782,7 @@ export default function RegisterQLD() {
                       <div id={`map-${i}`} className='leaflet-map' style={{ height: 'min(360px, 55vw)', minHeight: 220, width: '100%', background: '#1a1a2e' }} />
                       {!homeCoords && (
                         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--dark-3)', flexDirection: 'column', gap: 12, borderRadius: 8 }}>
-                          <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--dark-4)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>📍</div>
+                          <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--dark-4)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}><IconMapPin size={22} /></div>
                           <div style={{ color: 'var(--text-muted)', fontSize: 14, textAlign: 'center', lineHeight: 1.6 }}>
                             Enter your suburb above<br/>and click <strong style={{ color: 'var(--gold)' }}>SEARCH →</strong>
                           </div>
@@ -785,8 +790,8 @@ export default function RegisterQLD() {
                       )}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <p style={{ fontSize: 12, color: homeCoords ? 'var(--gold)' : 'var(--text-muted)', margin: 0 }}>
-                        {homeCoords ? `✓ ${v.locations.length} location${v.locations.length !== 1 ? 's' : ''} selected` : 'Manually select locations'}
+                      <p style={{ fontSize: 12, color: homeCoords ? 'var(--gold)' : 'var(--text-muted)', margin: 0, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        {homeCoords ? <><IconCheck size={12} />{v.locations.length} location{v.locations.length !== 1 ? 's' : ''} selected</> : 'Manually select locations'}
                       </p>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button onClick={() => setVehicles(vs => vs.map((v2, idx) => idx === i ? { ...v2, locations: WOVI_LOCATIONS.map(l => l.name) } : v2))}
@@ -807,20 +812,23 @@ export default function RegisterQLD() {
                             color: selected ? 'var(--gold)' : 'var(--text-muted)',
                             fontSize: 13, transition: 'all 0.2s', userSelect: 'none',
                           }}>
-                            {selected ? '✓ ' : '+ '}{loc.name}{dist !== null ? ` · ${dist}km` : ''}
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              {selected ? <IconCheck size={12} /> : <span style={{ width: 12, textAlign: 'center', display: 'inline-block' }}>+</span>}
+                              {loc.name}{dist !== null ? ` · ${dist}km` : ''}
+                            </span>
                           </div>
                         )
                       })}
                     </div>
                     {v.locations.length === 0 && (
-                      <p style={{ fontSize: 12, color: '#ff6b6b', marginTop: 8 }}>⚠️ Please select at least one location.</p>
+                      <p style={{ fontSize: 12, color: '#ff6b6b', marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconExclamationTriangle size={13} />Please select at least one location.</p>
                     )}
 
                     {/* Priority locations — numbered */}
                     {v.locations.length > 0 && (
                       <div style={{ marginTop: 16, padding: '14px 16px', background: 'var(--dark-4)', borderRadius: 8, border: '1px solid var(--border)' }}>
                         <div style={{ fontSize: 12, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
-                          🥇 Priority Locations <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional — up to 2)</span>
+                          Priority Locations <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional — up to 2)</span>
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, lineHeight: 1.5 }}>
                           Your 1st click = Priority 1 (checked first). Your 2nd click = Priority 2 (checked second). All other selected locations are checked after.
