@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { IconSignal, IconArchive, IconTrash, IconArrowUturnLeft } from '@/components/icons'
+import { IconSignal, IconArchive, IconTrash, IconArrowUturnLeft, IconArrowLeft, IconArrowPath, IconCheck, IconChevronDown, IconChevronUp, IconExclamationTriangle, IconGift, IconMagnifyingGlass, IconShieldCheck, IconUser, IconUsers, IconX, IconPencil } from '@/components/icons'
 
 type Customer = {
   id: string
@@ -27,9 +27,9 @@ type Customer = {
 }
 
 const TIER_CONFIG = {
-  priority: { label: '🥇 Priority — $5/vehicle',     color: '#C9A84C', bg: '#2a1a00', border: '#4a3a00' },
-  standard: { label: '🥈 Standard — $3/vehicle',     color: '#888', bg: 'var(--dark-4)', border: 'var(--border)' },
-  basic:    { label: '🥉 Basic — $1.50/vehicle',     color: '#666', bg: 'var(--dark-4)', border: 'var(--border)' },
+  priority: { label: 'Priority — $5/vehicle',     color: '#C9A84C', bg: '#2a1a00', border: '#4a3a00' },
+  standard: { label: 'Standard — $3/vehicle',     color: '#888', bg: 'var(--dark-4)', border: 'var(--border)' },
+  basic:    { label: 'Basic — $1.50/vehicle',     color: '#666', bg: 'var(--dark-4)', border: 'var(--border)' },
 }
 
 type Vehicle = {
@@ -386,7 +386,7 @@ export default function Admin() {
   // Update tab title when newRegCount changes
   useEffect(() => {
     if (newRegCount > 0) {
-      document.title = `🔔 (${newRegCount}) New Registration! — AVIBM Admin`
+      document.title = `(${newRegCount}) New Registration! — AVIBM Admin`
     } else {
       document.title = 'AVIBM Admin'
     }
@@ -469,7 +469,7 @@ export default function Admin() {
         state:         c.state,
       })
     })
-    if (res.ok) alert(`✅ Payment request sent to ${c.email}`)
+    if (res.ok) alert(`Payment request sent to ${c.email}`)
     else alert('Failed to send email. Check your Vercel env vars.')
   }
 
@@ -607,7 +607,7 @@ export default function Admin() {
           customer_email: c.email,
         }),
       })
-      if (res.ok) alert(`✅ Payment link sent to ${c.email}`)
+      if (res.ok) alert(`Payment link sent to ${c.email}`)
       else alert('Failed to send reminder.')
     } catch { alert('Error sending reminder.') }
     setSendingReminder(null)
@@ -770,7 +770,7 @@ export default function Admin() {
         </div>
         <button className="btn-gold" onClick={login}>ENTER</button>
         <div style={{ marginTop: 16, textAlign: 'center' }}>
-          <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>← Back to home</Link>
+          <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconArrowLeft size={13} />Back to home</Link>
         </div>
       </div>
     </main>
@@ -795,13 +795,14 @@ export default function Admin() {
           <button onClick={loadData} style={{
             background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)',
             padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontFamily: 'DM Sans',
-          }}>↻ Refresh</button>
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+          }}><IconArrowPath size={13} />Refresh</button>
           <Link href="/admin/logs" style={{
             border: '1px solid #2a4a2a', color: '#5adb5a',
             padding: '8px 14px', borderRadius: 6, fontSize: 13, fontFamily: 'DM Sans', textDecoration: 'none',
             display: 'inline-flex', alignItems: 'center', gap: 6,
           }}><IconSignal size={15} />Live Logs</Link>
-          <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>← Site</Link>
+          <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconArrowLeft size={13} />Site</Link>
           {/* Account menu */}
           <div style={{ position: 'relative' }}>
             <button onClick={() => setShowMenu(p => !p)} style={{
@@ -809,7 +810,7 @@ export default function Admin() {
               background: 'none', border: `1px solid ${isOwner ? 'var(--gold)' : '#2a4a2a'}`,
               color: isOwner ? 'var(--gold)' : '#5adb5a',
               padding: '6px 12px', borderRadius: 20, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
-            }}>{isOwner ? '👑' : '👤'} {authedAdmin?.username} ▾</button>
+            }}>{isOwner ? <IconShieldCheck size={13} /> : <IconUser size={13} />} {authedAdmin?.username} <IconChevronDown size={11} /></button>
             {showMenu && (
               <>
                 <div onClick={() => setShowMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 199 }} />
@@ -823,17 +824,17 @@ export default function Admin() {
                       width: '100%', padding: '12px 16px', background: 'none', border: 'none',
                       borderBottom: '1px solid var(--border)', color: 'var(--gold)',
                       cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13, textAlign: 'left',
-                    }}>👥 Manage Admins</button>
+                    }}>Manage Admins</button>
                   )}
                   {isOwner && <button onClick={() => { setShowMenu(false); setSettingsSuccess(false); setSettingsError(''); setShowSettingsModal(true) }} style={{
                     width: '100%', padding: '12px 16px', background: 'none', border: 'none',
                     borderBottom: '1px solid var(--border)', color: 'var(--text)',
                     cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13, textAlign: 'left',
-                  }}>⚙️ Change Username / Password</button>}
+                  }}>Change Username / Password</button>}
                   <button onClick={logout} style={{
                     width: '100%', padding: '12px 16px', background: 'none', border: 'none',
                     color: '#ff6b6b', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13, textAlign: 'left',
-                  }}>↩ Log Out</button>
+                  }}>Log Out</button>
                 </div>
               </>
             )}
@@ -850,9 +851,9 @@ export default function Admin() {
             { label: 'Active', value: stats.active, gold: true },
             { label: 'QLD', value: stats.qld },
             { label: 'SA', value: stats.sa },
-            { label: '🥇 Priority', value: stats.priority },
-            { label: '🥈 Standard', value: stats.standard },
-            { label: '🥉 Basic', value: stats.basic },
+            { label: 'Priority', value: stats.priority },
+            { label: 'Standard', value: stats.standard },
+            { label: 'Basic', value: stats.basic },
           ].map(s => (
             <div key={s.label} className={`admin-stat-card${s.gold ? ' gold' : ''}`}>
               <div style={{ fontFamily: 'Bebas Neue', fontSize: 34, lineHeight: 1, color: s.gold ? 'var(--gold)' : 'var(--text)', marginBottom: 4 }}>{s.value}</div>
@@ -879,7 +880,7 @@ export default function Admin() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.06em', color: cfg.color }}>
-                      {m.label} {monitorState === 'running' ? '● RUNNING' : monitorState === 'paused' ? '◐ PAUSED' : '○ OFFLINE'}
+                      {m.label} {monitorState === 'running' ? 'RUNNING' : monitorState === 'paused' ? 'PAUSED' : 'OFFLINE'}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                       {monitorState === 'paused'
@@ -923,7 +924,7 @@ export default function Admin() {
                 </div>
               </div>
             </div>
-            <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{showDevicesPanel ? '▲' : '▼'}</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{showDevicesPanel ? <IconChevronUp size={11} /> : <IconChevronDown size={11} />}</span>
           </div>
           {showDevicesPanel && (
             <div className="admin-section-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -968,13 +969,13 @@ export default function Admin() {
                         </div>
                       ) : (
                         <div style={{ fontSize: 14, fontWeight: 600, color: online ? 'var(--text)' : '#555' }}>
-                          💻 {b.display_name || b.hostname}
+                          {b.display_name || b.hostname}
                           {b.display_name && <span style={{ fontSize: 10, color: '#444', marginLeft: 5 }}>({b.hostname})</span>}
                         </div>
                       )}
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                         {online ? `Online · ${formatLastRun(b.last_seen)}` : `Last seen ${formatLastRun(b.last_seen)}`}
-                        {!b.enabled && online && <span style={{ color: '#C9A84C', marginLeft: 8 }}>● Paused by admin</span>}
+                        {!b.enabled && online && <span style={{ color: '#C9A84C', marginLeft: 8 }}>Paused by admin</span>}
                       </div>
                     </div>
 
@@ -994,7 +995,7 @@ export default function Admin() {
                             className={`admin-toggle ${b.enabled ? 'on' : 'off'}`}
                             style={{ fontSize: 11 }}
                           >
-                            {b.enabled ? '● ENABLED' : '○ DISABLED'}
+                            {b.enabled ? 'ENABLED' : 'DISABLED'}
                           </button>
                           {b.enabled && (
                             <button
@@ -1033,9 +1034,9 @@ export default function Admin() {
             style={{ background: '#04080e', cursor: 'pointer' }}
             onClick={() => setShowScanSettings(p => !p)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.06em', color: '#5b9bd5' }}>⚙ Scan Schedule &amp; Intervals</div>
+              <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.06em', color: '#5b9bd5' }}>Scan Schedule &amp; Intervals</div>
             </div>
-            <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{showScanSettings ? '▲' : '▼'}</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{showScanSettings ? <IconChevronUp size={11} /> : <IconChevronDown size={11} />}</span>
           </div>
           {showScanSettings && (
             <div className="admin-section-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1111,7 +1112,7 @@ export default function Admin() {
                 <button className="admin-btn admin-btn-gold" style={{ padding: '5px 14px', fontSize: 11 }} onClick={saveScanSettings} disabled={scanSettingsSaving}>
                   {scanSettingsSaving ? 'Saving...' : 'Save'}
                 </button>
-                {scanSettingsSaved && <span style={{ color: '#4ecb4e', fontSize: 11 }}>✓ Saved — bot picks up within 5 min</span>}
+                {scanSettingsSaved && <span style={{ color: '#4ecb4e', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}><IconCheck size={12} />Saved — bot picks up within 5 min</span>}
               </div>
             </div>
           )}
@@ -1124,13 +1125,13 @@ export default function Admin() {
           <div className="admin-section" style={{ borderColor: 'rgba(201,168,76,0.2)', margin: 0 }} id="admin-panel">
             <div className={`admin-section-header gold-border${showAdminPanel ? ' open' : ''}`} style={{ padding: '10px 16px' }} onClick={() => setShowAdminPanel(p => !p)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14 }}>👥</span>
+                <span style={{ display: 'inline-flex', color: 'var(--gold)' }}><IconUsers size={14} /></span>
                 <div>
                   <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.05em', color: 'var(--gold)' }}>ADMIN USERS</div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{admins.filter(a => a.role !== 'owner').length} admin{admins.filter(a => a.role !== 'owner').length !== 1 ? 's' : ''}</div>
                 </div>
               </div>
-              <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{showAdminPanel ? '▲' : '▼'}</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{showAdminPanel ? <IconChevronUp size={11} /> : <IconChevronDown size={11} />}</span>
             </div>
             {showAdminPanel && (
               <div className="admin-section-body" style={{ padding: '12px 14px' }}>
@@ -1154,7 +1155,7 @@ export default function Admin() {
                       }} style={{
                         background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer',
                         fontFamily: 'DM Sans', fontSize: 14, fontWeight: 600, padding: 0, textAlign: 'left',
-                      }}>👤 {a.username}</button>
+                      }}>{a.username}</button>
                       <span style={{
                         fontSize: 11, padding: '2px 8px', borderRadius: 10,
                         background: a.active ? '#1a2a1a' : '#2a1a1a',
@@ -1179,7 +1180,7 @@ export default function Admin() {
                       </div>
                       <button onClick={() => { setSelectedAdmin(null); setAdminLogs([]) }} style={{
                         background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12,
-                      }}>✕ Close</button>
+                      }}>Close</button>
                     </div>
                     {adminLogs.length === 0 ? (
                       <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0, textAlign: 'center', padding: '12px 0' }}>No activity recorded for this admin yet.</p>
@@ -1228,13 +1229,13 @@ export default function Admin() {
         <div className="admin-section" style={{ borderColor: 'rgba(201,168,76,0.2)', margin: 0 }}>
           <div className={`admin-section-header gold-border${showFreePanel ? ' open' : ''}`} style={{ padding: '10px 16px' }} onClick={() => setShowFreePanel(p => !p)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 14 }}>🎁</span>
+              <span style={{ display: 'inline-flex', color: 'var(--gold)' }}><IconGift size={14} /></span>
               <div>
                 <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.05em' }}>FREE CUSTOMERS</div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{freeList.length} whitelisted</div>
               </div>
             </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{showFreePanel ? '▲' : '▼'}</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{showFreePanel ? <IconChevronUp size={11} /> : <IconChevronDown size={11} />}</div>
           </div>
           {showFreePanel && (
             <div className="admin-section-body" style={{ padding: '12px 14px' }}>
@@ -1272,7 +1273,7 @@ export default function Admin() {
           <div className="admin-section" style={{ marginBottom: 16, borderColor: '#6a1a1a' }}>
             <div className="admin-section-header red-border open" style={{ background: 'linear-gradient(90deg,#1a0808,#140606)', cursor: 'default' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-                <span style={{ fontSize: 16 }}>⚠️</span>
+                <span style={{ display: 'inline-flex', color: '#ff6b6b' }}><IconExclamationTriangle size={16} /></span>
                 <div>
                   <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em', color: '#ff6b6b' }}>
                     PENDING DELETIONS — {customers.filter(c => c.pending_deletion).length} awaiting approval
@@ -1290,7 +1291,7 @@ export default function Admin() {
                     <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{c.email} · {c.phone}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => reinstateFromDeletion(c.id)} className="admin-btn admin-btn-green">↩ Reinstate</button>
+                    <button onClick={() => reinstateFromDeletion(c.id)} className="admin-btn admin-btn-green">Reinstate</button>
                     <button onClick={() => approveDelete(c.id)} className="admin-btn admin-btn-red" style={{ fontWeight: 700 }}>Confirm Delete</button>
                   </div>
                 </div>
@@ -1310,7 +1311,7 @@ export default function Admin() {
                   <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{pendingPayment.length} customer{pendingPayment.length !== 1 ? 's' : ''} registered but not yet paid</div>
                 </div>
               </div>
-              <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{showPendingPanel ? '▲' : '▼'}</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{showPendingPanel ? <IconChevronUp size={11} /> : <IconChevronDown size={11} />}</div>
             </div>
             {showPendingPanel && (
               <div className="admin-section-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1337,17 +1338,17 @@ export default function Admin() {
                         disabled={sendingReminder === c.id}
                         className="admin-btn admin-btn-gold"
                         style={{ opacity: sendingReminder === c.id ? 0.6 : 1, whiteSpace: 'nowrap' }}
-                      >{sendingReminder === c.id ? 'Sending...' : '📧 Send Link'}</button>
+                      >{sendingReminder === c.id ? 'Sending...' : 'Send Link'}</button>
                       <button
                         onClick={() => archiveCustomer(c.id, !!c.archived)}
                         className="admin-btn admin-btn-amber"
                         title="Close — hides from this list but keeps customer + vehicle history"
                         style={{ whiteSpace: 'nowrap' }}
-                      >📦 Close</button>
+                      >Close</button>
                       {isOwner ? (
-                        <button onClick={() => deleteCustomer(c.id)} className="admin-btn admin-btn-red">🗑</button>
+                        <button onClick={() => deleteCustomer(c.id)} className="admin-btn admin-btn-red"><IconTrash size={13} /></button>
                       ) : (
-                        <button onClick={() => requestDelete(c.id)} className="admin-btn admin-btn-orange">🗑</button>
+                        <button onClick={() => requestDelete(c.id)} className="admin-btn admin-btn-orange"><IconTrash size={13} /></button>
                       )}
                     </div>
                   </div>
@@ -1425,9 +1426,9 @@ export default function Admin() {
                         color: TIER_CONFIG[c.tier || 'standard'].color,
                         cursor: 'pointer', minWidth: 110,
                       }}>
-                        <option value="priority">🥇 Priority — $5</option>
-                        <option value="standard">🥈 Standard — $3</option>
-                        <option value="basic">🥉 Basic — $1.50</option>
+                        <option value="priority">Priority — $5</option>
+                        <option value="standard">Standard — $3</option>
+                        <option value="basic">Basic — $1.50</option>
                       </select>
                     </div>
                   )}
@@ -1438,15 +1439,15 @@ export default function Admin() {
                       border: `1px solid ${c.auto_payment_email ? '#2a4a2a' : 'var(--border)'}`,
                       color: c.auto_payment_email ? '#5adb5a' : 'var(--text-muted)',
                     }}>
-                      {c.auto_payment_email ? '● AUTO EMAIL' : '○ MANUAL'}
+                      {c.auto_payment_email ? 'AUTO EMAIL' : 'MANUAL'}
                     </span>
                   </div>
                   <div onClick={e => { e.stopPropagation(); toggleActive(c.id, c.active) }}>
                     <span className={`badge ${c.active ? 'badge-active' : 'badge-pending'}`} style={{ cursor: 'pointer' }}>
-                      {c.active ? '● ACTIVE' : '○ PENDING'}
+                      {c.active ? 'ACTIVE' : 'PENDING'}
                     </span>
                   </div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{expandedId === c.id ? '▲' : '▼'}</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{expandedId === c.id ? <IconChevronUp size={11} /> : <IconChevronDown size={11} />}</div>
                 </div>
 
                 {/* Expanded detail */}
@@ -1458,11 +1459,11 @@ export default function Admin() {
                         <div className="section-label" style={{ marginBottom: 0 }}>Customer Details</div>
                         {editingCustomer === c.id ? (
                           <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={() => saveCustomerEdits(c.id)} className="admin-btn admin-btn-gold">✓ Save</button>
+                            <button onClick={() => saveCustomerEdits(c.id)} className="admin-btn admin-btn-gold">Save</button>
                             <button onClick={() => setEditingCustomer(null)} className="admin-btn admin-btn-outline">Cancel</button>
                           </div>
                         ) : (
-                          <button onClick={() => { setEditingCustomer(c.id); setCustomerEdits(e => ({ ...e, [c.id]: { first_name: c.first_name, last_name: c.last_name, email: c.email, phone: c.phone, address: c.address, suburb: c.suburb, postcode: c.postcode, crn: c.crn, licence_number: c.licence_number, date_of_birth: c.date_of_birth } })) }} className="admin-btn admin-btn-outline">✏️ Edit</button>
+                          <button onClick={() => { setEditingCustomer(c.id); setCustomerEdits(e => ({ ...e, [c.id]: { first_name: c.first_name, last_name: c.last_name, email: c.email, phone: c.phone, address: c.address, suburb: c.suburb, postcode: c.postcode, crn: c.crn, licence_number: c.licence_number, date_of_birth: c.date_of_birth } })) }} className="admin-btn admin-btn-outline" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconPencil size={12} />Edit</button>
                         )}
                       </div>
                       {editingCustomer === c.id ? (
@@ -1549,8 +1550,8 @@ export default function Admin() {
                                   </div>
                                 ))}
                                 <div style={{ display: 'flex', gap: 6 }}>
-                                  <button onClick={() => saveVehicleEdits(v.id)} className="admin-btn admin-btn-gold">✓ Save</button>
-                                  <button onClick={() => setEditingVehicle(null)} className="admin-btn admin-btn-outline">✕</button>
+                                  <button onClick={() => saveVehicleEdits(v.id)} className="admin-btn admin-btn-gold">Save</button>
+                                  <button onClick={() => setEditingVehicle(null)} className="admin-btn admin-btn-outline"><IconX size={12} /></button>
                                 </div>
                               </div>
                             ) : (
@@ -1575,11 +1576,11 @@ export default function Admin() {
                           </div>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                             {editingVehicle !== v.id && (
-                              <button onClick={() => { setEditingVehicle(v.id); setVehicleEdits(eds => ({ ...eds, [v.id]: { make: v.make, model: v.model, year: v.year, colour: v.colour || '', vin: v.vin, label: v.label || '', vehicle_type: v.vehicle_type || '', build_month: v.build_month || '', damage: v.damage || '', purchase_method: v.purchase_method || '', purchased_from: v.purchased_from || '' } })) }} className="admin-btn admin-btn-outline" style={{ fontSize: 11 }}>✏️</button>
+                              <button onClick={() => { setEditingVehicle(v.id); setVehicleEdits(eds => ({ ...eds, [v.id]: { make: v.make, model: v.model, year: v.year, colour: v.colour || '', vin: v.vin, label: v.label || '', vehicle_type: v.vehicle_type || '', build_month: v.build_month || '', damage: v.damage || '', purchase_method: v.purchase_method || '', purchased_from: v.purchased_from || '' } })) }} className="admin-btn admin-btn-outline" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center' }}><IconPencil size={12} /></button>
                             )}
                             <div onClick={() => toggleVehicle(v.id, v.active)} style={{ cursor: 'pointer' }}>
                               <span className={`badge ${v.active ? 'badge-active' : 'badge-inactive'}`}>
-                                {v.active ? '● ON' : '○ OFF'}
+                                {v.active ? 'ON' : 'OFF'}
                               </span>
                             </div>
                             <button onClick={() => archiveVehicle(v.id, !!v.archived)} title="Archive vehicle" className="admin-btn admin-btn-amber" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center' }}><IconArchive size={14} /></button>
@@ -1601,14 +1602,14 @@ export default function Admin() {
                                 const btn = e.currentTarget as HTMLButtonElement
                                 if (el && el.value) {
                                   await updateCutoff(v.id, el.value, v.cutoff_date)
-                                  btn.textContent = '✅'; btn.style.background = '#5adb5a'
-                                  setTimeout(() => { btn.textContent = '✓ Save'; btn.style.background = 'var(--gold)' }, 1500)
+                                  btn.style.background = '#5adb5a'
+                                  setTimeout(() => { btn.textContent = 'Save'; btn.style.background = 'var(--gold)' }, 1500)
                                 }
                               }} style={{
                                 padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
                                 background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700,
                                 fontFamily: 'DM Sans', whiteSpace: 'nowrap', transition: 'all 0.2s',
-                              }}>✓ Save</button>
+                              }}>Save</button>
                             </div>
                             {v.previous_cutoff && (
                               <div style={{ fontSize: 11, color: '#555' }}>Was: <span style={{ textDecoration: 'line-through' }}>{v.previous_cutoff}</span></div>
@@ -1618,12 +1619,12 @@ export default function Admin() {
                           {/* Booked slot */}
                           {v.booked_date ? (
                             <div style={{ background: '#1a2a1a', border: '1px solid #2a4a2a', borderRadius: 6, padding: '10px 12px' }}>
-                              <div style={{ color: '#5adb5a', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>✅ New Booking Found</div>
+                              <div style={{ color: '#5adb5a', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>New Booking Found</div>
                               <div style={{ fontSize: 14, color: '#fff', fontWeight: 600, marginBottom: 4 }}>
                                 {(() => { const [y,m,d] = v.booked_date.split('-'); return d && m && y ? `${d}/${m}/${y}` : v.booked_date })()}
                               </div>
                               {v.booked_time && <div style={{ fontSize: 13, color: '#5ab0ff', marginBottom: 2 }}>⏰ {v.booked_time}</div>}
-                              {v.booked_location && <div style={{ fontSize: 13, color: '#5ab0ff' }}>📍 {v.booked_location}</div>}
+                              {v.booked_location && <div style={{ fontSize: 13, color: '#5ab0ff' }}>{v.booked_location}</div>}
                               {!v.booked_time && !v.booked_location && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Time/location updating next run</div>}
                               {v.booked_at && (
                                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, paddingTop: 6, borderTop: '1px solid #1f3a1f' }}>
@@ -1634,7 +1635,7 @@ export default function Admin() {
                           ) : (
                             <div style={{ background: '#0a0a0a', border: '1px solid #141414', borderRadius: 6, padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                               <div style={{ fontSize: 12, color: '#444', textAlign: 'center' }}>
-                                <div style={{ fontSize: 16, marginBottom: 4 }}>🔍</div>
+                                <div style={{ marginBottom: 4, color: 'var(--text-muted)', display: 'flex', justifyContent: 'center' }}><IconMagnifyingGlass size={16} /></div>
                                 Searching...
                               </div>
                             </div>
@@ -1644,7 +1645,7 @@ export default function Admin() {
                         {/* Manual Booking Entry — admin only */}
                         <div style={{ marginTop: 10, background: '#070707', border: '1px solid #141414', borderRadius: 6, padding: '10px 12px' }}>
                           <div style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
-                            ✏️ Admin — Manual Booking Entry
+                            Admin — Manual Booking Entry
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 6, alignItems: 'center' }}>
                             <input
@@ -1675,16 +1676,15 @@ export default function Admin() {
                                 const locEl  = document.getElementById(`manual-loc-${v.id}`) as HTMLInputElement
                                 const btn = e.currentTarget as HTMLButtonElement
                                 await updateManualBooking(v.id, dateEl?.value || '', timeEl?.value || '', locEl?.value || '')
-                                btn.textContent = '✅'
-                                btn.style.background = '#5adb5a'
-                                setTimeout(() => { btn.textContent = '✓ Save'; btn.style.background = 'var(--gold)' }, 1500)
+                                                                btn.style.background = '#5adb5a'
+                                setTimeout(() => { btn.textContent = 'Save'; btn.style.background = 'var(--gold)' }, 1500)
                               }}
                               style={{
                                 padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
                                 background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700,
                                 fontFamily: 'DM Sans', whiteSpace: 'nowrap',
                               }}
-                            >✓ Save</button>
+                            >Save</button>
                           </div>
                           <div style={{ fontSize: 11, color: '#555', marginTop: 6 }}>
                             Manually record a booking the system didn&apos;t make — shows in the green booking card above
@@ -1701,7 +1701,7 @@ export default function Admin() {
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                             <div style={{ color: v.search_after_active ? '#C9A84C' : 'var(--text-muted)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                              🔬 Admin — Search After Date
+                              Admin — Search After Date
                             </div>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                               {/* ON/OFF toggle */}
@@ -1715,7 +1715,7 @@ export default function Admin() {
                                   transition: 'all 0.2s', userSelect: 'none',
                                 }}
                               >
-                                {v.search_after_active ? '● ON' : '○ OFF'}
+                                {v.search_after_active ? 'ON' : 'OFF'}
                               </div>
                               {/* Clear button — only when active */}
                               {v.search_after_active && (
@@ -1726,7 +1726,7 @@ export default function Admin() {
                                     background: 'none', border: '1px solid #4a1a1a',
                                     color: '#ff6b6b', userSelect: 'none',
                                   }}
-                                >✕ Clear</div>
+                                >Clear</div>
                               )}
                             </div>
                           </div>
@@ -1743,8 +1743,8 @@ export default function Admin() {
                                 const btn = e.currentTarget as HTMLButtonElement
                                 if (el) {
                                   await updateSearchAfter(v.id, el.value || null, v.search_after_active ?? false)
-                                  btn.textContent = '✅'; btn.style.background = '#5adb5a'
-                                  setTimeout(() => { btn.textContent = '✓ Save'; btn.style.background = 'var(--gold)' }, 1500)
+                                  btn.style.background = '#5adb5a'
+                                  setTimeout(() => { btn.textContent = 'Save'; btn.style.background = 'var(--gold)' }, 1500)
                                 }
                               }}
                               style={{
@@ -1752,7 +1752,7 @@ export default function Admin() {
                                 background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700,
                                 fontFamily: 'DM Sans', whiteSpace: 'nowrap',
                               }}
-                            >✓ Save</button>
+                            >Save</button>
                           </div>
                           <div style={{ fontSize: 11, marginTop: 6, color: v.search_after_active && v.search_after_date ? '#C9A84C' : '#555' }}>
                             {v.search_after_active && v.search_after_date
@@ -1764,7 +1764,7 @@ export default function Admin() {
                         {/* Priority Locations */}
                         {v.state === 'QLD' && (
                           <div style={{ marginTop: 10, padding: '10px 12px', background: '#070707', borderRadius: 6, border: '1px solid #141414' }}>
-                            <div style={{ color: 'var(--gold)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>🥇 Priority Locations</div>
+                            <div style={{ color: 'var(--gold)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Priority Locations</div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 6 }}>
                               {([0, 1] as const).map(idx => {
                                 const slotLabel = idx === 0 ? 'Priority 1' : 'Priority 2'
@@ -1773,7 +1773,7 @@ export default function Admin() {
                                 return (
                                   <div key={idx}>
                                     <div style={{ fontSize: 10, color: idx === 0 ? 'var(--gold)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
-                                      {idx === 0 ? '🥇' : '🥈'} {slotLabel}
+                                      {idx + 1} {slotLabel}
                                     </div>
                                     <select
                                       value={currentVal}
@@ -1812,7 +1812,7 @@ export default function Admin() {
                         {/* Locations Checklist */}
                         {v.state === 'QLD' && (
                           <div style={{ marginTop: 10, padding: '10px 12px', background: '#070707', borderRadius: 6, border: '1px solid #141414' }}>
-                            <div style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>📍 Locations to Search</div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Locations to Search</div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                               {['Brisbane','Bundaberg','Burleigh Heads','Cairns','Mackay','Narangba','Rockhampton City','Toowoomba','Townsville','Yatala'].map(loc => {
                                 const allLocs = v.locations && v.locations.length > 0 ? v.locations : ['Brisbane','Bundaberg','Burleigh Heads','Cairns','Mackay','Narangba','Rockhampton City','Toowoomba','Townsville','Yatala']
@@ -1830,7 +1830,7 @@ export default function Admin() {
                                     color: checked ? '#5adb5a' : 'var(--text-muted)',
                                     transition: 'all 0.15s',
                                   }}>
-                                    <span>{checked ? '✓' : '○'}</span> {loc}
+                                    <span><IconCheck size={12} style={{opacity: checked ? 1 : 0.2}} /></span> {loc}
                                   </div>
                                 )
                               })}
@@ -1846,7 +1846,7 @@ export default function Admin() {
 
                         {/* Admin Notes */}
                         <div style={{ marginTop: 10, padding: '10px 12px', background: '#070707', borderRadius: 6, border: '1px solid #141414' }}>
-                          <div style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>📝 Admin Notes</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Admin Notes</div>
                           <div style={{ display: 'flex', gap: 6 }}>
                             <textarea
                               id={`notes-${v.id}`}
@@ -1864,15 +1864,15 @@ export default function Admin() {
                                 const el = document.getElementById(`notes-${v.id}`) as HTMLTextAreaElement
                                 const btn = e.currentTarget as HTMLButtonElement
                                 await updateNotes(v.id, el?.value || '')
-                                btn.textContent = '✅'; btn.style.background = '#5adb5a'
-                                setTimeout(() => { btn.textContent = '✓ Save'; btn.style.background = 'var(--gold)' }, 1500)
+                                btn.style.background = '#5adb5a'
+                                setTimeout(() => { btn.textContent = 'Save'; btn.style.background = 'var(--gold)' }, 1500)
                               }}
                               style={{
                                 padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
                                 background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700,
                                 fontFamily: 'DM Sans', whiteSpace: 'nowrap', alignSelf: 'flex-start',
                               }}
-                            >✓ Save</button>
+                            >Save</button>
                           </div>
                         </div>
                       </div>
@@ -1886,7 +1886,7 @@ export default function Admin() {
                     {/* Actions */}
                     <div className='actions-row' style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
                       {!c.active ? (
-                        <button onClick={() => sendPaymentRequest(c)} className="admin-btn admin-btn-gold" style={{ fontSize: 13, padding: '10px 20px', letterSpacing: '0.05em' }}>📧 Send Payment Request</button>
+                        <button onClick={() => sendPaymentRequest(c)} className="admin-btn admin-btn-gold" style={{ fontSize: 13, padding: '10px 20px', letterSpacing: '0.05em' }}>Send Payment Request</button>
                       ) : (
                         <div style={{ fontSize: 13, color: '#5adb5a', display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#5adb5a', display: 'inline-block', boxShadow: '0 0 6px rgba(90,219,90,0.6)' }} />
@@ -1894,11 +1894,11 @@ export default function Admin() {
                         </div>
                       )}
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => archiveCustomer(c.id, !!c.archived)} className="admin-btn admin-btn-amber">📦 Archive</button>
+                        <button onClick={() => archiveCustomer(c.id, !!c.archived)} className="admin-btn admin-btn-amber">Archive</button>
                         {isOwner ? (
                           <button onClick={() => deleteCustomer(c.id)} className="admin-btn admin-btn-red">Delete</button>
                         ) : (
-                          <button onClick={() => requestDelete(c.id)} className="admin-btn admin-btn-orange">🗑 Request Delete</button>
+                          <button onClick={() => requestDelete(c.id)} className="admin-btn admin-btn-orange">Request Delete</button>
                         )}
                       </div>
                     </div>
@@ -1916,10 +1916,10 @@ export default function Admin() {
               style={{ background: 'linear-gradient(90deg, #151005, #111)', cursor: 'pointer' }}
               onClick={() => setShowArchivedPanel(p => !p)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span>📦</span>
+                <span style={{ display: 'inline-flex', color: '#C9A84C' }}><IconArchive size={14} /></span>
                 <span style={{ fontFamily: 'Bebas Neue', fontSize: 17, letterSpacing: '0.08em', color: '#C9A84C' }}>ARCHIVED ({archived.length})</span>
               </div>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{showArchivedPanel ? '▲ HIDE' : '▼ SHOW'}</span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{showArchivedPanel ? 'HIDE' : 'SHOW'}</span>
             </div>
 
             {showArchivedPanel && (
@@ -1948,8 +1948,8 @@ export default function Admin() {
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 90, textAlign: 'right' }}>
                         {new Date(c.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}
                       </div>
-                      <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#1a1200', border: '1px solid #4a3a00', color: '#C9A84C' }}>📦 ARCHIVED</span>
-                      <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{expandedId === c.id ? '▲' : '▼'}</div>
+                      <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#1a1200', border: '1px solid #4a3a00', color: '#C9A84C' }}>ARCHIVED</span>
+                      <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{expandedId === c.id ? <IconChevronUp size={11} /> : <IconChevronDown size={11} />}</div>
                     </div>
 
                     {/* Expanded detail — same as main list */}
@@ -1961,11 +1961,11 @@ export default function Admin() {
                             <div className="section-label" style={{ marginBottom: 0 }}>Customer Details</div>
                             {editingCustomer === c.id ? (
                               <div style={{ display: 'flex', gap: 8 }}>
-                                <button onClick={() => saveCustomerEdits(c.id)} className="admin-btn admin-btn-gold">✓ Save</button>
+                                <button onClick={() => saveCustomerEdits(c.id)} className="admin-btn admin-btn-gold">Save</button>
                                 <button onClick={() => setEditingCustomer(null)} className="admin-btn admin-btn-outline">Cancel</button>
                               </div>
                             ) : (
-                              <button onClick={() => { setEditingCustomer(c.id); setCustomerEdits(e => ({ ...e, [c.id]: { first_name: c.first_name, last_name: c.last_name, email: c.email, phone: c.phone, address: c.address, suburb: c.suburb, postcode: c.postcode, crn: c.crn, licence_number: c.licence_number, date_of_birth: c.date_of_birth } })) }} className="admin-btn admin-btn-outline">✏️ Edit</button>
+                              <button onClick={() => { setEditingCustomer(c.id); setCustomerEdits(e => ({ ...e, [c.id]: { first_name: c.first_name, last_name: c.last_name, email: c.email, phone: c.phone, address: c.address, suburb: c.suburb, postcode: c.postcode, crn: c.crn, licence_number: c.licence_number, date_of_birth: c.date_of_birth } })) }} className="admin-btn admin-btn-outline" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconPencil size={12} />Edit</button>
                             )}
                           </div>
                           {editingCustomer === c.id ? (
@@ -2016,9 +2016,9 @@ export default function Admin() {
                               </div>
                               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                                 {v.archived ? (
-                                  <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, background: '#1a1200', border: '1px solid #4a3a00', color: '#C9A84C' }}>📦 ARCHIVED</span>
+                                  <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, background: '#1a1200', border: '1px solid #4a3a00', color: '#C9A84C' }}>ARCHIVED</span>
                                 ) : (
-                                  <span className={`badge ${v.active ? 'badge-active' : 'badge-inactive'}`}>{v.active ? '● ON' : '○ OFF'}</span>
+                                  <span className={`badge ${v.active ? 'badge-active' : 'badge-inactive'}`}>{v.active ? 'ON' : 'OFF'}</span>
                                 )}
                                 <button onClick={() => archiveVehicle(v.id, !!v.archived)} title={v.archived ? 'Unarchive vehicle' : 'Archive vehicle'} style={{
                                   padding: '3px 8px', borderRadius: 4, background: 'none',
@@ -2045,7 +2045,7 @@ export default function Admin() {
                               </div>
                               {v.booked_date && (
                                 <div style={{ background: '#0a1f0a', borderRadius: 6, padding: '8px 10px', border: '1px solid #2a4a2a' }}>
-                                  <div style={{ color: '#5adb5a', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>✅ Booked</div>
+                                  <div style={{ color: '#5adb5a', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Booked</div>
                                   <div style={{ fontWeight: 600, color: '#5adb5a' }}>{v.booked_date}{v.booked_time ? ` · ${v.booked_time}` : ''}</div>
                                   {v.booked_location && <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>{v.booked_location}</div>}
                                   {v.booked_at && <div style={{ color: 'var(--text-muted)', fontSize: 10, marginTop: 4 }}>Booked {new Date(v.booked_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</div>}
@@ -2057,11 +2057,11 @@ export default function Admin() {
 
                         {/* Actions */}
                         <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-                          <button onClick={() => archiveCustomer(c.id, true)} className="admin-btn admin-btn-green">↩ Unarchive</button>
+                          <button onClick={() => archiveCustomer(c.id, true)} className="admin-btn admin-btn-green">Unarchive</button>
                           {isOwner ? (
                             <button onClick={() => deleteCustomer(c.id)} className="admin-btn admin-btn-red">Delete Customer</button>
                           ) : (
-                            <button onClick={() => requestDelete(c.id)} className="admin-btn admin-btn-orange">🗑 Request Delete</button>
+                            <button onClick={() => requestDelete(c.id)} className="admin-btn admin-btn-orange">Request Delete</button>
                           )}
                         </div>
                       </div>
@@ -2081,7 +2081,7 @@ export default function Admin() {
           <div className="card" style={{ maxWidth: 400, width: '100%', background: 'linear-gradient(135deg,#161616,#111)', border: '1px solid rgba(201,168,76,0.2)', boxShadow: '0 24px 64px rgba(0,0,0,0.7)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h3 style={{ margin: 0, fontSize: 22 }}>ACCOUNT SETTINGS</h3>
-              <button onClick={() => setShowSettingsModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer' }}>✕</button>
+              <button onClick={() => setShowSettingsModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'inline-flex' }}><IconX size={20} /></button>
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>Leave blank to keep unchanged.</div>
             <div style={{ marginBottom: 12 }}>
@@ -2100,7 +2100,7 @@ export default function Admin() {
                 placeholder="Confirm new password" />
             </div>
             {settingsError && <p style={{ color: '#ff6b6b', fontSize: 13, marginBottom: 12 }}>{settingsError}</p>}
-            {settingsSuccess && <p style={{ color: '#5adb5a', fontSize: 13, marginBottom: 12 }}>✅ Updated successfully</p>}
+            {settingsSuccess && <p style={{ color: '#5adb5a', fontSize: 13, marginBottom: 12 }}>Updated successfully</p>}
             <button className="btn-gold" onClick={changeCredentials}>SAVE CHANGES</button>
           </div>
         </div>

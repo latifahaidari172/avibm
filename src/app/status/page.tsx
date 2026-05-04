@@ -1,11 +1,12 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { IconCheckCircle, IconArrowLeft, IconMagnifyingGlass } from '@/components/icons'
 
 const TIER_LABEL: Record<string, string> = {
-  priority: '🥇 Priority',
-  standard: '🥈 Standard',
-  basic: '🥉 Basic',
+  priority: 'Priority',
+  standard: 'Standard',
+  basic: 'Basic',
 }
 
 type Vehicle = {
@@ -62,7 +63,9 @@ export default function StatusPage() {
     <main style={{ minHeight: '100vh', padding: '40px 20px' }}>
       <div style={{ maxWidth: 560, margin: '0 auto' }}>
 
-        <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>← Back</Link>
+        <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <IconArrowLeft size={14} />Back
+        </Link>
 
         <div style={{ marginTop: 24, marginBottom: 32 }}>
           <div className="section-label" style={{ marginBottom: 8 }}>Monitor Lookup</div>
@@ -123,7 +126,7 @@ export default function StatusPage() {
                     alignItems: 'center',
                     gap: 14,
                   }}>
-                    <div style={{ fontSize: 28 }}>✅</div>
+                    <div style={{ color: '#5adb5a', display: 'inline-flex' }}><IconCheckCircle size={28} /></div>
                     <div>
                       <div style={{ fontFamily: 'Bebas Neue', fontSize: 20, color: '#5adb5a', letterSpacing: '0.05em' }}>All bookings confirmed</div>
                       <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>A confirmation email was sent to you — check your inbox.</div>
@@ -185,7 +188,7 @@ export default function StatusPage() {
                       background: hasBooking ? '#0a2a0a' : v.active ? '#1a2a1a' : 'var(--dark-3)',
                       border: `1px solid ${hasBooking ? '#3a6a3a' : v.active ? '#2a4a2a' : 'var(--border)'}`,
                       color: hasBooking ? '#5adb5a' : v.active ? '#5adb5a' : 'var(--text-muted)',
-                    }}>{hasBooking ? '✓ BOOKED' : v.active ? '● ACTIVE' : '○ PAUSED'}</div>
+                    }}>{hasBooking ? 'BOOKED' : v.active ? 'ACTIVE' : 'PAUSED'}</div>
                   </div>
 
                   {hasBooking && (
@@ -196,8 +199,8 @@ export default function StatusPage() {
                       padding: '14px 16px',
                       marginBottom: 14,
                     }}>
-                      <div style={{ fontSize: 11, color: '#5adb5a', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 10 }}>
-                        ✅ BOOKING CONFIRMED
+                      <div style={{ fontSize: 11, color: '#5adb5a', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <IconCheckCircle size={14} />BOOKING CONFIRMED
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -237,7 +240,11 @@ export default function StatusPage() {
                       {!hasBooking && v.active && (
                         <tr>
                           <td style={{ padding: '5px 0', fontSize: 12, color: 'var(--text-muted)' }}>Status</td>
-                          <td style={{ padding: '5px 0', fontSize: 13, color: 'var(--gold)' }}>🔍 Searching for earlier slot...</td>
+                          <td style={{ padding: '5px 0', fontSize: 13, color: 'var(--gold)' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <IconMagnifyingGlass size={13} />Searching for earlier slot…
+                            </span>
+                          </td>
                         </tr>
                       )}
                     </tbody>
