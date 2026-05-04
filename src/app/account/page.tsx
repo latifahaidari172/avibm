@@ -1,10 +1,35 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { createHash } from 'crypto'
 import { createSupabaseServer } from '@/lib/supabase/server'
 
-// Customer profile dashboard. Shows their personal details (read), their
-// active vehicles, their preferred locations, and a button to add a new
-// vehicle (which short-circuits all the personal-details re-typing).
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+function customerRefOf(email?: string | null): string {
+  if (!email) return 'P-??????'
+  const h = createHash('sha256').update(email.trim().toLowerCase()).digest('hex')
+  return 'P-' + h.slice(0, 6).toUpperCase()
+}
+function vehicleTypePrefix(t?: string | null): string {
+  const v = (t || '').trim().toLowerCase()
+  if (v.startsWith('motor') || v.startsWith('bike')) return 'M'
+  if (v.startsWith('truck') || v.startsWith('bus') || v.startsWith('plant') || v.startsWith('heavy')) return 'H'
+  if (v.startsWith('caravan') || v.startsWith('rv')) return 'R'
+  if (v.startsWith('trailer')) return 'L'
+  return 'C'
+}
+function vehicleRefOf(v: any): string {
+  const parts = [v?.vin || '', v?.colour || '', v?.make || '', v?.model || '', String(v?.year || '')].join('|').toLowerCase()
+  if (!parts.replace(/\|/g, '').trim()) return `${vehicleTypePrefix(v?.vehicle_type)}-??????`
+  const h = createHash('sha256').update(parts).digest('hex')
+  return `${vehicleTypePrefix(v?.vehicle_type)}-${h.slice(0, 6).toUpperCase()}`
+}
+
+// Customer profile dashboard. Queries Supabase directly via the
+// service-role key (server-side only — the key never reaches the
+// browser). This avoids the Server-Component-fetching-its-own-API-route
+// pitfall that broke first attempt.
 export default async function AccountPage() {
   const supabase = await createSupabaseServer()
   const { data: { user } } = await supabase.auth.getUser()
@@ -14,31 +39,42 @@ export default async function AccountPage() {
   const customerId = user.user_metadata?.customer_id as string | undefined
   if (!customerId) redirect('/account/complete-profile')
 
-  // Fetch via service-role API so RLS doesn't block reads from the
-  // customer-side. We pass the customer_id explicitly + the API verifies
-  // it matches the signed-in user's metadata.
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || ''
-  const res = await fetch(
-    `${baseUrl}/api/account/profile?customer_id=${customerId}`,
-    { cache: 'no-store', headers: { 'x-user-id': user.id } },
-  )
   let customer: any = null
-  if (res.ok) customer = await res.json()
+  try {
+    const r = await fetch(
+      `${supabaseUrl}/rest/v1/customers?id=eq.${customerId}&select=*,vehicles(*)`,
+      {
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        cache: 'no-store',
+      },
+    )
+    if (r.ok) {
+      const arr = await r.json()
+      customer = Array.isArray(arr) ? arr[0] : null
+    }
+  } catch {}
 
   if (!customer) {
     return (
       <Page>
         <h1 style={h1}>Profile not found</h1>
-        <p style={muted}>We couldn't load your profile. Try <Link href="/account/sign-in" style={link}>signing in again</Link>.</p>
+        <p style={muted}>We couldn&apos;t load your profile. Try <Link href="/account/sign-in" style={link}>signing in again</Link>.</p>
       </Page>
     )
   }
 
+  customer.ref = customerRefOf(customer.email)
+  if (Array.isArray(customer.vehicles)) {
+    customer.vehicles = customer.vehicles.map((v: any) => ({ ...v, ref: vehicleRefOf(v) }))
+  }
   const activeVehicles = (customer.vehicles || []).filter((v: any) => !v.archived)
 
   return (
     <Page>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 24, gap: 12, flexWrap: 'wrap' }}>
         <div>
           <h1 style={h1}>Hi, {customer.first_name}</h1>
           <p style={muted}>{customer.email} · {customer.phone}</p>
@@ -50,11 +86,10 @@ export default async function AccountPage() {
       </div>
 
       <Section title="Personal details">
-        <Detail label="Address" value={`${customer.address || ''}, ${customer.suburb || ''} ${customer.postcode || ''}`} />
+        <Detail label="Address" value={`${customer.address || ''}${customer.suburb ? ', ' + customer.suburb : ''} ${customer.postcode || ''}`.trim()} />
         <Detail label="CRN (QLD)" value={customer.crn || '—'} />
         <Detail label="Licence" value={customer.licence_number || '—'} />
         <Detail label="DOB" value={customer.date_of_birth || '—'} />
-        <Link href="/account/edit-details" style={link}>Edit details</Link>
       </Section>
 
       <Section title={`Vehicles (${activeVehicles.length})`}>
@@ -64,7 +99,10 @@ export default async function AccountPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {activeVehicles.map((v: any) => (
               <div key={v.id} style={vehicleCard}>
-                <div style={{ fontWeight: 600 }}>{v.label || `${v.make} ${v.model}`} <span style={{ color: '#888', fontWeight: 400, fontSize: 12 }}>· {v.year}</span></div>
+                <div style={{ fontWeight: 600 }}>
+                  {v.label || `${v.make} ${v.model}`}
+                  <span style={{ color: '#888', fontWeight: 400, fontSize: 12 }}> · {v.year}</span>
+                </div>
                 <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>VIN: {v.vin}</div>
                 {v.booked_date && (
                   <div style={{ fontSize: 12, color: '#5adb5a', marginTop: 4 }}>
@@ -87,14 +125,14 @@ export default async function AccountPage() {
       </Section>
 
       <Section title="Preferred inspection locations">
-        {Array.isArray(customer.preferred_locations) && customer.preferred_locations.length > 0 ? (
+        {Array.isArray(customer.locations) && customer.locations.length > 0 ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {customer.preferred_locations.map((loc: string) => (
+            {customer.locations.map((loc: string) => (
               <span key={loc} style={pill}>{loc}</span>
             ))}
           </div>
         ) : (
-          <p style={muted}>No preferred locations set. <Link href="/account/edit-details" style={link}>Set them in details</Link>.</p>
+          <p style={muted}>No preferred locations set yet.</p>
         )}
       </Section>
     </Page>
@@ -119,7 +157,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: 'flex', gap: 12, padding: '5px 0', fontSize: 13 }}>
-      <div style={{ width: 110, color: '#888' }}>{label}</div>
+      <div style={{ width: 110, color: '#888', flexShrink: 0 }}>{label}</div>
       <div>{value || '—'}</div>
     </div>
   )
