@@ -117,7 +117,7 @@ export default function AddVehiclePage() {
     setErr(null)
     if (!c.first_name || !c.last_name || !c.phone || !c.address) return setErr('Fill in name, phone, address.')
     const phoneErr = validateAuMobile(c.phone); if (phoneErr) return setErr(phoneErr)
-    const pcErr = validatePostcode(c.postcode); if (pcErr) return setErr(pcErr)
+    const pcErr = validatePostcode(c.postcode, c.state); if (pcErr) return setErr(pcErr)
     if (c.state === 'QLD') { const ce = validateCrn(c.crn); if (ce) return setErr(ce) }
     if (!v.make || !v.model) return setErr('Fill in vehicle make and model.')
     const yearErr = validateYear(v.year); if (yearErr) return setErr(yearErr)

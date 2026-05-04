@@ -147,7 +147,7 @@ export default function RegisterQLD() {
     if (!/^\S+@\S+\.\S+$/.test(r.email)) return 'Please enter a valid email.'
     const phoneErr = validateAuMobile(r.phone)
     if (phoneErr) return phoneErr
-    const pcErr = validatePostcode(r.postcode)
+    const pcErr = validatePostcode(r.postcode, 'QLD')
     if (pcErr) return pcErr
     const crnErr = validateCrn(r.crn)
     if (crnErr) return crnErr
