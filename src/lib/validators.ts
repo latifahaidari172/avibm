@@ -1,6 +1,29 @@
 // Typo-proof validation for AVIBM registration + add-vehicle forms.
 // Returns null if valid, or an error string to display to the user.
 
+// Street address — just street number + street name. Should NOT contain
+// the suburb, postcode, or state — those go in their own fields.
+// Catches the common mistake of pasting the full postal address.
+export function validateStreetAddress(raw: string): string | null {
+  const v = (raw || '').trim()
+  if (!v) return 'Street address is required.'
+  if (v.length < 5) return 'Street address looks too short.'
+  if (/\b\d{4}\b/.test(v)) return 'Street address should not include a postcode — put the 4-digit postcode in its own field below.'
+  if (/\b(NSW|VIC|QLD|SA|WA|TAS|ACT|NT)\b/i.test(v)) return 'Street address should not include a state abbreviation — the form already knows your state.'
+  return null
+}
+
+// Suburb — letters, spaces, hyphens, apostrophes only. No digits.
+// Customers commonly type "Brisbane 4125" thinking it's "city + postcode".
+export function validateSuburb(raw: string): string | null {
+  const v = (raw || '').trim()
+  if (!v) return 'Suburb is required.'
+  if (/\d/.test(v)) return 'Suburb should be just the suburb name (e.g. "Park Ridge") — no postcode, no numbers. Postcode goes in its own field.'
+  if (v.length < 2) return 'Suburb name too short.'
+  if (v.length > 60) return 'Suburb name too long.'
+  return null
+}
+
 // VIN — Australian + global vehicle identifier rules.
 // Modern (post-1981 worldwide): 17 chars, 0-9 + A-Z but never I, O, Q
 // (those would be confused with 1, 0). Older AU vehicles + imports may

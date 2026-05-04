@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowser } from '@/lib/supabase/client'
-import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, normaliseAuMobile, validateCrn } from '@/lib/validators'
+import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, normaliseAuMobile, validateCrn, validateStreetAddress, validateSuburb } from '@/lib/validators'
 
 const WOVI_LOCATIONS = [
   'Brisbane', 'Bundaberg', 'Burleigh Heads', 'Cairns', 'Mackay',
@@ -117,6 +117,8 @@ export default function AddVehiclePage() {
     setErr(null)
     if (!c.first_name || !c.last_name || !c.phone || !c.address) return setErr('Fill in name, phone, address.')
     const phoneErr = validateAuMobile(c.phone); if (phoneErr) return setErr(phoneErr)
+    const addrErr = validateStreetAddress(c.address); if (addrErr) return setErr(addrErr)
+    const subErr = validateSuburb(c.suburb); if (subErr) return setErr(subErr)
     const pcErr = validatePostcode(c.postcode, c.state); if (pcErr) return setErr(pcErr)
     if (c.state === 'QLD') { const ce = validateCrn(c.crn); if (ce) return setErr(ce) }
     if (c.state === 'SA' && !c.licence_number.trim()) return setErr('Licence number is required for SA.')
@@ -185,9 +187,12 @@ export default function AddVehiclePage() {
               <Field label="Last name"  value={c.last_name}  onChange={x => updC('last_name', x)} />
               <Field label="Email" value={c.email} onChange={x => updC('email', x.toLowerCase())} fullRow />
               <Field label="Mobile (04…)" value={c.phone} onChange={x => updC('phone', x.replace(/\D/g, '').replace(/^61/, '0').slice(0, 10))} fullRow />
-              <Field label="Address" value={c.address} onChange={x => updC('address', x)} fullRow />
-              <Field label="Suburb" value={c.suburb} onChange={x => updC('suburb', x)} />
-              <Field label="Postcode" value={c.postcode} onChange={x => updC('postcode', x)} />
+              <Field label="Street address (number + name)" value={c.address} onChange={x => updC('address', x)} fullRow />
+              <Field label="Suburb (no postcode)" value={c.suburb} onChange={x => updC('suburb', x.replace(/\d/g, ''))} />
+              <Field label="Postcode" value={c.postcode} onChange={x => updC('postcode', x.replace(/\D/g, '').slice(0, 4))} />
+              <div style={{ gridColumn: 'span 2', fontSize: 11, color: '#888', marginTop: -4 }}>
+                Suburb is just your suburb name (e.g. <strong>Park Ridge</strong>) — not <strong>Brisbane 4125</strong>.
+              </div>
               {c.state === 'QLD' && <Field label="CRN" value={c.crn} onChange={x => updC('crn', x.replace(/\D/g, '').slice(0, 10))} />}
               {c.state === 'SA' && <Field label="Licence number" value={c.licence_number} onChange={x => updC('licence_number', x)} />}
               <Field label="Date of birth" type="date" value={c.date_of_birth} onChange={x => updC('date_of_birth', x)} />

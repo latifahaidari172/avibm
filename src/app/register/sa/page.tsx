@@ -1,6 +1,6 @@
 'use client'
 
-import { validateEmail, validatePostcode, validateAuMobile, validateCutoffDate, normaliseAuMobile, suggestEmailFix } from '@/lib/validators'
+import { validateEmail, validatePostcode, validateAuMobile, validateCutoffDate, normaliseAuMobile, suggestEmailFix, validateStreetAddress, validateSuburb } from '@/lib/validators'
 import { useState, useRef } from 'react'
 import Link from 'next/link'
 
@@ -60,6 +60,10 @@ export default function RegisterSA() {
     if (emailErr) { setError(emailErr); return }
     const phoneErr = validateAuMobile(form.phone)
     if (phoneErr) { setError(phoneErr); return }
+    const addrErr = validateStreetAddress(form.address)
+    if (addrErr) { setError(addrErr); return }
+    const subErr = validateSuburb(form.suburb)
+    if (subErr) { setError(subErr); return }
     const pcErr = validatePostcode(form.postcode, 'SA')
     if (pcErr) { setError(pcErr); return }
     const cutoffErr = validateCutoffDate(form.cutoff_date)
@@ -153,7 +157,7 @@ export default function RegisterSA() {
             <div><label>Email</label><input type="email" value={form.email} onChange={e => update('email', e.target.value.toLowerCase())} placeholder="john@email.com" style={{ textTransform: 'lowercase' }} /></div>
             <div><label>Mobile</label><input inputMode="numeric" value={form.phone} onChange={e => update('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="0412345678" /></div>
             <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
-              <label>Street Address</label>
+              <label>Street Address <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 11 }}>(street number + name only)</span></label>
               <div style={{ position: 'relative' }}>
                 <input
                   value={form.address}
@@ -164,7 +168,7 @@ export default function RegisterSA() {
                   }}
                   onFocus={() => setAddrFocused(true)}
                   onBlur={() => setTimeout(() => setAddrFocused(false), 200)}
-                  placeholder="Start typing your address..."
+                  placeholder="42 Pirie Street"
                   autoComplete="off"
                 />
                 {addrLoading && (
@@ -213,8 +217,11 @@ export default function RegisterSA() {
                 </div>
               )}
             </div>
-            <div><label>Suburb</label><input value={form.suburb} onChange={e => update('suburb', e.target.value)} placeholder="Adelaide" /></div>
-            <div><label>Postcode</label><input value={form.postcode} onChange={e => update('postcode', e.target.value)} placeholder="5000" /></div>
+            <div><label>Suburb</label><input value={form.suburb} onChange={e => update('suburb', e.target.value.replace(/[\d]/g, ''))} placeholder="Norwood" /></div>
+            <div><label>Postcode</label><input value={form.postcode} onChange={e => update('postcode', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="5067" inputMode="numeric" maxLength={4} /></div>
+            <div style={{ gridColumn: '1 / -1', fontSize: 11, color: 'var(--text-muted)', marginTop: -4 }}>
+              Tip: pick an address suggestion above to autofill suburb + postcode. Suburb = your suburb name only (e.g. <strong>Norwood</strong>, not <strong>Adelaide 5067</strong>).
+            </div>
             <div><label>SA Licence Number</label><input value={form.licence_number} onChange={e => update('licence_number', e.target.value)} placeholder="Your licence number" /></div>
             <div><label>Date of Birth</label><input type="date" value={form.date_of_birth} onChange={e => update('date_of_birth', e.target.value)} /></div>
             <div style={{ gridColumn: '1 / -1' }}>
