@@ -112,20 +112,27 @@ export default function AddVehiclePage() {
     })
   }
 
+  function validateAll(): string {
+    if (!c.first_name || !c.last_name || !c.phone || !c.address) return 'Fill in name, phone, address.'
+    const phoneErr = validateAuMobile(c.phone);            if (phoneErr)  return phoneErr
+    const addrErr  = validateStreetAddress(c.address);     if (addrErr)   return addrErr
+    const subErr   = validateSuburb(c.suburb);             if (subErr)    return subErr
+    const pcErr    = validatePostcode(c.postcode, c.state); if (pcErr)    return pcErr
+    if (c.state === 'QLD') { const ce = validateCrn(c.crn); if (ce) return ce }
+    if (c.state === 'SA' && !c.licence_number.trim()) return 'Licence number is required for SA.'
+    if (!v.make || !v.model) return 'Fill in vehicle make and model.'
+    const yearErr   = validateYear(v.year);                if (yearErr)   return yearErr
+    const vinErr    = validateVin(v.vin);                  if (vinErr)    return vinErr
+    const cutoffErr = validateCutoffDate(v.cutoff_date);   if (cutoffErr) return cutoffErr
+    return ''
+  }
+  const formErr = validateAll()
+  const formValid = formErr === ''
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setErr(null)
-    if (!c.first_name || !c.last_name || !c.phone || !c.address) return setErr('Fill in name, phone, address.')
-    const phoneErr = validateAuMobile(c.phone); if (phoneErr) return setErr(phoneErr)
-    const addrErr = validateStreetAddress(c.address); if (addrErr) return setErr(addrErr)
-    const subErr = validateSuburb(c.suburb); if (subErr) return setErr(subErr)
-    const pcErr = validatePostcode(c.postcode, c.state); if (pcErr) return setErr(pcErr)
-    if (c.state === 'QLD') { const ce = validateCrn(c.crn); if (ce) return setErr(ce) }
-    if (c.state === 'SA' && !c.licence_number.trim()) return setErr('Licence number is required for SA.')
-    if (!v.make || !v.model) return setErr('Fill in vehicle make and model.')
-    const yearErr = validateYear(v.year); if (yearErr) return setErr(yearErr)
-    const vinErr = validateVin(v.vin); if (vinErr) return setErr(vinErr)
-    const cutoffErr = validateCutoffDate(v.cutoff_date); if (cutoffErr) return setErr(cutoffErr)
+    if (!formValid) { setErr(formErr); return }
 
     setBusy(true)
     const res = await fetch('/api/account/add-vehicle', {
@@ -276,9 +283,18 @@ export default function AddVehiclePage() {
 
           {err && <div style={{ padding: 12, background: '#1f0c0c', border: '1px solid #3a1a1a', borderRadius: 6, color: '#f87171', fontSize: 13 }}>{err}</div>}
 
+          {!formValid && !err && (
+            <div style={{ fontSize: 12, color: '#888', textAlign: 'right' }}>{formErr}</div>
+          )}
+
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button type="button" onClick={() => router.replace('/account')} style={ghostBtn}>Cancel</button>
-            <button type="submit" disabled={busy} style={primary}>
+            <button
+              type="submit"
+              disabled={busy || !formValid}
+              style={(!formValid && !busy) ? { ...primary, opacity: 0.4, cursor: 'not-allowed' } : primary}
+              title={formValid ? '' : formErr}
+            >
               {busy ? 'Adding…' : '+ Add vehicle'}
             </button>
           </div>
