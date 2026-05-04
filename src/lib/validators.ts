@@ -14,11 +14,11 @@ export function validateStreetAddress(raw: string): string | null {
 }
 
 // Suburb — letters, spaces, hyphens, apostrophes only. No digits.
-// Customers commonly type "Brisbane 4125" thinking it's "city + postcode".
+// Customers commonly type "<City> <postcode>" thinking it's one field.
 export function validateSuburb(raw: string): string | null {
   const v = (raw || '').trim()
   if (!v) return 'Suburb is required.'
-  if (/\d/.test(v)) return 'Suburb should be just the suburb name (e.g. "Park Ridge") — no postcode, no numbers. Postcode goes in its own field.'
+  if (/\d/.test(v)) return 'Suburb should be just the suburb name — no postcode, no numbers. Postcode goes in its own field.'
   if (v.length < 2) return 'Suburb name too short.'
   if (v.length > 60) return 'Suburb name too long.'
   return null
