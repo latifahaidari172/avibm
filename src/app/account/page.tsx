@@ -112,6 +112,9 @@ export default async function AccountPage() {
           <Detail label="Licence (SA)" value={customer.licence_number || '—'} />
         )}
         <Detail label="DOB" value={customer.date_of_birth || '—'} />
+        <div style={{ marginTop: 10 }}>
+          <Link href="/account/edit-details" style={link}>Edit details →</Link>
+        </div>
       </Section>
 
       <Section title={`Vehicles (${activeVehicles.length})`}>

@@ -56,3 +56,48 @@ export async function GET(req: NextRequest) {
   if (Array.isArray(c.vehicles)) c.vehicles = c.vehicles.map((v: any) => ({ ...v, ref: vehicleRef(v) }))
   return NextResponse.json(c)
 }
+
+// PATCH — update editable customer fields. Email + tier + state are NOT
+// in the whitelist:
+//  - email is the auth identity (changing it would orphan the OAuth link)
+//  - state determines which bot pipeline runs and which fees apply
+//  - tier ties to billing
+const EDITABLE_FIELDS = [
+  'first_name', 'last_name', 'phone',
+  'address', 'suburb', 'postcode',
+  'crn', 'licence_number', 'date_of_birth',
+]
+
+export async function PATCH(req: NextRequest) {
+  const supabase = await createSupabaseServer()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+  const linkedId = user.user_metadata?.customer_id as string | undefined
+  if (!linkedId) return NextResponse.json({ error: 'no profile linked' }, { status: 404 })
+
+  const body = await req.json()
+  const patch: Record<string, unknown> = {}
+  for (const k of EDITABLE_FIELDS) {
+    if (k in body) patch[k] = body[k]
+  }
+  if (Object.keys(patch).length === 0 && !Array.isArray(body.preferred_locations)) {
+    return NextResponse.json({ error: 'nothing to update' }, { status: 400 })
+  }
+
+  if (Object.keys(patch).length > 0) {
+    const r = await fetch(
+      `${supabaseUrl}/rest/v1/customers?id=eq.${linkedId}`,
+      { method: 'PATCH', headers: { ...h(), Prefer: 'return=representation' }, body: JSON.stringify(patch) },
+    )
+    if (!r.ok) return NextResponse.json({ error: await r.text() }, { status: 400 })
+  }
+
+  // preferred_locations live in user_metadata, not on the customers row.
+  if (Array.isArray(body.preferred_locations)) {
+    await supabase.auth.updateUser({
+      data: { customer_id: linkedId, preferred_locations: body.preferred_locations },
+    })
+  }
+
+  return NextResponse.json({ ok: true })
+}
