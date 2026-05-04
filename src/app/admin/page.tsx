@@ -1921,8 +1921,8 @@ export default function Admin() {
                         <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{c.email} · {c.phone}</div>
                       </div>
                       <div style={{ textAlign: 'center', minWidth: 60 }}>
-                        <div style={{ fontFamily: 'Bebas Neue', fontSize: 22, color: 'var(--gold)' }}>{c.vehicles?.filter(v => v.archived).length || 0}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>ARCHIVED VEHICLE{(c.vehicles?.filter(v => v.archived).length || 0) !== 1 ? 'S' : ''}</div>
+                        <div style={{ fontFamily: 'Bebas Neue', fontSize: 22, color: 'var(--gold)' }}>{(c.archived ? c.vehicles?.length : c.vehicles?.filter(v => v.archived).length) || 0}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>ARCHIVED VEHICLE{((c.archived ? c.vehicles?.length : c.vehicles?.filter(v => v.archived).length) || 0) !== 1 ? 'S' : ''}</div>
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 90, textAlign: 'right' }}>
                         {new Date(c.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}
@@ -1982,7 +1982,7 @@ export default function Admin() {
                         </div>
 
                         <div className="section-label" style={{ marginBottom: 12 }}>Archived Vehicles</div>
-                        {c.vehicles?.filter(v => v.archived).map(v => (
+                        {(c.archived ? c.vehicles : c.vehicles?.filter(v => v.archived))?.map(v => (
                           <div key={v.id} style={{
                             background: v.booked_date ? '#0d1f0d' : 'var(--dark-3)',
                             border: `1px solid ${v.booked_date ? '#2a4a2a' : 'var(--border)'}`,
