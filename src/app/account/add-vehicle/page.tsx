@@ -74,7 +74,7 @@ export default function AddVehiclePage() {
       setC(s => ({
         ...s,
         state: cust.state || 'QLD',
-        tier: cust.tier || 'priority',
+        tier: 'priority',
         first_name: cust.first_name || '',
         last_name: cust.last_name || '',
         email: cust.email || '',
