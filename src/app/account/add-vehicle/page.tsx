@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowser } from '@/lib/supabase/client'
+import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, normaliseAuMobile } from '@/lib/validators'
 
 const WOVI_LOCATIONS = [
   'Brisbane', 'Bundaberg', 'Burleigh Heads', 'Cairns', 'Mackay',
@@ -115,10 +116,13 @@ export default function AddVehiclePage() {
     e.preventDefault()
     setErr(null)
     if (!c.first_name || !c.last_name || !c.phone || !c.address) return setErr('Fill in name, phone, address.')
-    if (!/^04\d{8}$/.test(c.phone)) return setErr('Mobile must be 10 digits starting with 04.')
+    const phoneErr = validateAuMobile(c.phone); if (phoneErr) return setErr(phoneErr)
+    const pcErr = validatePostcode(c.postcode); if (pcErr) return setErr(pcErr)
     if (c.state === 'QLD' && !c.crn) return setErr('CRN is required for QLD.')
-    if (!v.make || !v.model || !v.year || !v.vin) return setErr('Fill in vehicle make, model, year, VIN.')
-    if (!v.cutoff_date) return setErr('Pick the latest acceptable WOVI date (your existing booking date).')
+    if (!v.make || !v.model) return setErr('Fill in vehicle make and model.')
+    const yearErr = validateYear(v.year); if (yearErr) return setErr(yearErr)
+    const vinErr = validateVin(v.vin); if (vinErr) return setErr(vinErr)
+    const cutoffErr = validateCutoffDate(v.cutoff_date); if (cutoffErr) return setErr(cutoffErr)
 
     setBusy(true)
     const res = await fetch('/api/account/add-vehicle', {

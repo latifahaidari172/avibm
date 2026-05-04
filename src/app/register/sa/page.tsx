@@ -1,4 +1,6 @@
 'use client'
+
+import { validateEmail, validatePostcode, validateAuMobile, validateCutoffDate, normaliseAuMobile, suggestEmailFix } from '@/lib/validators'
 import { useState, useRef } from 'react'
 import Link from 'next/link'
 
@@ -101,7 +103,14 @@ export default function RegisterSA() {
     for (const k of required) {
       if (!form[k as keyof typeof form]) { setError('Please fill in all fields.'); return }
     }
-    if (!/^\S+@\S+\.\S+$/.test(form.email)) { setError('Please enter a valid email.'); return }
+    const emailErr = validateEmail(form.email)
+    if (emailErr) { setError(emailErr); return }
+    const phoneErr = validateAuMobile(form.phone)
+    if (phoneErr) { setError(phoneErr); return }
+    const pcErr = validatePostcode(form.postcode)
+    if (pcErr) { setError(pcErr); return }
+    const cutoffErr = validateCutoffDate(form.cutoff_date)
+    if (cutoffErr) { setError(cutoffErr); return }
     setError(''); setLoading(true)
     try {
       const regRes = await fetch('/api/register-customer', {
@@ -109,7 +118,7 @@ export default function RegisterSA() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer: {
-            state: 'SA', active: false, tier: 'basic',
+            state: 'SA', active: false, tier: 'priority',
             first_name: form.first_name, last_name: form.last_name,
             email: form.email, phone: form.phone,
             address: form.address, suburb: form.suburb, postcode: form.postcode,
@@ -140,7 +149,7 @@ export default function RegisterSA() {
           phone: form.phone,
           state: 'SA',
           vehicles: 1,
-          tier: 'basic',
+          tier: 'priority',
         }),
       })
       setDone(true)
