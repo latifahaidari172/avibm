@@ -1,4 +1,6 @@
 'use client'
+
+import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate } from '@/lib/validators'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 
@@ -143,7 +145,10 @@ export default function RegisterQLD() {
     if (!r.first_name || !r.last_name || !r.email || !r.phone || !r.address || !r.suburb || !r.postcode || !r.crn)
       return 'Please fill in all owner details.'
     if (!/^\S+@\S+\.\S+$/.test(r.email)) return 'Please enter a valid email.'
-    if (!/^04\d{8}$/.test(r.phone)) return 'Mobile must be 10 digits starting with 04 (e.g. 0412345678). Country code 61 is auto-converted.';
+    const phoneErr = validateAuMobile(r.phone)
+    if (phoneErr) return phoneErr
+    const pcErr = validatePostcode(r.postcode)
+    if (pcErr) return pcErr
     return ''
   }
 
@@ -154,9 +159,11 @@ export default function RegisterQLD() {
       const v = vehicles[i]
       const missing = []
       if (!v.vin) missing.push('VIN')
+      else { const vinErr = validateVin(v.vin); if (vinErr) return vinErr }
       if (!v.make) missing.push('Make')
       if (!v.model) missing.push('Model')
       if (!v.year) missing.push('Year')
+      else { const yErr = validateYear(v.year); if (yErr) return yErr }
       if (!v.colour) missing.push('Colour')
       if (!v.build_month) missing.push('Build Month')
       if (!v.damage) missing.push('Damage Type')
@@ -565,7 +572,7 @@ export default function RegisterQLD() {
                 )}
               </div>
               <div><label>Suburb</label><input value={owner.suburb} onChange={e => updateOwner('suburb', e.target.value)} placeholder="Brisbane" /></div>
-              <div><label>Postcode</label><input value={owner.postcode} onChange={e => updateOwner('postcode', e.target.value)} placeholder="4000" /></div>
+              <div><label>Postcode</label><input value={owner.postcode} onChange={e => updateOwner('postcode', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="4000" inputMode="numeric" maxLength={4} /></div>
             </div>
             <hr className="divider" />
             <div className="section-label" style={{ marginBottom: 12 }}>Select Your Plan</div>
@@ -616,10 +623,10 @@ export default function RegisterQLD() {
                       {VEHICLE_TYPES.map(t => <option key={t}>{t}</option>)}
                     </select>
                   </div>
-                  <div><label>VIN / Chassis Number</label><input value={v.vin} onChange={e => updateVehicle(i, 'vin', e.target.value)} placeholder="17-character VIN" /></div>
+                  <div><label>VIN / Chassis Number</label><input value={v.vin} onChange={e => updateVehicle(i, 'vin', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17))} placeholder="17-character VIN" maxLength={17} style={{ textTransform: 'uppercase', fontFamily: 'ui-monospace, monospace' }} /></div>
                   <div><label>Make</label><input value={v.make} onChange={e => updateVehicle(i, 'make', e.target.value)} placeholder="e.g. Toyota" /></div>
                   <div><label>Model</label><input value={v.model} onChange={e => updateVehicle(i, 'model', e.target.value)} placeholder="e.g. Camry" /></div>
-                  <div><label>Year</label><input value={v.year} onChange={e => updateVehicle(i, 'year', e.target.value)} placeholder="e.g. 2023" /></div>
+                  <div><label>Year</label><input value={v.year} onChange={e => updateVehicle(i, 'year', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="e.g. 2023" inputMode="numeric" maxLength={4} /></div>
                   <div><label>Colour</label><input value={v.colour} onChange={e => updateVehicle(i, 'colour', e.target.value)} placeholder="e.g. White" /></div>
                   <div>
                     <label>Build Month</label>
