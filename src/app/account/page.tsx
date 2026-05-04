@@ -71,6 +71,13 @@ export default async function AccountPage() {
     customer.vehicles = customer.vehicles.map((v: any) => ({ ...v, ref: vehicleRefOf(v) }))
   }
   const activeVehicles = (customer.vehicles || []).filter((v: any) => !v.archived)
+  const summary = {
+    total:     activeVehicles.length,
+    booked:    activeVehicles.filter((v: any) => v.booked_date).length,
+    searching: activeVehicles.filter((v: any) => v.active && !v.booked_date && !v.booking_in_progress).length,
+    booking:   activeVehicles.filter((v: any) => v.booking_in_progress).length,
+    paused:    activeVehicles.filter((v: any) => !v.active).length,
+  }
 
   return (
     <Page>
@@ -84,6 +91,17 @@ export default async function AccountPage() {
           <button style={ghostBtn}>Sign out</button>
         </form>
       </div>
+
+      {/* Monitor summary — at-a-glance status across all vehicles */}
+      {summary.total > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginBottom: 16 }}>
+          <SummaryStat label="Vehicles" value={summary.total} color="#eee" />
+          <SummaryStat label="Booked"   value={summary.booked} color="#5adb5a" />
+          <SummaryStat label="Searching" value={summary.searching} color="#C9A84C" />
+          {summary.booking > 0 && <SummaryStat label="Booking" value={summary.booking} color="#5ab0ff" />}
+          {summary.paused  > 0 && <SummaryStat label="Paused"  value={summary.paused}  color="#aaa" />}
+        </div>
+      )}
 
       <Section title="Personal details">
         <Detail label="Address" value={`${customer.address || ''}${customer.suburb ? ', ' + customer.suburb : ''} ${customer.postcode || ''}`.trim()} />
@@ -101,26 +119,36 @@ export default async function AccountPage() {
           <p style={muted}>No active vehicles. Add one to start monitoring for earlier inspection slots.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {activeVehicles.map((v: any) => (
-              <div key={v.id} style={vehicleCard}>
-                <div style={{ fontWeight: 600 }}>
-                  {v.label || `${v.make} ${v.model}`}
-                  <span style={{ color: '#888', fontWeight: 400, fontSize: 12 }}> · {v.year}</span>
-                </div>
-                <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>VIN: {v.vin}</div>
-                {v.booked_date && (
-                  <div style={{ fontSize: 12, color: '#5adb5a', marginTop: 4 }}>
-                    ✓ Currently booked: {v.booked_date}{v.booked_time ? ` at ${v.booked_time}` : ''}{v.booked_location ? ` — ${v.booked_location}` : ''}
+            {activeVehicles.map((v: any) => {
+              const s = vehicleStatus(v)
+              return (
+                <Link key={v.id} href={`/account/vehicle/${v.id}`} style={vehicleCardLink}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 600 }}>
+                        {v.label || `${v.make} ${v.model}`}
+                        <span style={{ color: '#888', fontWeight: 400, fontSize: 12 }}> · {v.year}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>VIN: {v.vin}</div>
+                      {v.booked_date ? (
+                        <div style={{ fontSize: 12, color: '#5adb5a', marginTop: 6 }}>
+                          ✓ Booked: {v.booked_date}{v.booked_time ? ` at ${v.booked_time}` : ''}{v.booked_location ? ` — ${v.booked_location}` : ''}
+                        </div>
+                      ) : v.cutoff_date ? (
+                        <div style={{ fontSize: 12, color: '#888', marginTop: 6 }}>
+                          Looking for slots before {v.cutoff_date}
+                        </div>
+                      ) : null}
+                      {v.ref && <div style={{ fontSize: 11, color: '#5ab0ff', marginTop: 4, fontFamily: 'ui-monospace,monospace' }}>{v.ref}</div>}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                      <span style={{ ...statusBadge, color: s.color, background: s.bg, borderColor: s.color }}>{s.label}</span>
+                      <span style={{ color: '#666', fontSize: 16 }}>›</span>
+                    </div>
                   </div>
-                )}
-                {v.cutoff_date && !v.booked_date && (
-                  <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                    Searching for slots before: {v.cutoff_date}
-                  </div>
-                )}
-                {v.ref && <div style={{ fontSize: 11, color: '#5ab0ff', marginTop: 4, fontFamily: 'ui-monospace,monospace' }}>{v.ref}</div>}
-              </div>
-            ))}
+                </Link>
+              )
+            })}
           </div>
         )}
         <div style={{ marginTop: 14 }}>
@@ -170,11 +198,28 @@ function Detail({ label, value }: { label: string; value: string }) {
     </div>
   )
 }
+function SummaryStat({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div style={{ background: '#111', border: '1px solid #222', borderRadius: 10, padding: '14px 16px' }}>
+      <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+      <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 30, color, lineHeight: 1, marginTop: 4 }}>{value}</div>
+    </div>
+  )
+}
+function vehicleStatus(v: any): { label: string; color: string; bg: string } {
+  if (v.archived) return { label: 'Archived', color: '#888', bg: 'rgba(136,136,136,0.1)' }
+  if (v.booked_date) return { label: 'Booked', color: '#5adb5a', bg: 'rgba(90,219,90,0.12)' }
+  if (!v.active) return { label: 'Paused', color: '#aaa', bg: 'rgba(170,170,170,0.1)' }
+  if (v.booking_in_progress) return { label: 'Booking now…', color: '#5ab0ff', bg: 'rgba(90,176,255,0.12)' }
+  return { label: 'Searching', color: '#C9A84C', bg: 'rgba(201,168,76,0.12)' }
+}
 const h1: React.CSSProperties = { fontFamily: 'Bebas Neue, sans-serif', fontSize: 28, letterSpacing: '0.05em', margin: 0 }
 const muted: React.CSSProperties = { color: '#888', fontSize: 13 }
 const link: React.CSSProperties = { color: '#5ab0ff', fontSize: 13, textDecoration: 'underline' }
 const ghostBtn: React.CSSProperties = { background: 'none', border: '1px solid #333', color: '#888', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }
 const primaryBtn: React.CSSProperties = { background: '#C9A84C', color: '#000', padding: '8px 14px', borderRadius: 6, fontSize: 13, fontWeight: 700, textDecoration: 'none' }
 const vehicleCard: React.CSSProperties = { background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, padding: 12 }
+const vehicleCardLink: React.CSSProperties = { ...vehicleCard, display: 'block', textDecoration: 'none', color: '#eee', cursor: 'pointer' }
+const statusBadge: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 999, border: '1px solid', whiteSpace: 'nowrap' }
 const refPill: React.CSSProperties = { fontFamily: 'ui-monospace,monospace', fontSize: 11, color: '#C9A84C', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', padding: '2px 8px', borderRadius: 4, marginTop: 6, display: 'inline-block' }
 const pill: React.CSSProperties = { fontSize: 12, padding: '3px 10px', borderRadius: 999, background: '#1a1a1a', border: '1px solid #2a2a2a' }
