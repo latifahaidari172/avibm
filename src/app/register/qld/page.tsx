@@ -11,6 +11,16 @@ const DAMAGE_OPTIONS = ['HAIL DAMAGE', 'WATER DAMAGE', 'MALICIOUS DAMAGE', 'FIRE
 const PURCHASE_OPTIONS = ['Auction', 'Private Sale', 'Insurance', 'Other']
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const VEHICLE_TYPES = ['Car', 'Motorcycle', 'Truck', 'Trailer', 'Caravan']
+// WOVI inspection slots run on the half-hour during business hours.
+// Customers tell us their existing booking time so the bot knows what
+// to beat when looking for an earlier slot.
+const WOVI_BOOKING_TIMES = [
+  '8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM',
+  '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
+  '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM',
+  '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM',
+  '4:00 PM', '4:30 PM',
+]
 
 const WOVI_LOCATIONS: { name: string; lat: number; lng: number; address: string }[] = [
   { name: 'Brisbane',         lat: -27.4354, lng: 153.0870, address: '110 Lamington Ave, Eagle Farm QLD 4009' },
@@ -370,6 +380,15 @@ export default function RegisterQLD() {
 
   const handleNext = () => {
     if (!step1Valid) { setError(step1Err); return }
+    // Prefill the inspection-radius search with what the customer
+    // entered as their address in step 1, unless they've already typed
+    // something different. They can still edit it before clicking
+    // SEARCH if they want to plan around a different starting point.
+    if (!radiusAddress.trim()) {
+      const combined = [owner.address, owner.suburb, owner.postcode]
+        .filter(Boolean).join(', ').trim()
+      if (combined) setRadiusAddress(combined)
+    }
     setError(''); setStep(2)
   }
 
@@ -787,12 +806,13 @@ export default function RegisterQLD() {
                           </div>
                           <div>
                             <label style={{ fontSize: 12 }}>Booking Time</label>
-                            <input
-                              type="text"
+                            <select
                               value={v.current_booking_time}
                               onChange={e => updateVehicle(i, 'current_booking_time', e.target.value)}
-                              placeholder="e.g. 9:00 AM"
-                            />
+                            >
+                              <option value="">— Select —</option>
+                              {WOVI_BOOKING_TIMES.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
                           </div>
                           <div>
                             <label style={{ fontSize: 12 }}>Location</label>
