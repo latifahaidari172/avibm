@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
   const vehicle: Record<string, unknown> = {
     customer_id: customerId,
     state: vIn.state || (isRichShape ? body.customer_patch?.state : null) || 'QLD',
-    label: vIn.label || null,
+    label: (vIn.label && String(vIn.label).trim()) || `${vIn.make || ''} ${vIn.model || ''}`.trim() || 'Vehicle',
     make: vIn.make,
     model: vIn.model,
     year: vIn.year,
