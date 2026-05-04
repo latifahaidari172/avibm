@@ -4,6 +4,7 @@ import Link from 'next/link'
 
 type Customer = {
   id: string
+  ref?: string
   created_at: string
   active: boolean
   archived?: boolean
@@ -32,6 +33,8 @@ const TIER_CONFIG = {
 
 type Vehicle = {
   id: string
+  ref?: string
+  created_at?: string
   label: string
   make: string
   model: string
@@ -1378,7 +1381,12 @@ export default function Admin() {
                 <div className='admin-customer-row customer-row' onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}>
                   <span className={`pill ${c.state === 'QLD' ? 'pill-qld' : 'pill-sa'}`} style={{ minWidth: 42, textAlign: 'center' }}>{c.state}</span>
                   <div className='customer-name' style={{ flex: 1, minWidth: 140 }}>
-                    <div style={{ fontWeight: 600, fontSize: 15 }}>{c.first_name} {c.last_name}</div>
+                    <div style={{ fontWeight: 600, fontSize: 15, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                      <span>{c.first_name} {c.last_name}</span>
+                      {c.ref && (
+                        <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11, color: 'var(--gold)', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', padding: '1px 6px', borderRadius: 4, letterSpacing: '0.04em' }}>{c.ref}</span>
+                      )}
+                    </div>
                     <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{c.email} · {c.phone}</div>
                   </div>
                   <div style={{ textAlign: 'center', minWidth: 60 }}>
@@ -1527,8 +1535,16 @@ export default function Admin() {
                               </div>
                             ) : (
                               <>
-                                <div style={{ fontWeight: 600, fontSize: 14 }}>{v.label ? `${v.label} — ` : ''}{v.make} {v.model} {v.year}{v.vehicle_type ? ` (${v.vehicle_type})` : ''}</div>
+                                <div style={{ fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                                  <span>{v.label ? `${v.label} — ` : ''}{v.make} {v.model} {v.year}{v.vehicle_type ? ` (${v.vehicle_type})` : ''}</span>
+                                  {v.ref && (
+                                    <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 10, color: '#5ab0ff', background: 'rgba(90,176,255,0.08)', border: '1px solid rgba(90,176,255,0.25)', padding: '1px 6px', borderRadius: 4, letterSpacing: '0.04em' }}>{v.ref}</span>
+                                  )}
+                                </div>
                                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>VIN: {v.vin}{v.colour ? ` · ${v.colour}` : ''}{v.build_month ? ` · Built: ${v.build_month}` : ''}</div>
+                                {v.created_at && (
+                                  <div style={{ fontSize: 10, color: '#555', marginTop: 1, letterSpacing: '0.02em' }}>Registered: {new Date(v.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}</div>
+                                )}
                                 {(v.damage || v.purchase_method || v.purchased_from) && (
                                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
                                     {[v.damage && `Damage: ${v.damage}`, v.purchase_method && `Purchased: ${v.purchase_method}`, v.purchased_from && `From: ${v.purchased_from}`].filter(Boolean).join(' · ')}
