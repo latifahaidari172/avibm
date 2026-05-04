@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
         first_name: body.first_name, last_name: body.last_name,
         phone: body.phone, address: body.address, suburb: body.suburb,
         postcode: body.postcode, crn: body.crn, state: body.state, tier: body.tier,
-        active: true, archived: false, locations: body.preferred_locations || null,
+        active: true, archived: false,
       }),
     })
   } else {
@@ -76,7 +76,6 @@ export async function POST(req: NextRequest) {
         phone: body.phone, address: body.address, suburb: body.suburb, postcode: body.postcode,
         crn: body.crn, state: body.state, tier: body.tier || 'priority',
         active: true, auto_payment_email: true, archived: false,
-        locations: body.preferred_locations || null,
       }),
     })
     if (!cRes.ok) return NextResponse.json({ error: await cRes.text() }, { status: 400 })
@@ -85,9 +84,13 @@ export async function POST(req: NextRequest) {
     if (!customerId) return NextResponse.json({ error: 'failed to create customer' }, { status: 500 })
   }
 
-  // Link the auth user → customer
+  // Link the auth user → customer + stash preferred_locations
+  // (customers table doesn't have a locations column; vehicles do).
   const { error: updErr } = await supabase.auth.updateUser({
-    data: { customer_id: customerId },
+    data: {
+      customer_id: customerId,
+      preferred_locations: Array.isArray(body.preferred_locations) ? body.preferred_locations : [],
+    },
   })
   if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 })
 

@@ -28,10 +28,13 @@ export async function POST(req: NextRequest) {
   if (!customer) return NextResponse.json({ error: 'customer not found' }, { status: 404 })
 
   const body = await req.json()
+  // Prefer the user's preferred_locations from auth metadata (set during
+  // complete-profile); fall back to whatever's on the customer row.
+  const preferredLocations = (user.user_metadata?.preferred_locations as string[] | undefined) || customer.locations || null
   const vehicle = {
     customer_id: customerId,
     state: customer.state,
-    locations: customer.locations || null,
+    locations: preferredLocations,
     label: body.label || null,
     make: body.make,
     model: body.model,

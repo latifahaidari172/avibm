@@ -125,15 +125,19 @@ export default async function AccountPage() {
       </Section>
 
       <Section title="Preferred inspection locations">
-        {Array.isArray(customer.locations) && customer.locations.length > 0 ? (
+        {(() => {
+          const fromMeta = (user.user_metadata?.preferred_locations as string[] | undefined) || []
+          const list = fromMeta.length > 0 ? fromMeta : (Array.isArray(customer.locations) ? customer.locations : [])
+          return list.length > 0 ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {customer.locations.map((loc: string) => (
+            {list.map((loc: string) => (
               <span key={loc} style={pill}>{loc}</span>
             ))}
           </div>
         ) : (
           <p style={muted}>No preferred locations set yet.</p>
-        )}
+        )
+        })()}
       </Section>
     </Page>
   )
