@@ -115,3 +115,15 @@ export function validateEmail(raw: string): string | null {
   if (!/^\S+@\S+\.\S+$/.test(v)) return 'Email format invalid.'
   return null
 }
+
+// QLD Customer Reference Number — always numeric. Real CRNs are 8-9
+// digits; accept 7-10 to leave a small buffer for format variations.
+export function validateCrn(raw: string): string | null {
+  const v = (raw || "").trim()
+  if (!v) return "CRN is required for QLD."
+  if (!/^\d+$/.test(v)) return "CRN must be digits only (no letters or spaces)."
+  if (v.length < 7) return "CRN looks too short. QLD CRNs are 8-9 digits."
+  if (v.length > 10) return "CRN looks too long. QLD CRNs are 8-9 digits."
+  return null
+}
+

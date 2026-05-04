@@ -149,6 +149,8 @@ export default function RegisterQLD() {
     if (phoneErr) return phoneErr
     const pcErr = validatePostcode(r.postcode)
     if (pcErr) return pcErr
+    const crnErr = validateCrn(r.crn)
+    if (crnErr) return crnErr
     return ''
   }
 
