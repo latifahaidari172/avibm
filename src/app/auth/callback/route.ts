@@ -55,7 +55,34 @@ export async function GET(request: NextRequest) {
   if (linkedCustomerId) {
     return NextResponse.redirect(`${origin}${next}`)
   }
-  // First-time visitor: route to profile-completion which writes the
-  // customer row and links it via user_metadata.customer_id.
+
+  // No metadata link yet. Before forcing them through complete-profile,
+  // check if a customer row already exists for this email — common when
+  // someone registered via /register/qld (which creates a customer row
+  // by email/phone, no auth user) and is now signing in for the first
+  // time. If we find one, link it on user_metadata so this won't ask
+  // again and route them straight to the dashboard.
+  const email = user?.email?.toLowerCase()
+  if (email) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    try {
+      const r = await fetch(
+        `${supabaseUrl}/rest/v1/customers?email=eq.${encodeURIComponent(email)}&select=id&limit=1`,
+        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }, cache: 'no-store' },
+      )
+      const arr = await r.json()
+      const existingId = Array.isArray(arr) && arr[0]?.id
+      if (existingId) {
+        await supabase.auth.updateUser({ data: { customer_id: existingId } })
+        return NextResponse.redirect(`${origin}${next}`)
+      }
+    } catch (e) {
+      console.error('[auth/callback] customer lookup failed:', e)
+    }
+  }
+
+  // Genuinely first-time visitor: route to profile-completion which
+  // writes the customer row and links it via user_metadata.customer_id.
   return NextResponse.redirect(`${origin}/account/complete-profile`)
 }
