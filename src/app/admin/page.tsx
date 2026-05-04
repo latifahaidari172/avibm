@@ -107,10 +107,13 @@ export default function Admin() {
   const [customerEdits, setCustomerEdits] = useState<Record<string, Partial<Customer>>>({})
   const [editingVehicle, setEditingVehicle] = useState<string | null>(null)
   const [vehicleEdits, setVehicleEdits] = useState<Record<string, Partial<Vehicle>>>({})
-  const [freeList, setFreeList] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('avibm_free_list') || '[]') } catch { return [] }
-  })
-  const [newFreeEntry, setNewFreeEntry] = useState('')
+  // Whitelist entries — backed by /api/admin/whitelist (Supabase
+  // free_customers table). Each row: { entry, customer_id, notified_at }.
+  type FreeRow = { entry: string; customer_id: string | null; notified_at: string | null }
+  const [freeRows, setFreeRows] = useState<FreeRow[]>([])
+  const [freePickerQuery, setFreePickerQuery] = useState('')
+  const [freePickerOpen, setFreePickerOpen] = useState(false)
+  const [freeBusy, setFreeBusy] = useState(false)
   const [showFreePanel, setShowFreePanel] = useState(false)
   const [showPendingPanel, setShowPendingPanel] = useState(true)
   const [showArchivedPanel, setShowArchivedPanel] = useState(false)
@@ -173,6 +176,7 @@ export default function Admin() {
       setAuthedAdmin(adminUser)
       setAuthed(true)
       loadData()
+      loadWhitelist()
       if (data.role === 'owner') { loadLogs(); loadAdmins() }
     } catch (e) {
       setPwError('Connection error — try again')
@@ -350,6 +354,7 @@ export default function Admin() {
       loadData()
       loadBotInstances()
       loadScanSettings()
+      loadWhitelist()
       if (authedAdmin?.role === 'owner') { loadLogs(); loadAdmins() }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -530,19 +535,79 @@ export default function Admin() {
     })))
   }
 
-  const addFreeEntry = (entry: string) => {
-    const cleaned = entry.trim().toLowerCase()
-    if (!cleaned || freeList.includes(cleaned)) return
-    const updated = [...freeList, cleaned]
-    setFreeList(updated)
-    localStorage.setItem('avibm_free_list', JSON.stringify(updated))
-    setNewFreeEntry('')
+  const loadWhitelist = async () => {
+    const r = await authFetch('/api/admin/whitelist')
+    if (!r.ok) return
+    const rows = await r.json()
+    if (Array.isArray(rows)) setFreeRows(rows)
   }
 
-  const removeFreeEntry = (entry: string) => {
-    const updated = freeList.filter(e => e !== entry)
-    setFreeList(updated)
-    localStorage.setItem('avibm_free_list', JSON.stringify(updated))
+  const addCustomerToWhitelist = async (customerId: string) => {
+    setFreeBusy(true)
+    const r = await authFetch('/api/admin/whitelist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customer_id: customerId }),
+    })
+    setFreeBusy(false)
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}))
+      alert(j.error || 'Could not add to whitelist')
+      return
+    }
+    setFreePickerQuery('')
+    setFreePickerOpen(false)
+    await loadWhitelist()
+    const c = customers.find(x => x.id === customerId)
+    if (c) await logAction('Whitelisted customer', `${c.first_name} ${c.last_name} (${c.email || c.phone})`)
+  }
+
+  const addBareEntryToWhitelist = async (entry: string) => {
+    const cleaned = entry.trim().toLowerCase()
+    if (!cleaned) return
+    setFreeBusy(true)
+    const r = await authFetch('/api/admin/whitelist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry: cleaned }),
+    })
+    setFreeBusy(false)
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}))
+      alert(j.error || 'Could not add entry')
+      return
+    }
+    setFreePickerQuery('')
+    setFreePickerOpen(false)
+    await loadWhitelist()
+    await logAction('Whitelisted entry', cleaned)
+  }
+
+  const removeCustomerFromWhitelist = async (customerId: string) => {
+    if (!confirm('Remove this customer from the free-access list?')) return
+    setFreeBusy(true)
+    await authFetch('/api/admin/whitelist', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customer_id: customerId }),
+    })
+    setFreeBusy(false)
+    await loadWhitelist()
+    const c = customers.find(x => x.id === customerId)
+    if (c) await logAction('Removed from whitelist', `${c.first_name} ${c.last_name}`)
+  }
+
+  const removeBareEntryFromWhitelist = async (entry: string) => {
+    if (!confirm(`Remove ${entry} from the free-access list?`)) return
+    setFreeBusy(true)
+    await authFetch('/api/admin/whitelist', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry }),
+    })
+    setFreeBusy(false)
+    await loadWhitelist()
+    await logAction('Removed from whitelist', entry)
   }
 
   const updateLocations = async (vid: string, locs: string[]) => {
@@ -1237,92 +1302,170 @@ export default function Admin() {
               <span style={{ display: 'inline-flex', color: 'var(--gold)' }}><IconGift size={14} /></span>
               <div>
                 <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.05em' }}>FREE CUSTOMERS</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{freeList.length} whitelisted</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{(() => {
+                  const linkedIds = new Set(freeRows.filter(r => r.customer_id).map(r => r.customer_id))
+                  const bare = freeRows.filter(r => !r.customer_id).length
+                  return `${linkedIds.size} customer${linkedIds.size === 1 ? '' : 's'}${bare > 0 ? ` · ${bare} bare entr${bare === 1 ? 'y' : 'ies'}` : ''}`
+                })()}</div>
               </div>
             </div>
             <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{showFreePanel ? <IconChevronUp size={11} /> : <IconChevronDown size={11} />}</div>
           </div>
-          {showFreePanel && (
+          {showFreePanel && (() => {
+            // Build groups: one card per customer (gathering all entries
+            // tied to that customer) + a final "ungrouped" group for
+            // bare entries with no customer link.
+            const linkedRows = freeRows.filter(r => r.customer_id)
+            const bareRows = freeRows.filter(r => !r.customer_id)
+            const byCustomer = new Map<string, FreeRow[]>()
+            for (const r of linkedRows) {
+              const k = r.customer_id as string
+              if (!byCustomer.has(k)) byCustomer.set(k, [])
+              byCustomer.get(k)!.push(r)
+            }
+
+            // Picker: filter active customers by name/email/phone, exclude already-whitelisted.
+            const q = freePickerQuery.trim().toLowerCase()
+            const whitelistedIds = new Set(linkedRows.map(r => r.customer_id as string))
+            const candidates = q.length >= 2
+              ? customers
+                  .filter(c => !whitelistedIds.has(c.id))
+                  .filter(c => {
+                    const hay = `${c.first_name || ''} ${c.last_name || ''} ${c.email || ''} ${c.phone || ''}`.toLowerCase()
+                    return hay.includes(q)
+                  })
+                  .slice(0, 8)
+              : []
+            return (
             <div className="admin-section-body" style={{ padding: '12px 14px' }}>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                <input type="text" placeholder="email or phone" value={newFreeEntry}
-                  onChange={e => setNewFreeEntry(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addFreeEntry(newFreeEntry)}
-                  style={{ flex: 1, padding: '6px 10px', borderRadius: 6, fontSize: 12 }} />
-                <button onClick={() => addFreeEntry(newFreeEntry)} className="admin-btn admin-btn-gold">+ Add</button>
+              {/* Picker */}
+              <div style={{ position: 'relative', marginBottom: 10 }}>
+                <input
+                  type="text"
+                  placeholder="Search a customer by name, email or phone…"
+                  value={freePickerQuery}
+                  onChange={e => { setFreePickerQuery(e.target.value); setFreePickerOpen(true) }}
+                  onFocus={() => setFreePickerOpen(true)}
+                  onBlur={() => setTimeout(() => setFreePickerOpen(false), 180)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && candidates.length > 0) addCustomerToWhitelist(candidates[0].id)
+                  }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 6, fontSize: 13, background: 'var(--dark-3)', border: '1px solid var(--border)', color: 'var(--text)', boxSizing: 'border-box' }}
+                />
+                {freePickerOpen && q.length >= 2 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, zIndex: 50,
+                    background: 'var(--dark-2)', border: '1px solid var(--gold)', borderRadius: 8,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)', overflow: 'hidden', maxHeight: 320, overflowY: 'auto',
+                  }}>
+                    {candidates.length === 0 ? (
+                      <div style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text-muted)' }}>
+                        No matching customer.
+                        <button
+                          type="button"
+                          onMouseDown={e => { e.preventDefault(); addBareEntryToWhitelist(q) }}
+                          style={{ marginLeft: 8, background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}
+                        >Add &quot;{q}&quot; as a bare entry</button>
+                      </div>
+                    ) : candidates.map(c => (
+                      <div
+                        key={c.id}
+                        onMouseDown={e => { e.preventDefault(); addCustomerToWhitelist(c.id) }}
+                        style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--dark-3)'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>
+                          {c.first_name} {c.last_name}
+                          {c.state && <span className={`pill pill-${c.state.toLowerCase()}`} style={{ fontSize: 10, marginLeft: 8 }}>{c.state}</span>}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {c.email}{c.phone ? ` · ${c.phone}` : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {freeBusy && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Working…</div>}
               </div>
-              {freeList.length === 0 ? (
+              {freeRows.length === 0 ? (
                 <div style={{ fontSize: 11, color: '#444' }}>No entries yet</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {freeList.map(entry => {
-                    const isEmail = entry.includes('@')
-                    const digits = entry.replace(/\D/g, '')
-                    const matched = customers.find(c =>
-                      isEmail
-                        ? (c.email || '').toLowerCase() === entry
-                        : (c.phone || '').replace(/\D/g, '') === digits
-                    )
-                    const initials = matched
-                      ? `${(matched.first_name || '?')[0]}${(matched.last_name || '')[0] || ''}`.toUpperCase()
-                      : (isEmail ? entry[0] : '#').toUpperCase()
+                  {/* One card per customer */}
+                  {Array.from(byCustomer.entries()).map(([customerId, rows]) => {
+                    const c = customers.find(x => x.id === customerId)
+                    const initials = c
+                      ? `${(c.first_name || '?')[0] || '?'}${(c.last_name || '')[0] || ''}`.toUpperCase()
+                      : '?'
+                    const notified = rows.some(r => r.notified_at)
                     return (
-                      <div key={entry} style={{
+                      <div key={customerId} style={{
                         display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
-                        borderRadius: 8, background: matched ? 'var(--dark-3)' : '#1a1200',
-                        border: `1px solid ${matched ? 'var(--border)' : 'rgba(201,168,76,0.3)'}`,
+                        borderRadius: 8, background: 'var(--dark-3)', border: '1px solid var(--border)',
                       }}>
                         <div style={{
                           width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          background: matched ? 'var(--dark-4)' : '#2a1a00',
-                          color: matched ? 'var(--text)' : 'var(--gold)',
-                          border: `1px solid ${matched ? 'var(--border)' : 'rgba(201,168,76,0.3)'}`,
+                          background: 'var(--dark-4)', color: 'var(--text)', border: '1px solid var(--border)',
                           fontFamily: 'Bebas Neue', fontSize: 12, letterSpacing: '0.05em',
                         }}>{initials}</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          {matched ? (
-                            <>
-                              <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                <span>{matched.first_name} {matched.last_name}</span>
-                                {matched.state && (
-                                  <span className={`pill pill-${matched.state.toLowerCase()}`} style={{ fontSize: 10 }}>{matched.state}</span>
-                                )}
-                                {!matched.active && !matched.archived && (
-                                  <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: '#2a1a00', color: '#C9A84C', border: '1px solid #4a3a00' }}>PENDING</span>
-                                )}
-                                {matched.archived && (
-                                  <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: '#1a1200', color: '#C9A84C', border: '1px solid #4a3a00' }}>ARCHIVED</span>
-                                )}
-                              </div>
-                              <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {entry} {matched.email && entry !== matched.email.toLowerCase() && <span style={{ opacity: 0.6 }}>· {matched.email}</span>}
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)' }}>{entry}</div>
-                              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Whitelisted — no profile registered yet</div>
-                            </>
-                          )}
+                          <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span>{c ? `${c.first_name || ''} ${c.last_name || ''}`.trim() || '(unnamed)' : '(customer deleted)'}</span>
+                            {c?.state && <span className={`pill pill-${c.state.toLowerCase()}`} style={{ fontSize: 10 }}>{c.state}</span>}
+                            {notified && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: '#0c1f0c', color: '#5adb5a', border: '1px solid #1a3a1a' }}>EMAILED</span>}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {rows.map(r => r.entry).join(' · ')}
+                          </div>
                         </div>
                         <button
                           type="button"
-                          onClick={() => removeFreeEntry(entry)}
-                          title="Remove from free list"
-                          style={{
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            color: '#ff6b6b', display: 'inline-flex', alignItems: 'center',
-                            padding: 4, borderRadius: 4,
-                          }}
+                          onClick={() => removeCustomerFromWhitelist(customerId)}
+                          title="Remove customer from whitelist"
+                          disabled={freeBusy}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ff6b6b', display: 'inline-flex', alignItems: 'center', padding: 4, borderRadius: 4 }}
                         ><IconX size={14} /></button>
                       </div>
                     )
                   })}
+
+                  {/* Bare entries (no customer link) */}
+                  {bareRows.length > 0 && (
+                    <>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 6 }}>Bare entries (no profile)</div>
+                      {bareRows.map(r => (
+                        <div key={r.entry} style={{
+                          display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+                          borderRadius: 8, background: '#1a1200', border: '1px solid rgba(201,168,76,0.3)',
+                        }}>
+                          <div style={{
+                            width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: '#2a1a00', color: 'var(--gold)', border: '1px solid rgba(201,168,76,0.3)',
+                            fontFamily: 'Bebas Neue', fontSize: 12,
+                          }}>{r.entry.includes('@') ? r.entry[0].toUpperCase() : '#'}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)' }}>{r.entry}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Whitelisted — no profile registered yet</div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeBareEntryFromWhitelist(r.entry)}
+                            title="Remove entry"
+                            disabled={freeBusy}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ff6b6b', display: 'inline-flex', alignItems: 'center', padding: 4, borderRadius: 4 }}
+                          ><IconX size={14} /></button>
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
             </div>
-          )}
+            )
+          })()}
         </div>
 
         </div>{/* end admin tools row */}
