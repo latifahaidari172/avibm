@@ -77,6 +77,45 @@ function normaliseAuMobile(input: string): string {
   return p.slice(0, 10)
 }
 
+// Common Australian + global email-domain typos. Insert at top of file.
+const COMMON_DOMAINS = [
+  'gmail.com', 'hotmail.com', 'outlook.com', 'yahoo.com', 'yahoo.com.au',
+  'icloud.com', 'me.com', 'live.com', 'live.com.au', 'bigpond.com',
+  'bigpond.net.au', 'optusnet.com.au', 'iinet.net.au', 'tpg.com.au',
+  'protonmail.com', 'proton.me', 'aol.com', 'msn.com',
+]
+
+// Levenshtein-distance-based fuzzy match. Returns the closest known
+// domain if its distance is within 2 chars; otherwise returns null.
+function suggestEmailFix(email: string): string | null {
+  const m = (email || '').match(/^(.+)@(.+)$/)
+  if (!m) return null
+  const [, local, domain] = m
+  const d = domain.toLowerCase()
+  if (COMMON_DOMAINS.includes(d)) return null
+  function lev(a: string, b: string): number {
+    const dp: number[][] = Array(a.length + 1).fill(null).map(() => Array(b.length + 1).fill(0))
+    for (let i = 0; i <= a.length; i++) dp[i][0] = i
+    for (let j = 0; j <= b.length; j++) dp[0][j] = j
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        dp[i][j] = a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+      }
+    }
+    return dp[a.length][b.length]
+  }
+  let best: { dom: string; dist: number } | null = null
+  for (const known of COMMON_DOMAINS) {
+    const dist = lev(d, known)
+    if (dist <= 2 && (best === null || dist < best.dist)) {
+      best = { dom: known, dist }
+    }
+  }
+  return best ? `${local}@${best.dom}` : null
+}
+
 export default function RegisterQLD() {
   const [step, setStep] = useState(1)
   const [selectedTier, setSelectedTier] = useState<'priority'|'standard'|'basic'>('priority')
@@ -88,6 +127,7 @@ export default function RegisterQLD() {
     first_name: '', last_name: '', email: '', phone: '',
     address: '', suburb: '', postcode: '', crn: '',
   })
+  const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null)
   const [vehicles, setVehicles] = useState<Vehicle[]>([emptyVehicle()])
   const [hasBookingConfirmed, setHasBookingConfirmed] = useState(false)
 
@@ -439,7 +479,31 @@ export default function RegisterQLD() {
               </div>
               <div><label>First Name</label><input autoComplete="given-name" value={owner.first_name} onChange={e => updateOwner('first_name', e.target.value)} placeholder="John" /></div>
               <div><label>Last Name</label><input autoComplete="family-name" value={owner.last_name} onChange={e => updateOwner('last_name', e.target.value)} placeholder="Smith" /></div>
-              <div><label>Email</label><input type="email" autoComplete="email" value={owner.email} onChange={e => updateOwner('email', e.target.value.toLowerCase())} placeholder="john@email.com" style={{ textTransform: 'lowercase' }} /></div>
+              <div>
+                <label>Email</label>
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={owner.email}
+                  onChange={e => { updateOwner('email', e.target.value.toLowerCase()); setEmailSuggestion(null) }}
+                  onBlur={e => setEmailSuggestion(suggestEmailFix(e.target.value.toLowerCase()))}
+                  placeholder="john@email.com"
+                  style={{ textTransform: 'lowercase' }}
+                />
+                {emailSuggestion && emailSuggestion !== owner.email && (
+                  <div style={{ marginTop: 6, fontSize: 12, color: '#fbbf24' }}>
+                    Did you mean{' '}
+                    <button
+                      type="button"
+                      onClick={() => { updateOwner('email', emailSuggestion); setEmailSuggestion(null) }}
+                      style={{ background: 'none', border: 'none', color: '#5ab0ff', cursor: 'pointer', padding: 0, font: 'inherit', textDecoration: 'underline' }}
+                    >
+                      {emailSuggestion}
+                    </button>
+                    ?
+                  </div>
+                )}
+              </div>
               <div><label>Mobile</label><input autoComplete="tel" inputMode="numeric" value={owner.phone} onChange={e => updateOwner('phone', normaliseAuMobile(e.target.value))} placeholder="0412345678" /></div>
               <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
                 <label>Street Address</label>
