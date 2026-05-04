@@ -21,8 +21,8 @@ export default function Home() {
           <span style={{ fontFamily: 'Bebas Neue', fontSize: 22, letterSpacing: '0.15em', color: 'var(--gold)' }}>AVIBM</span>
           <span style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.08em', lineHeight: 1 }}>VEHICLE INSPECTION BOOKING MONITOR</span>
         </div>
-        <Link href="/status" style={{ color: 'var(--gold)', fontSize: 13, textDecoration: 'none', letterSpacing: '0.05em', border: '1px solid var(--gold)', padding: '6px 14px', borderRadius: 6 }}>
-          Check Status
+        <Link href="/account/sign-in" style={{ color: 'var(--gold)', fontSize: 13, textDecoration: 'none', letterSpacing: '0.05em', border: '1px solid var(--gold)', padding: '6px 14px', borderRadius: 6 }}>
+          Sign In
         </Link>
       </header>
 
@@ -195,7 +195,7 @@ export default function Home() {
       }}>
         <span style={{ fontFamily: 'Bebas Neue', fontSize: 16, color: 'var(--gold)', letterSpacing: '0.15em' }}>AVIBM</span>
         <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-          <Link href="/status" style={{ fontSize: 12, color: 'var(--text-muted)', textDecoration: 'none' }}>Check Monitor Status</Link>
+          <Link href="/account/sign-in" style={{ fontSize: 12, color: 'var(--text-muted)', textDecoration: 'none' }}>Sign in to your account</Link>
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Australian Vehicle Inspection Booking Monitor</span>
         </div>
       </footer>
