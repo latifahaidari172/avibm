@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowser } from '@/lib/supabase/client'
-import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, normaliseAuMobile } from '@/lib/validators'
+import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, normaliseAuMobile, validateCrn } from '@/lib/validators'
 
 const WOVI_LOCATIONS = [
   'Brisbane', 'Bundaberg', 'Burleigh Heads', 'Cairns', 'Mackay',
@@ -118,7 +118,7 @@ export default function AddVehiclePage() {
     if (!c.first_name || !c.last_name || !c.phone || !c.address) return setErr('Fill in name, phone, address.')
     const phoneErr = validateAuMobile(c.phone); if (phoneErr) return setErr(phoneErr)
     const pcErr = validatePostcode(c.postcode); if (pcErr) return setErr(pcErr)
-    if (c.state === 'QLD' && !c.crn) return setErr('CRN is required for QLD.')
+    if (c.state === 'QLD') { const ce = validateCrn(c.crn); if (ce) return setErr(ce) }
     if (!v.make || !v.model) return setErr('Fill in vehicle make and model.')
     const yearErr = validateYear(v.year); if (yearErr) return setErr(yearErr)
     const vinErr = validateVin(v.vin); if (vinErr) return setErr(vinErr)
@@ -185,7 +185,7 @@ export default function AddVehiclePage() {
               <Field label="Address" value={c.address} onChange={x => updC('address', x)} fullRow />
               <Field label="Suburb" value={c.suburb} onChange={x => updC('suburb', x)} />
               <Field label="Postcode" value={c.postcode} onChange={x => updC('postcode', x)} />
-              {c.state === 'QLD' && <Field label="CRN" value={c.crn} onChange={x => updC('crn', x)} />}
+              {c.state === 'QLD' && <Field label="CRN" value={c.crn} onChange={x => updC('crn', x.replace(/\D/g, '').slice(0, 10))} />}
               <Field label="Licence number" value={c.licence_number} onChange={x => updC('licence_number', x)} />
               <Field label="Date of birth" type="date" value={c.date_of_birth} onChange={x => updC('date_of_birth', x)} />
             </Grid>
