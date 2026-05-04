@@ -658,7 +658,9 @@ export default function Admin() {
 
   const pendingPayment = customers.filter(c => !c.active && c.auto_payment_email && !c.archived)
 
-  const archived = customers.filter(c => c.archived)
+  const archived = customers.filter(c =>
+    (c.archived || c.vehicles?.some(v => v.archived)) && !c.pending_deletion
+  )
 
   const filtered = customers.filter(c => {
     if (c.archived) return false
@@ -1855,27 +1857,10 @@ export default function Admin() {
                       </div>
                     ))}
 
-                    {/* Archived Vehicles (within this customer) */}
-                    {c.vehicles?.some(v => v.archived) && (
-                      <div style={{ marginTop: 16, padding: '12px 14px', background: '#1a1200', border: '1px solid #4a3a00', borderRadius: 8 }}>
-                        <div style={{ fontSize: 11, color: '#C9A84C', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 10 }}>📦 ARCHIVED VEHICLES</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {c.vehicles.filter(v => v.archived).map(v => (
-                            <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                              <div>
-                                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{v.label || `${v.make} ${v.model} ${v.year}`}</span>
-                                {v.booked_date && <span style={{ marginLeft: 10, fontSize: 12, color: '#5adb5a' }}>✓ Booked {v.booked_date}{v.booked_time ? ` at ${v.booked_time}` : ''}{v.booked_location ? ` — ${v.booked_location}` : ''}</span>}
-                              </div>
-                              <button onClick={() => archiveVehicle(v.id, true)} style={{
-                                padding: '3px 10px', borderRadius: 4, background: 'none',
-                                border: '1px solid #2a4a2a', color: '#5adb5a',
-                                cursor: 'pointer', fontSize: 11, fontFamily: 'DM Sans',
-                              }}>↩ Unarchive</button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    {/* Archived vehicles intentionally NOT shown here.
+                        They live in the global Archived section at the
+                        bottom of the page so each kind of vehicle has one
+                        canonical home. */}
 
                     {/* Actions */}
                     <div className='actions-row' style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
@@ -1927,12 +1912,17 @@ export default function Admin() {
                     >
                       <span className={`pill ${c.state === 'QLD' ? 'pill-qld' : 'pill-sa'}`} style={{ minWidth: 42, textAlign: 'center' }}>{c.state}</span>
                       <div className='customer-name' style={{ flex: 1, minWidth: 140 }}>
-                        <div style={{ fontWeight: 600, fontSize: 15 }}>{c.first_name} {c.last_name}</div>
+                        <div style={{ fontWeight: 600, fontSize: 15, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                          <span>{c.first_name} {c.last_name}</span>
+                          {c.ref && (
+                            <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11, color: 'var(--gold)', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', padding: '1px 6px', borderRadius: 4, letterSpacing: '0.04em' }}>{c.ref}</span>
+                          )}
+                        </div>
                         <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{c.email} · {c.phone}</div>
                       </div>
                       <div style={{ textAlign: 'center', minWidth: 60 }}>
-                        <div style={{ fontFamily: 'Bebas Neue', fontSize: 22, color: 'var(--gold)' }}>{c.vehicles?.filter(v => !v.archived).length || 0}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>VEHICLE{(c.vehicles?.filter(v => !v.archived).length || 0) !== 1 ? 'S' : ''}</div>
+                        <div style={{ fontFamily: 'Bebas Neue', fontSize: 22, color: 'var(--gold)' }}>{c.vehicles?.filter(v => v.archived).length || 0}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>ARCHIVED VEHICLE{(c.vehicles?.filter(v => v.archived).length || 0) !== 1 ? 'S' : ''}</div>
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 90, textAlign: 'right' }}>
                         {new Date(c.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}
@@ -1991,8 +1981,8 @@ export default function Admin() {
                           )}
                         </div>
 
-                        <div className="section-label" style={{ marginBottom: 12 }}>Vehicles</div>
-                        {c.vehicles?.map(v => (
+                        <div className="section-label" style={{ marginBottom: 12 }}>Archived Vehicles</div>
+                        {c.vehicles?.filter(v => v.archived).map(v => (
                           <div key={v.id} style={{
                             background: v.booked_date ? '#0d1f0d' : 'var(--dark-3)',
                             border: `1px solid ${v.booked_date ? '#2a4a2a' : 'var(--border)'}`,
