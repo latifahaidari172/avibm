@@ -38,6 +38,9 @@ export default function AddVehiclePage() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [originalCustomer, setOriginalCustomer] = useState<any>(null)
+  // Auth-side email (always set if signed in) — separate from c.email which
+  // depends on /api/account/profile succeeding. Banner falls back to this.
+  const [authEmail, setAuthEmail] = useState<string>('')
 
   // Customer-level form (prefilled, editable)
   const [c, setC] = useState({
@@ -65,6 +68,7 @@ export default function AddVehiclePage() {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.replace('/account/sign-in'); return }
+      setAuthEmail(user.email || '')
       if (!user.user_metadata?.customer_id) { router.replace('/account/complete-profile'); return }
 
       const res = await fetch('/api/account/profile', { cache: 'no-store' })
@@ -170,15 +174,17 @@ export default function AddVehiclePage() {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#eee', fontFamily: 'DM Sans, sans-serif', padding: '32px 16px' }}>
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
-        {/* Signed-in banner — lets the customer switch to a different account */}
-        {c.email && (
+        {/* Signed-in banner — uses auth email so it shows regardless of
+            whether the profile API succeeded (new accounts may not have
+            a linked customer row yet). */}
+        {(c.email || authEmail) && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
             background: '#0f1a0a', border: '1px solid #1a3a1a', borderRadius: 8,
             padding: '8px 12px', marginBottom: 16, fontSize: 12,
           }}>
             <span style={{ color: '#5adb5a', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Signed in</span>
-            <span style={{ color: '#aaa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{c.email}</span>
+            <span style={{ color: '#aaa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{c.email || authEmail}</span>
             <form action="/auth/sign-out" method="post" style={{ margin: 0 }}>
               <button type="submit" style={{
                 background: 'none', border: '1px solid #333', color: '#888',
