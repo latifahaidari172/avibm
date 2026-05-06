@@ -51,8 +51,11 @@ export default function AddVehiclePage() {
     crn: '', licence_number: '', date_of_birth: '',
   })
 
-  // QLD-only — locations + priority locations (ordered, max 3)
-  const [locations, setLocations] = useState<string[]>(WOVI_LOCATIONS)
+  // QLD-only — locations + priority locations (ordered, max 3).
+  // Both start EMPTY by design — never preselect. Customer must actively
+  // choose. Carrying over preferred_locations from a previous vehicle
+  // caused unintended monitoring of sites the customer had no interest in.
+  const [locations, setLocations] = useState<string[]>([])
   const [priorityLocations, setPriorityLocations] = useState<string[]>([])
 
   // Vehicle (single — we're adding one at a time)
@@ -90,15 +93,10 @@ export default function AddVehiclePage() {
         licence_number: cust.licence_number || '',
         date_of_birth: cust.date_of_birth || '',
       }))
-      // Locations: prefer user_metadata.preferred_locations
-      const fromMeta = (user.user_metadata?.preferred_locations as string[] | undefined) || []
-      if (fromMeta.length > 0) {
-        setLocations(fromMeta)
-      }
-      const fromMetaPriority = (user.user_metadata?.priority_locations as string[] | undefined) || []
-      if (fromMetaPriority.length > 0) {
-        setPriorityLocations(fromMetaPriority.slice(0, 3))
-      }
+      // Do NOT carry over preferred_locations / priority_locations from
+      // user_metadata — locations must always be a deliberate choice for
+      // each new vehicle. Saved metadata still drives the existing-vehicle
+      // edit page; just not the add-vehicle flow.
       setAuthReady(true)
     })()
   }, [supabase, router])
