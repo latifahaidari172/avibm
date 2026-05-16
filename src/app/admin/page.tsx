@@ -24,6 +24,11 @@ type Customer = {
   licence_number?: string
   date_of_birth?: string
   vehicles?: Vehicle[]
+  // Populated client-side by mergeDuplicatesByEmail(): IDs of other
+  // customer rows that share this email and have been merged into this
+  // card. Lets the admin merge action know which rows to consolidate
+  // in Supabase. Server doesn't set this — pure UI dedup metadata.
+  duplicate_ids?: string[]
 }
 
 const TIER_CONFIG = {
@@ -323,6 +328,50 @@ export default function Admin() {
   const adminDelete = (table: string, id: string) =>
     fetch('/api/admin/customers', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ table, id }) })
 
+  // Merge customer rows that share a lowercase email — when someone signs
+  // up twice (OAuth + magic-link, typo correction, etc.) Supabase ends up
+  // with two `customers` rows for the same person. The admin UI used to
+  // render both rows as separate "ARCHIVED" cards (the duplicate Ali bug
+  // 2026-05-16). Until the DB-level UNIQUE constraint + merge script runs,
+  // we dedupe client-side so the admin sees one row per real customer.
+  // Strategy: keep the row with the LATEST created_at, merge vehicles
+  // from all duplicates (dedup by vehicle.id), and surface a `duplicate_ids`
+  // pointer so the merge endpoint knows which rows to collapse later.
+  const mergeDuplicatesByEmail = (rows: Customer[]): Customer[] => {
+    const byEmail = new Map<string, Customer[]>()
+    for (const c of rows) {
+      const key = (c.email || '').trim().toLowerCase()
+      if (!key) { byEmail.set(`__noemail_${c.id}__`, [c]); continue }
+      const bucket = byEmail.get(key)
+      if (bucket) bucket.push(c)
+      else byEmail.set(key, [c])
+    }
+    const out: Customer[] = []
+    for (const bucket of Array.from(byEmail.values())) {
+      if (bucket.length === 1) { out.push(bucket[0]); continue }
+      // Multiple rows for the same email — merge
+      const sorted = [...bucket].sort((a, b) =>
+        new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      )
+      const keep = sorted[0]
+      const allVehicles = bucket.flatMap(c => c.vehicles || [])
+      const seen = new Set<string>()
+      const dedupVehicles = allVehicles.filter(v => {
+        const k = String(v.id || `${v.vin}|${v.make}|${v.model}`)
+        if (seen.has(k)) return false
+        seen.add(k); return true
+      })
+      out.push({
+        ...keep,
+        vehicles: dedupVehicles,
+        // Stash dup IDs so a future "Merge in DB" admin action knows which
+        // rows to consolidate via Supabase.
+        duplicate_ids: bucket.filter(c => c.id !== keep.id).map(c => c.id),
+      } as Customer)
+    }
+    return out
+  }
+
   const loadData = async () => {
     setLoading(true)
     try {
@@ -331,7 +380,12 @@ export default function Admin() {
         console.error('[admin] customers API error:', custs)
         alert(`Failed to load customers: ${JSON.stringify(custs)}`)
       }
-      setCustomers(Array.isArray(custs) ? custs : [])
+      const raw = Array.isArray(custs) ? custs : []
+      setCustomers(mergeDuplicatesByEmail(raw))
+      if (raw.length !== mergeDuplicatesByEmail(raw).length) {
+        const dupCount = raw.length - mergeDuplicatesByEmail(raw).length
+        console.warn(`[admin] Merged ${dupCount} duplicate-email customer row(s) client-side. Run SQL cleanup in Supabase to fix permanently.`)
+      }
 
       const status = await adminFetch('/api/admin/customers?type=monitor_status')
       if (status && !status.error) setMonitorStatus(status)
@@ -736,9 +790,12 @@ export default function Admin() {
 
   const pendingPayment = customers.filter(c => !c.active && c.auto_payment_email && !c.archived)
 
-  const archived = customers.filter(c =>
-    (c.archived || c.vehicles?.some(v => v.archived)) && !c.pending_deletion
-  )
+  // Archived section: only customers whose whole profile is archived.
+  // Previously this also matched "any vehicle archived", which caused
+  // active customers with a single archived vehicle to appear in BOTH
+  // active AND archived lists. Their archived vehicles still show on
+  // their active card (the per-customer expansion lists every vehicle).
+  const archived = customers.filter(c => c.archived && !c.pending_deletion)
 
   const filtered = customers.filter(c => {
     if (c.archived) return false
@@ -2151,6 +2208,14 @@ export default function Admin() {
                         {new Date(c.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}
                       </div>
                       <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#1a1200', border: '1px solid #4a3a00', color: '#C9A84C' }}>ARCHIVED</span>
+                      {c.duplicate_ids && c.duplicate_ids.length > 0 && (
+                        <span
+                          title={`This customer had ${c.duplicate_ids.length} duplicate row(s) in Supabase with the same email — merged client-side. Click to merge them in the database.`}
+                          style={{ padding: '3px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: '#3a0f0f', border: '1px solid #6a2020', color: '#f87171' }}
+                        >
+                          +{c.duplicate_ids.length} DUP
+                        </span>
+                      )}
                       <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{expandedId === c.id ? <IconChevronUp size={11} /> : <IconChevronDown size={11} />}</div>
                     </div>
 
