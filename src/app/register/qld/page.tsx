@@ -580,7 +580,7 @@ export default function RegisterQLD() {
             <div className='register-grid-2' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label>QLD Driver&apos;s Licence / CRN</label>
-                <input autoComplete="off" value={owner.crn} onChange={e => updateOwner('crn', e.target.value)} placeholder="Your CRN number" />
+                <input autoComplete="off" inputMode="numeric" value={owner.crn} onChange={e => updateOwner('crn', e.target.value.replace(/\D/g, ''))} placeholder="Your CRN number" />
               </div>
               <div><label>First Name</label><input autoComplete="given-name" value={owner.first_name} onChange={e => updateOwner('first_name', e.target.value)} placeholder="John" /></div>
               <div><label>Last Name</label><input autoComplete="family-name" value={owner.last_name} onChange={e => updateOwner('last_name', e.target.value)} placeholder="Smith" /></div>
