@@ -164,7 +164,48 @@ export default function RegisterQLD() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([emptyVehicle()])
   const [hasBookingConfirmed, setHasBookingConfirmed] = useState(false)
 
+  // Email gate: the customer enters their email first. If it's already in
+  // the system we sign them in via a magic link; otherwise we reveal the
+  // new-customer detail fields + plan selector.
+  const [emailStage, setEmailStage] = useState<'entry' | 'new' | 'existing'>('entry')
+  const [emailChecking, setEmailChecking] = useState(false)
+
   const updateOwner = (k: string, v: string) => setOwner(p => ({ ...p, [k]: v }))
+
+  // Re-checking is required any time the email changes after a check.
+  const resetEmailGate = () => { if (emailStage !== 'entry') setEmailStage('entry') }
+
+  const checkEmail = async () => {
+    const email = owner.email.trim().toLowerCase()
+    if (!/^\S+@\S+\.\S+$/.test(email)) { setError('Please enter a valid email.'); return }
+    setError(''); setEmailChecking(true)
+    try {
+      const res = await fetch('/api/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Could not check that email.')
+      if (data.exists) {
+        // Returning customer — send them a one-click sign-in link that
+        // lands them on the prefilled add-vehicle flow.
+        const supabase = createSupabaseBrowser()
+        const { error: otpErr } = await supabase.auth.signInWithOtp({
+          email,
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/account/add-vehicle')}` },
+        })
+        if (otpErr) throw new Error(otpErr.message)
+        setEmailStage('existing')
+      } else {
+        setEmailStage('new')
+      }
+    } catch (e: any) {
+      setError(e.message || 'Could not check that email. Please try again.')
+    } finally {
+      setEmailChecking(false)
+    }
+  }
   const updateVehicle = (i: number, k: string, v: string) =>
     setVehicles(vs => vs.map((veh, idx) => idx === i ? { ...veh, [k]: v } : veh))
 
@@ -575,8 +616,74 @@ export default function RegisterQLD() {
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
               <h3 style={{ fontSize: 24, margin: 0 }}>OWNER DETAILS</h3>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>New customer</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {emailStage === 'new' ? 'New customer' : 'Enter your email to begin'}
+              </div>
             </div>
+
+            {/* Email gate — always shown first */}
+            <div style={{ marginBottom: emailStage === 'new' ? 16 : 0 }}>
+              <label>Email</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={owner.email}
+                  onChange={e => { updateOwner('email', e.target.value.toLowerCase()); setEmailSuggestion(null); resetEmailGate() }}
+                  onBlur={e => setEmailSuggestion(suggestEmailFix(e.target.value.toLowerCase()))}
+                  onKeyDown={e => { if (e.key === 'Enter' && emailStage === 'entry' && !emailChecking) { e.preventDefault(); checkEmail() } }}
+                  placeholder="john@email.com"
+                  style={{ textTransform: 'lowercase', flex: 1, minWidth: 200 }}
+                />
+                {emailStage === 'entry' && (
+                  <button
+                    onClick={checkEmail}
+                    disabled={emailChecking || !owner.email}
+                    style={{
+                      background: 'var(--gold)', color: '#000', border: 'none',
+                      padding: '12px 20px', borderRadius: 6, cursor: emailChecking || !owner.email ? 'not-allowed' : 'pointer',
+                      fontFamily: 'Bebas Neue', fontSize: 15, letterSpacing: '0.1em',
+                      whiteSpace: 'nowrap', flexShrink: 0, opacity: emailChecking || !owner.email ? 0.5 : 1,
+                    }}
+                  >{emailChecking ? 'CHECKING…' : 'CONTINUE →'}</button>
+                )}
+              </div>
+              {emailSuggestion && emailSuggestion !== owner.email && (
+                <div style={{ marginTop: 6, fontSize: 12, color: '#fbbf24' }}>
+                  Did you mean{' '}
+                  <button
+                    type="button"
+                    onClick={() => { updateOwner('email', emailSuggestion); setEmailSuggestion(null); resetEmailGate() }}
+                    style={{ background: 'none', border: 'none', color: '#5ab0ff', cursor: 'pointer', padding: 0, font: 'inherit', textDecoration: 'underline' }}
+                  >
+                    {emailSuggestion}
+                  </button>
+                  ?
+                </div>
+              )}
+            </div>
+
+            {/* Existing customer — magic link sent */}
+            {emailStage === 'existing' && (
+              <div style={{ marginTop: 16, background: '#0d1a0d', border: '1px solid #2a4a2a', borderRadius: 8, padding: '16px 18px' }}>
+                <div style={{ fontWeight: 600, fontSize: 15, color: '#5adb5a', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <IconCheckCircle size={16} />You&apos;re already registered
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                  We&apos;ve sent a one-click sign-in link to <strong style={{ color: 'var(--text)' }}>{owner.email}</strong>.
+                  Check your inbox (and spam folder), click the link, and you&apos;ll be taken straight to adding your vehicle — no need to re-enter your details.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { updateOwner('email', ''); setEmailStage('entry') }}
+                  style={{ marginTop: 12, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '8px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+                >Use a different email</button>
+              </div>
+            )}
+
+            {/* New customer — full detail fields, only after the email check */}
+            {emailStage === 'new' && (
+            <>
             <div className='register-grid-2' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label>QLD Driver&apos;s Licence / CRN</label>
@@ -584,31 +691,6 @@ export default function RegisterQLD() {
               </div>
               <div><label>First Name</label><input autoComplete="given-name" value={owner.first_name} onChange={e => updateOwner('first_name', e.target.value)} placeholder="John" /></div>
               <div><label>Last Name</label><input autoComplete="family-name" value={owner.last_name} onChange={e => updateOwner('last_name', e.target.value)} placeholder="Smith" /></div>
-              <div>
-                <label>Email</label>
-                <input
-                  type="email"
-                  autoComplete="email"
-                  value={owner.email}
-                  onChange={e => { updateOwner('email', e.target.value.toLowerCase()); setEmailSuggestion(null) }}
-                  onBlur={e => setEmailSuggestion(suggestEmailFix(e.target.value.toLowerCase()))}
-                  placeholder="john@email.com"
-                  style={{ textTransform: 'lowercase' }}
-                />
-                {emailSuggestion && emailSuggestion !== owner.email && (
-                  <div style={{ marginTop: 6, fontSize: 12, color: '#fbbf24' }}>
-                    Did you mean{' '}
-                    <button
-                      type="button"
-                      onClick={() => { updateOwner('email', emailSuggestion); setEmailSuggestion(null) }}
-                      style={{ background: 'none', border: 'none', color: '#5ab0ff', cursor: 'pointer', padding: 0, font: 'inherit', textDecoration: 'underline' }}
-                    >
-                      {emailSuggestion}
-                    </button>
-                    ?
-                  </div>
-                )}
-              </div>
               <div><label>Mobile</label><input autoComplete="tel" inputMode="numeric" value={owner.phone} onChange={e => updateOwner('phone', normaliseAuMobile(e.target.value))} placeholder="0412345678" /></div>
               <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
                 <label>Street Address <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 11 }}>(street number + name only)</span></label>
@@ -676,7 +758,8 @@ export default function RegisterQLD() {
               </div>
             </div>
             <hr className="divider" />
-            <div className="section-label" style={{ marginBottom: 12 }}>Select Your Plan</div>
+            <div className="section-label" style={{ marginBottom: 4 }}>Which plan would you like to buy?</div>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Choose where you sit in the booking queue.</p>
             <div className='tier-grid-3' style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
               {[
                 { id: 'priority', rank: '1', label: 'Priority', price: '$5',    desc: 'First in queue. Books immediately when a slot is found.', color: 'var(--gold)' },
@@ -709,6 +792,8 @@ export default function RegisterQLD() {
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
                 {step1Err}
               </p>
+            )}
+            </>
             )}
           </div>
         )}
