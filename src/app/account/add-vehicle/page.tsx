@@ -75,6 +75,11 @@ export default function AddVehiclePage() {
       if (!user.user_metadata?.customer_id) { router.replace('/account/complete-profile'); return }
 
       const res = await fetch('/api/account/profile', { cache: 'no-store' })
+      // Linked customer row is gone (stale metadata link, e.g. removed by
+      // the dedupe tool) — send them through first-time profile setup so
+      // it gets re-created and re-linked, rather than showing an empty
+      // "saved details" form.
+      if (res.status === 404) { router.replace('/account/complete-profile'); return }
       if (!res.ok) { setAuthReady(true); return }
       const cust = await res.json()
       setOriginalCustomer(cust)

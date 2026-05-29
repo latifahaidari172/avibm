@@ -33,9 +33,20 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
-  // If they already have a linked customer, don't create a duplicate.
-  if (user.user_metadata?.customer_id) {
-    return NextResponse.json({ error: 'profile already exists' }, { status: 409 })
+  // If they already have a linked customer that STILL EXISTS, don't
+  // create a duplicate. A stale link — the customer row was since
+  // removed (e.g. by the admin dedupe tool) — falls through and is
+  // re-created + re-linked below instead of dead-ending on a 409.
+  const existingLink = user.user_metadata?.customer_id as string | undefined
+  if (existingLink) {
+    const chk = await fetch(
+      `${supabaseUrl}/rest/v1/customers?id=eq.${existingLink}&select=id&limit=1`,
+      { headers: h() },
+    )
+    const linkRows = await chk.json()
+    if (Array.isArray(linkRows) && linkRows.length > 0) {
+      return NextResponse.json({ error: 'profile already exists' }, { status: 409 })
+    }
   }
 
   const body = await req.json()
