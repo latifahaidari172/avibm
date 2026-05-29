@@ -1672,6 +1672,9 @@ export default function Admin() {
                   <div style={{ textAlign: 'center', minWidth: 60 }}>
                     <div style={{ fontFamily: 'Bebas Neue', fontSize: 22, color: 'var(--gold)' }}>{c.vehicles?.filter(v => !v.archived).length || 0}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>VEHICLE{(c.vehicles?.filter(v => !v.archived).length || 0) !== 1 ? 'S' : ''}</div>
+                    {(c.vehicles?.filter(v => v.archived).length ?? 0) > 0 && (
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>+{c.vehicles?.filter(v => v.archived).length} archived</div>
+                    )}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 90, textAlign: 'right' }}>
                     {new Date(c.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}
@@ -2137,10 +2140,26 @@ export default function Admin() {
                       </div>
                     ))}
 
-                    {/* Archived vehicles intentionally NOT shown here.
-                        They live in the global Archived section at the
-                        bottom of the page so each kind of vehicle has one
-                        canonical home. */}
+                    {/* Archived vehicles for this (non-archived) customer —
+                        shown here compactly so an active profile whose
+                        vehicles are all archived still surfaces them.
+                        Fully-archived profiles live in the global Archived
+                        section instead. */}
+                    {!c.archived && (c.vehicles?.filter(v => v.archived).length ?? 0) > 0 && (
+                      <div style={{ marginTop: 16 }}>
+                        <div className="section-label" style={{ marginBottom: 10 }}>Archived Vehicles <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({c.vehicles?.filter(v => v.archived).length})</span></div>
+                        {c.vehicles?.filter(v => v.archived).map(v => (
+                          <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: '#070707', border: '1px solid #141414', borderRadius: 8, padding: '10px 14px', marginBottom: 6, opacity: 0.85 }}>
+                            <div style={{ fontSize: 13 }}>
+                              <span style={{ color: 'var(--text)' }}>{[v.year, v.make, v.model].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim()}</span>
+                              {v.ref && <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11, color: 'var(--gold)', marginLeft: 8 }}>{v.ref}</span>}
+                              {v.booked_date && <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>booked {v.booked_date}</span>}
+                            </div>
+                            <button onClick={() => archiveVehicle(v.id, !!v.archived)} title="Unarchive vehicle" className="admin-btn" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4, border: '1px solid #2a4a2a', color: '#5adb5a', background: 'transparent', borderRadius: 6, padding: '6px 10px', whiteSpace: 'nowrap' }}><IconArrowUturnLeft size={13} />Unarchive</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Actions */}
                     <div className='actions-row' style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
