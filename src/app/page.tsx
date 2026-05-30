@@ -79,7 +79,7 @@ export default function Home() {
             ].map((c) => (
               <div key={c.title} className="bg-surface-container-low lustre-border p-card-padding rounded-xl surface-lift group hover:bg-surface-container-high transition-all">
                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform">
-                  <span className="material-symbols-outlined" style={fill1}>{c.icon}</span>
+                  <span className="material-symbols-outlined text-2xl" style={fill1}>{c.icon}</span>
                 </div>
                 <h3 className="font-headline-md text-[24px] mb-2">{c.title}</h3>
                 <p className="text-on-surface-variant font-body-md">{c.body}</p>
@@ -193,7 +193,7 @@ export default function Home() {
                   <div className="relative inline-block mb-8">
                     <span className="font-display-lg text-[100px] leading-none opacity-20 absolute -top-8 -left-4 step-number">{s.n}</span>
                     <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto relative z-10 ${s.last ? 'bg-primary gold-glow' : 'bg-background border-2 border-primary'}`}>
-                      <span className={`material-symbols-outlined ${s.last ? 'text-on-primary' : 'text-primary'}`}>{s.icon}</span>
+                      <span className={`material-symbols-outlined text-3xl ${s.last ? 'text-on-primary' : 'text-primary'}`}>{s.icon}</span>
                     </div>
                   </div>
                   <h4 className="font-display-lg text-[24px] mb-4 tracking-wider">{s.title}</h4>
