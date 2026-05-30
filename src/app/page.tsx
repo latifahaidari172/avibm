@@ -95,7 +95,7 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
               {/* QLD */}
               <Link href="/register/qld" className="relative group cursor-pointer overflow-hidden rounded-xl lustre-border h-64 block">
-                <img className="w-full h-full object-cover grayscale opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-700" alt="" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCz9XPltbN4kvXIWa0Qooa5hcqbePnzSxQJmdPkrrIZIzWGlg_mg42eFfXV0g0HDDbAEivtEtj9dZ-xJZmh2cXY-Bkp6OrKZmjZH7xKBHEfkAFHO8r0oSGnoFa3UvS0M2i1wMI43i4bxWmVpph2T6sx2Ld9xTYuzNW1lztkYko97GGkmSz0wwG3SzFYk7eYhqsmPc6U6CNPmZngaMOB0p4ErOqx_ZyZFQkC2ddObbouCvdZhUGmzdsPAqxQpOj1xhmwv-3uUHlXWs8" />
+                <img className="w-full h-full object-cover grayscale opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-700" alt="Brisbane skyline" src="/brisbane-skyline.jpg" />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent p-card-padding flex flex-col justify-end">
                   <div className="flex justify-between items-end">
                     <div>
@@ -109,7 +109,7 @@ export default function Home() {
               </Link>
               {/* SA */}
               <Link href="/register/sa" className="relative group cursor-pointer overflow-hidden rounded-xl lustre-border h-64 block">
-                <img className="w-full h-full object-cover grayscale opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-700" alt="" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPuBJFSaa9yBWVhgXsfMxAv171LaIabPzowYhBoJWSiQJi-CUzLfgu8C7DLSV1yHx5C_2IlwarS1lkWm-y1VVS55d6HGCLnVFMNd79KQ_XyDmIhwoijiNBua-SDo4SC_iSqPIQqind26AvlosPszWfGnB4pWxD672XVAE9aWrqF4hn0firWK-fqyC7hYmno4lyDSAKHdNAOTRGwtF7LM0JReUjobcLYD8abmJUjDeLIxkq66fTSuNw9SoHmSut5nw2zia-8Mkd_4I" />
+                <img className="w-full h-full object-cover grayscale opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-700" alt="Adelaide skyline" src="/adelaide-skyline.jpg" />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent p-card-padding flex flex-col justify-end">
                   <div className="flex justify-between items-end">
                     <div>
