@@ -68,6 +68,12 @@ export async function POST(req: NextRequest) {
     purchase_method: vIn.purchase_method || null,
     purchased_from: vIn.purchased_from || null,
     cutoff_date: vIn.cutoff_date,
+    // Original WOVI booking time + location (the date is cutoff_date).
+    current_booking_time: vIn.current_booking_time || null,
+    current_booking_location: vIn.current_booking_location || null,
+    // Per-vehicle monitoring plan + auction-intel photo URL.
+    tier: vIn.tier || null,
+    photo_url: vIn.photo_url || null,
     active: true, archived: false, booking_in_progress: false,
   }
   // Locations columns exist on vehicles; use the rich payload if present,
