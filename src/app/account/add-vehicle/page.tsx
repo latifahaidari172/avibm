@@ -234,13 +234,13 @@ export default function AddVehiclePage() {
             <div className="relative flex items-center">
               <span className="material-symbols-outlined absolute left-4 text-[#e6c364] pointer-events-none">search</span>
               <input
-                className="vin-search av-input pl-12 pr-4"
+                className="vin-search av-input"
                 value={v.vin}
                 maxLength={17}
                 placeholder="Enter your VIN"
                 autoComplete="off"
                 onChange={e => updV('vin', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17))}
-                style={(v.vin && validateVin(v.vin)) ? { borderColor: '#a33' } : undefined}
+                style={{ paddingLeft: '2.75rem', ...((v.vin && validateVin(v.vin)) ? { borderColor: '#a33' } : {}) }}
               />
             </div>
             {v.vin && validateVin(v.vin) ? (
