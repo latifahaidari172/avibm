@@ -268,32 +268,31 @@ export default function AddVehiclePage() {
             ) : lookup.status === 'searching' ? (
               <p className="text-[13px] text-[#99907e] mt-3">Searching auction records…</p>
             ) : lookup.status === 'found' && candidate ? (
-              <div className="mt-3 rounded-lg p-3" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.3)' }}>
-                <div className="flex items-center gap-1.5 text-[#7fe07f] text-[13px] mb-3">
-                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>verified</span>
-                  We found this vehicle in auction records
-                </div>
-                <div className="flex gap-3">
+              <div className="mt-3 rounded-lg p-2.5" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.3)' }}>
+                <div className="flex items-center gap-2.5">
                   {photoUrl && (
                     <img src={photoUrl} alt="" onError={() => setPhotoUrl(null)}
-                      className="rounded-lg border border-[#222]" style={{ width: 104, height: 78, objectFit: 'cover', flexShrink: 0 }} />
+                      className="rounded-md border border-[#222]" style={{ width: 72, height: 54, objectFit: 'cover', flexShrink: 0 }} />
                   )}
-                  <div>
-                    <div className="av-bebas text-[20px] text-[#e6c364] leading-none">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1 text-[#7fe07f]" style={{ fontSize: 11 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 13 }}>verified</span> Found in auction records
+                    </div>
+                    <div className="av-bebas text-[17px] text-[#e6c364] leading-tight truncate">
                       {[candidate.year, candidate.make, candidate.model].filter(Boolean).join(' ') || 'Vehicle'}
                     </div>
-                    {candidate.colour && <div className="text-[12px] text-[#99907e] mt-1">{candidate.colour}</div>}
+                    {candidate.colour && <div className="text-[11px] text-[#99907e] leading-tight">{candidate.colour}</div>}
                   </div>
                 </div>
-                <p className="text-[14px] text-[#e5e2e1] mt-3 mb-2">Is this your vehicle?</p>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2 mt-2.5">
+                  <span className="text-[12px] text-[#d0c5b2] mr-auto">Is this your vehicle?</span>
                   <button type="button" onClick={acceptMatch}
-                    style={{ background: '#c9a84c', color: '#3d2e00', border: 'none', borderRadius: 8, padding: '9px 16px', fontWeight: 600, cursor: 'pointer' }}>
-                    Yes — autofill
+                    style={{ background: '#c9a84c', color: '#3d2e00', border: 'none', borderRadius: 6, padding: '6px 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                    Yes
                   </button>
                   <button type="button" onClick={declineMatch}
-                    style={{ background: 'transparent', color: '#d0c5b2', border: '1px solid #4d4637', borderRadius: 8, padding: '9px 16px', cursor: 'pointer' }}>
-                    No, I&apos;ll enter manually
+                    style={{ background: 'transparent', color: '#d0c5b2', border: '1px solid #4d4637', borderRadius: 6, padding: '6px 14px', fontSize: 13, cursor: 'pointer' }}>
+                    No
                   </button>
                 </div>
               </div>

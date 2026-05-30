@@ -1,5 +1,11 @@
+import { existsSync } from 'fs'
 import { NextResponse } from 'next/server'
 import { query } from '@/lib/db'
+
+// auction-intel's thumbnail directory (same VPS). A thumb exists only for
+// listings whose photos were stored — so we pick the most-recent listing that
+// actually HAS one, instead of blindly trusting the newest listing.
+const THUMBS_DIR = process.env.THUMBS_DIR || '/var/lib/auction-intel/thumbs'
 
 // VIN autofill for the Add Vehicle form. Now that AVIBM shares auction-intel's
 // Postgres, this reads the scraped vehicle + listings DIRECTLY from the
@@ -34,10 +40,16 @@ export async function GET(request: Request) {
       [ids],
     )
     const v = vehicles[0]
-    const l0 = listings[0]
-    const photo_url = l0?.source && l0?.external_id
-      ? `https://admin.auction-intel.com/thumbs/${l0.source}_${l0.external_id}.jpg`
-      : null
+    // Most-recent listing whose thumbnail file actually exists on disk.
+    let photo_url: string | null = null
+    for (const l of listings) {
+      if (!l.source || !l.external_id) continue
+      const name = `${l.source}_${l.external_id}.jpg`
+      if (existsSync(`${THUMBS_DIR}/${name}`)) {
+        photo_url = `https://admin.auction-intel.com/thumbs/${name}`
+        break
+      }
+    }
     return NextResponse.json({
       vin,
       found: true,
