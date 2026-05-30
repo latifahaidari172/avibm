@@ -379,3 +379,42 @@ html { scroll-behavior: smooth; }
 
 /* Offset anchored sections for the fixed 80px navbar */
 .landing-anchor { scroll-margin-top: 96px; }
+
+/* ── Add Vehicle page (Stitch "My Garage" design) ── */
+.av-input { width:100%; background:#0A0A0A; border:1px solid #161616; border-radius:0.5rem; padding:0.75rem 1rem; color:#e5e2e1; font-family:'DM Sans',sans-serif; font-size:16px; outline:none; transition:border-color .15s, box-shadow .15s; }
+.av-input:focus { border-color:#e6c364; box-shadow:0 0 0 3px rgba(201,168,76,0.12); }
+.av-input.err { border-color:#a33; }
+.av-label { display:block; font-size:12px; font-weight:500; color:#d0c5b2; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px; }
+.av-hint { font-size:12px; color:#99907e; }
+.av-bebas { font-family:'Bebas Neue', sans-serif; letter-spacing:0.02em; }
+.sec-divider { height:3px; width:36px; background:#e6c364; border-radius:9999px; opacity:0.55; }
+.vin-card { background:linear-gradient(160deg,#16130b,#0d0d0d); border:1px solid rgba(201,168,76,0.22); border-radius:1rem; padding:1.1rem; box-shadow:0 0 30px rgba(201,168,76,0.04); }
+.vin-badge { width:40px; height:40px; border-radius:9999px; display:flex; align-items:center; justify-content:center; background:rgba(201,168,76,0.12); border:1px solid rgba(201,168,76,0.4); color:#e6c364; flex-shrink:0; }
+.vin-search { font-family:ui-monospace,Menlo,monospace; letter-spacing:0.08em; }
+.tier-card { display:flex; flex-direction:column; align-items:center; gap:2px; padding:0.8rem 0.4rem; border:1px solid #161616; border-radius:0.7rem; background:#0A0A0A; cursor:pointer; transition:all .15s; text-align:center; }
+.tier-card:hover { border-color:#4d4637; }
+.tier-card .t-medal { font-size:22px; line-height:1; }
+.tier-card .t-name { font-family:'Bebas Neue',sans-serif; font-size:17px; letter-spacing:0.04em; line-height:1; }
+.tier-card .t-price { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:0.03em; line-height:1.1; }
+.tier-card .t-desc { font-size:10px; line-height:1.25; color:#99907e; }
+.tier-gold .t-medal,.tier-gold .t-name,.tier-gold .t-price { color:#e6c364; }
+.tier-silver .t-medal,.tier-silver .t-name,.tier-silver .t-price { color:#cfd4d8; }
+.tier-bronze .t-medal,.tier-bronze .t-name,.tier-bronze .t-price { color:#cd7f32; }
+.tier-gold.sel { border-color:#e6c364; background:rgba(230,195,100,0.10); box-shadow:0 0 14px rgba(230,195,100,0.20); }
+.tier-silver.sel { border-color:#cfd4d8; background:rgba(207,212,216,0.10); box-shadow:0 0 14px rgba(207,212,216,0.16); }
+.tier-bronze.sel { border-color:#cd7f32; background:rgba(205,127,50,0.12); box-shadow:0 0 14px rgba(205,127,50,0.20); }
+.loc-opt { display:flex; align-items:center; gap:8px; padding:0.7rem 0.85rem; border:1px solid #161616; border-radius:0.6rem; background:#0A0A0A; color:#d0c5b2; cursor:pointer; font-size:14px; text-align:left; transition:all .15s; width:100%; }
+.loc-opt:hover { border-color:#4d4637; }
+.loc-opt.sel { border-color:#e6c364; background:rgba(201,168,76,0.08); color:#e6c364; }
+.loc-opt .loc-ic { color:#99907e; font-size:18px; }
+.loc-opt.sel .loc-ic { color:#e6c364; }
+.loc-grid.maxed .loc-opt:not(.sel) { opacity:0.4; }
+.prio-chip { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:9999px; border:1px solid #4d4637; background:transparent; color:#d0c5b2; font-size:13px; cursor:pointer; transition:all .15s; }
+.prio-chip:hover { border-color:#99907e; }
+.prio-chip.on { border-color:#e6c364; background:rgba(201,168,76,0.10); color:#e6c364; font-weight:600; }
+.prio-chip.dim { opacity:0.4; }
+.prio-chip .pnum { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:9999px; background:#e6c364; color:#3d2e00; font-size:10px; font-weight:700; }
+.av-register { width:100%; background:#c9a84c; color:#3d2e00; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:0.04em; padding:1.05rem; border:none; border-radius:0.75rem; cursor:pointer; transition:filter .15s, transform .1s; display:flex; align-items:center; justify-content:center; gap:10px; }
+.av-register:hover:not(:disabled) { filter:brightness(1.1); }
+.av-register:active:not(:disabled) { transform:scale(0.98); }
+.av-register:disabled { opacity:0.4; cursor:not-allowed; filter:grayscale(0.4); }
