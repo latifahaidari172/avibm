@@ -10,6 +10,8 @@ const WOVI_LOCATIONS = [
 ]
 const VEHICLE_TYPES = ['Car', 'Motorcycle', 'Truck', 'Trailer', 'Caravan']
 const COLOURS = ['White', 'Black', 'Silver', 'Grey', 'Blue', 'Red', 'Green', 'Yellow', 'Orange', 'Brown', 'Gold', 'Other']
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const PURCHASE_METHODS = ['Auction', 'Private Sale', 'Insurance', 'Other']
 const DAMAGES = [
   'HAIL DAMAGE', 'WATER DAMAGE', 'MALICIOUS DAMAGE', 'FIRE DAMAGE', 'STRUCTURAL DAMAGE',
   'IMPACT DAMAGE DRIVERS FRONT', 'IMPACT DAMAGE PASSENGER FRONT',
@@ -180,7 +182,11 @@ export default function AddVehiclePage() {
     const yearErr = validateYear(v.year);  if (yearErr)  return yearErr
     if (!v.colour) return 'Select a colour.'
     if (!v.vehicle_type) return 'Select a vehicle type.'
+    if (!v.build_month) return 'Select the build month.'
     if (!v.damage) return 'Select the damage type.'
+    // WOVI requires these — the booking can't be completed without them.
+    if (!v.purchase_method) return 'Select how the vehicle was bought.'
+    if (!v.purchased_from.trim()) return 'Tell us where the vehicle was purchased from.'
     const cutoffErr = validateCutoffDate(v.cutoff_date); if (cutoffErr) return cutoffErr
     if (!v.current_booking_time) return 'Select your current booking time.'
     if (!v.current_booking_location) return 'Select your current booking location.'
@@ -370,10 +376,14 @@ export default function AddVehiclePage() {
               onChange={x => updV('model', x.replace(/[^A-Za-z0-9\s\-/.]/g, '').slice(0, 40))} />
             <AVField label="Year" value={v.year} placeholder="e.g. 2022" inputMode="numeric" maxLength={4} error={v.year ? validateYear(v.year) : null}
               onChange={x => updV('year', clampYearInput(x))} />
+            <AVSelect label="Build month" value={v.build_month} placeholder="Select" options={MONTHS} onChange={x => updV('build_month', x)} />
             <AVSelect label="Colour" value={v.colour} placeholder="Select" options={COLOURS} onChange={x => updV('colour', x)} />
             <AVSelect label="Vehicle type" value={v.vehicle_type} options={VEHICLE_TYPES} onChange={x => updV('vehicle_type', x)} />
             <AVSelect label="Damage" value={v.damage} placeholder="Select" options={DAMAGES} onChange={x => updV('damage', x)} />
+            <AVSelect label="How did you buy it?" value={v.purchase_method} placeholder="Select" options={PURCHASE_METHODS} onChange={x => updV('purchase_method', x)} />
           </div>
+          <AVField label="Where was it purchased from?" value={v.purchased_from} placeholder="e.g. Pickles, a dealer, a private seller"
+            onChange={x => updV('purchased_from', x)} />
         </section>
         <div className="sec-divider" />
 
