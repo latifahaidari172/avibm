@@ -22,12 +22,14 @@ from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
 import requests
+import psycopg2
+import psycopg2.extras
 
 # ══════════════════════════════════════════════════════════════
 # CREDENTIALS
 # ══════════════════════════════════════════════════════════════
-SUPABASE_URL    = "https://aqvdzgffgjiduqjaucnk.supabase.co"
-SUPABASE_KEY    = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxdmR6Z2ZmZ2ppZHVxamF1Y25rIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mzg4NTY2MCwiZXhwIjoyMDg5NDYxNjYwfQ.dACretOCK_L6FFvnFrBJbXj3SWzubhm__fQou36Ys20"
+# Supabase removed 2026-05-30 — AVIBM now uses the local auction-intel
+# Postgres (avibm schema) via DATABASE_URL (see the Database section below).
 CAPSOLVER_KEY   = "CAP-DA713C39C6F13B070807A216316C2784907485D647D9C2A197DB6D2EAA912134"
 GMAIL_ADDR      = "navidhaidari12@gmail.com"
 GMAIL_PASS      = "wtac myma knfq bqzd"
@@ -77,27 +79,22 @@ def load_settings_from_db():
     """Load scan settings from Supabase bot_settings table."""
     global _settings
     try:
-        r = requests.get(f"{SUPABASE_URL}/rest/v1/bot_settings?id=eq.main&select=*",
-                         headers=HEADERS, timeout=10)
-        if r.status_code == 200:
-            rows = r.json()
-            if isinstance(rows, list) and rows:
-                row = rows[0]
-                with _settings_lock:
-                    _settings = {
-                        "scan_start":    (int(row.get("scan_start_hour", 7)),  int(row.get("scan_start_minute", 30))),
-                        "scan_fast_end": (int(row.get("scan_fast_end_hour", 11)), int(row.get("scan_fast_end_minute", 0))),
-                        "scan_end":      (int(row.get("scan_end_hour", 19)),   int(row.get("scan_end_minute", 0))),
-                        "fast_interval": int(row.get("fast_interval", 10)),
-                        "slow_interval": int(row.get("slow_interval", 60)),
-                        "sa_interval":   int(row.get("sa_interval", 60)),
-                    }
-                log(f"Loaded scan settings: active {_fmt_hm(_settings['scan_start'])}–{_fmt_hm(_settings['scan_end'])}, "
-                    f"fast until {_fmt_hm(_settings['scan_fast_end'])}", "OK")
-            else:
-                log(f"bot_settings row missing — using defaults (scan_start={_fmt_hm(_get('scan_start'))})", "WARN")
+        rows = _pg_query("SELECT * FROM bot_settings WHERE id = 'main'")
+        if isinstance(rows, list) and rows:
+            row = rows[0]
+            with _settings_lock:
+                _settings = {
+                    "scan_start":    (int(row.get("scan_start_hour", 7)),  int(row.get("scan_start_minute", 30))),
+                    "scan_fast_end": (int(row.get("scan_fast_end_hour", 11)), int(row.get("scan_fast_end_minute", 0))),
+                    "scan_end":      (int(row.get("scan_end_hour", 19)),   int(row.get("scan_end_minute", 0))),
+                    "fast_interval": int(row.get("fast_interval", 10)),
+                    "slow_interval": int(row.get("slow_interval", 60)),
+                    "sa_interval":   int(row.get("sa_interval", 60)),
+                }
+            log(f"Loaded scan settings: active {_fmt_hm(_settings['scan_start'])}–{_fmt_hm(_settings['scan_end'])}, "
+                f"fast until {_fmt_hm(_settings['scan_fast_end'])}", "OK")
         else:
-            log(f"bot_settings fetch HTTP {r.status_code} — using defaults (scan_start={_fmt_hm(_get('scan_start'))})", "WARN")
+            log(f"bot_settings row missing — using defaults (scan_start={_fmt_hm(_get('scan_start'))})", "WARN")
     except Exception as e:
         log(f"Failed to load scan settings: {e}", "WARN")
 
@@ -113,13 +110,6 @@ QLD_LOCATIONS   = ["Brisbane","Bundaberg","Burleigh Heads","Cairns","Mackay",
                    "Narangba","Rockhampton City","Toowoomba","Townsville","Yatala"]
 SA_HOME_URL     = "https://www.ecom.transport.sa.gov.au/et/welcome.jsp"
 SA_BOOKING_URL  = "https://www.ecom.transport.sa.gov.au/et/rescheduleAVehicleInspectionBooking.do"
-
-HEADERS = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json",
-    "Prefer": "return=representation",
-}
 
 _booking_lock = threading.Lock()
 
@@ -137,11 +127,8 @@ def _poll_enabled_flag():
     global _instance_enabled
     while True:
         try:
-            r = requests.get(
-                f"{SUPABASE_URL}/rest/v1/bot_instances?id=eq.{INSTANCE_ID}&select=enabled,status",
-                headers=HEADERS, timeout=5
-            )
-            data = r.json()
+            data = _pg_query(
+                "SELECT enabled, status FROM bot_instances WHERE id = %s", [INSTANCE_ID])
             if isinstance(data, list) and data:
                 row = data[0]
                 new_val = bool(row.get("enabled", True))
@@ -185,20 +172,82 @@ def parse_date(s):
         except: pass
     return None
 
-# ── Supabase ──────────────────────────────────────────────────
-def db_get(table, params=""):
-    r = requests.get(f"{SUPABASE_URL}/rest/v1/{table}?{params}", headers=HEADERS)
+# ── Database (local Postgres, avibm schema) ───────────────────
+# AVIBM now shares the auction-intel Postgres. New connection per call —
+# the bot is multi-threaded (heartbeat + enabled-poll + SA loop), so we
+# never share a connection across threads.
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL", "postgresql://auction:auction@127.0.0.1:5432/auction_intel")
+
+def _pg_query(sql, params=None):
+    """SELECT / RETURNING → list[dict] (matches the old PostgREST shape)."""
+    conn = psycopg2.connect(DATABASE_URL)
     try:
-        data = r.json()
-        return data if r.status_code in (200,201) else []
-    except: return []
+        conn.autocommit = True
+        with conn.cursor() as c:
+            c.execute("SET search_path TO avibm, public")
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as c:
+            c.execute(sql, params or [])
+            return [dict(r) for r in c.fetchall()] if c.description else []
+    finally:
+        conn.close()
+
+def _pg_execute(sql, params=None):
+    """INSERT / UPDATE / DELETE → rowcount."""
+    conn = psycopg2.connect(DATABASE_URL)
+    try:
+        conn.autocommit = True
+        with conn.cursor() as c:
+            c.execute("SET search_path TO avibm, public")
+            c.execute(sql, params or [])
+            return c.rowcount
+    finally:
+        conn.close()
+
+def _pg_upsert(table, data, conflict_col, do_update=True):
+    cols = list(data.keys())
+    placeholders = ", ".join(["%s"] * len(cols))
+    col_sql = ", ".join(cols)
+    if do_update:
+        updates = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c != conflict_col)
+        conflict_sql = f"DO UPDATE SET {updates}" if updates else "DO NOTHING"
+    else:
+        conflict_sql = "DO NOTHING"
+    _pg_execute(
+        f"INSERT INTO {table} ({col_sql}) VALUES ({placeholders}) "
+        f"ON CONFLICT ({conflict_col}) {conflict_sql}",
+        [data[c] for c in cols])
+
+def db_get(table, params=""):
+    """PostgREST-compatible read. Only two query shapes are used:
+    customers (active + vehicles embed) and a single-row by-id select."""
+    try:
+        if table == "customers" and "vehicles(*)" in params:
+            customers = _pg_query("SELECT * FROM customers WHERE active = true")
+            for cust in customers:
+                cust["vehicles"] = _pg_query(
+                    "SELECT * FROM vehicles WHERE customer_id = %s", [cust["id"]])
+            return customers
+        # generic "<col>=eq.<val>&select=<cols>"
+        filters, cols = {}, "*"
+        for part in [p for p in params.split("&") if p]:
+            if part.startswith("select="):
+                cols = part[len("select="):] or "*"
+            elif "=eq." in part:
+                k, v = part.split("=eq.", 1)
+                filters[k] = v
+        where = " AND ".join(f"{k} = %s" for k in filters) or "true"
+        return _pg_query(f"SELECT {cols} FROM {table} WHERE {where}", list(filters.values()))
+    except Exception as e:
+        log(f"db_get {table} error: {e}", "ERROR")
+        return []
 
 def db_patch(table, match_key, match_val, data):
     try:
-        r = requests.patch(f"{SUPABASE_URL}/rest/v1/{table}?{match_key}=eq.{match_val}",
-                           headers=HEADERS, json=data, timeout=10)
-        if r.status_code not in (200, 204):
-            log(f"db_patch {table} failed: {r.status_code} {r.text[:200]}", "ERROR")
+        cols = list(data.keys())
+        set_sql = ", ".join(f"{c} = %s" for c in cols)
+        _pg_execute(f"UPDATE {table} SET {set_sql} WHERE {match_key} = %s",
+                    [data[c] for c in cols] + [match_val])
     except Exception as e:
         log(f"db_patch {table} error: {e}", "ERROR")
 
@@ -506,6 +555,14 @@ def scan_location(driver, location, cutoff, search_after=None):
                 dt = parse_date(data['val'])
                 if dt and dt < cutoff:
                     if search_after and dt <= search_after: continue
+                    # Brisbane WOVI runs Mon-Fri only. Reject weekend
+                    # dates even if the portal marks them available —
+                    # the portal occasionally exposes Saturday cells
+                    # that get accepted server-side but the depot is
+                    # closed (2026-05-25 P-51C487 incident).
+                    if dt.weekday() >= 5:
+                        log(f"  → skipped {data['val']} ({dt.strftime('%A')}) — weekend, no inspections", "WARN")
+                        continue
                     slots.append((dt, data['val'], location))
     except Exception as e:
         log(f"Scan error {location}: {e}", "WARN")
@@ -560,22 +617,50 @@ def book_qld_slot(location, date_str, customer, vehicle, task_id):
             log(f"Slot {date_str} at {location} no longer available — someone else took it!", "WARN")
             return (False, "", True, False)  # slot taken, retry
 
-        # Select earliest time
+        # Select earliest time. Filter out disabled / placeholder buttons
+        # (the portal occasionally exposes a non-clickable "5:00 am" pre-
+        # opening-time button that the bot used to grab via JS-click,
+        # bypassing the disabled gate — caused the P-51C487 Saturday
+        # 5 AM phantom booking, 2026-05-25). Also enforce a 7 AM floor
+        # since real depot opening is 8 AM+ at every QLD WOVI site.
         time.sleep(3)
         selected_time = ""
         time_btns = driver.find_elements(By.XPATH,
             "//button[contains(@data-ng-repeat,'Slot in bookingSlots') or "
             "contains(@data-ng-click,'selectedBookingSlotId')]")
-        if time_btns:
-            def parse_12hr(b):
-                try: return datetime.strptime(b.text.strip().upper().replace(" ",""),"%I:%M%p")
-                except:
-                    try: return datetime.strptime(b.text.strip().upper().replace(" ",""),"%I%p")
-                    except: return datetime.max
-            earliest = min(time_btns, key=parse_12hr)
-            driver.execute_script("arguments[0].click();", earliest)
-            selected_time = earliest.text.strip()
-            log(f"Time: {selected_time}")
+        MIN_HOUR = 7  # earliest legitimate slot at QLD WOVI sites
+        def parse_12hr(b):
+            try: return datetime.strptime(b.text.strip().upper().replace(" ",""),"%I:%M%p")
+            except:
+                try: return datetime.strptime(b.text.strip().upper().replace(" ",""),"%I%p")
+                except: return datetime.max
+        def is_real_slot(b):
+            # disabled / aria-disabled / ng-disabled class → skip
+            try:
+                if b.get_attribute("disabled"): return False
+                if b.get_attribute("aria-disabled") == "true": return False
+                cls = (b.get_attribute("class") or "").lower()
+                if "disabled" in cls or "unavailable" in cls: return False
+                t = parse_12hr(b)
+                if t == datetime.max: return False
+                if t.hour < MIN_HOUR: return False
+            except: return False
+            return True
+        usable = [b for b in time_btns if is_real_slot(b)]
+        if not usable:
+            log(f"No usable time slots at {location} {date_str} after filter (had {len(time_btns)} raw) — skipping", "WARN")
+            return (False, "", True, False)
+        # Final safety net: refuse weekend dates even if scan let one through.
+        try:
+            _dt_check = parse_date(date_str)
+            if _dt_check and _dt_check.weekday() >= 5:
+                log(f"Refusing to book {date_str} ({_dt_check.strftime('%A')}) — weekend", "ERROR")
+                return (False, "", True, False)
+        except: pass
+        earliest = min(usable, key=parse_12hr)
+        driver.execute_script("arguments[0].click();", earliest)
+        selected_time = earliest.text.strip()
+        log(f"Time: {selected_time}")
         time.sleep(1)
         click_btn(driver, "next")
         time.sleep(3)
@@ -1018,13 +1103,11 @@ def qld_scan_loop():
 
                         try:
                             # Claim vehicle
-                            claim = requests.patch(
-                                f"{SUPABASE_URL}/rest/v1/vehicles?id=eq.{vehicle['id']}&booking_in_progress=eq.false",
-                                headers={**HEADERS,"Prefer":"return=representation"},
-                                json={"booking_in_progress":True,
-                                      "booking_started_at":datetime.now(timezone.utc).isoformat()}
-                            )
-                            if not claim.json() or len(claim.json()) == 0:
+                            claim = _pg_query(
+                                "UPDATE vehicles SET booking_in_progress = true, booking_started_at = %s "
+                                "WHERE id = %s AND booking_in_progress = false RETURNING id",
+                                [datetime.now(timezone.utc).isoformat(), vehicle['id']])
+                            if not claim:
                                 log("Vehicle already claimed", "WARN"); return
 
                             confirmed, booked_time, slot_taken, no_prior_booking = book_qld_slot(
@@ -1288,13 +1371,11 @@ def sa_check_loop():
                         log(f"[SA] Earlier slot found: {slot_text}", "OK")
 
                         # Claim vehicle atomically (safe for multi-device)
-                        sa_claim = requests.patch(
-                            f"{SUPABASE_URL}/rest/v1/vehicles?id=eq.{vehicle['id']}&booking_in_progress=eq.false",
-                            headers={**HEADERS,"Prefer":"return=representation"},
-                            json={"booking_in_progress": True,
-                                  "booking_started_at": datetime.now(timezone.utc).isoformat()}
-                        )
-                        if not sa_claim.json() or len(sa_claim.json()) == 0:
+                        sa_claim = _pg_query(
+                            "UPDATE vehicles SET booking_in_progress = true, booking_started_at = %s "
+                            "WHERE id = %s AND booking_in_progress = false RETURNING id",
+                            [datetime.now(timezone.utc).isoformat(), vehicle['id']])
+                        if not sa_claim:
                             log(f"[SA] Vehicle already claimed by another instance — skipping", "WARN")
                             continue
 
@@ -1386,19 +1467,13 @@ if __name__ == "__main__":
     print("="*55 + "\n")
 
     # Register this device immediately so the admin panel can see it even during sleep
-    requests.post(
-        f"{SUPABASE_URL}/rest/v1/monitor_status",
-        headers={**HEADERS, "Prefer": "resolution=merge-duplicates,return=minimal"},
-        json={"id": "main", "last_run": datetime.now(timezone.utc).isoformat(), "status": "sleeping",
-              "qld_count": 0, "sa_count": 0, "active_customers": 0}
-    )
-    _reg = requests.post(
-        f"{SUPABASE_URL}/rest/v1/bot_instances",
-        headers={**HEADERS, "Prefer": "resolution=ignore-duplicates,return=minimal"},
-        json={"id": INSTANCE_ID, "hostname": HOSTNAME},
-    )
-    if _reg.status_code not in (200, 201, 204):
-        log(f"bot_instances INSERT failed: {_reg.status_code} {_reg.text[:200]}", "ERROR")
+    _pg_upsert("monitor_status",
+        {"id": "main", "last_run": datetime.now(timezone.utc).isoformat(), "status": "sleeping",
+         "qld_count": 0, "sa_count": 0, "active_customers": 0}, "id")
+    try:
+        _pg_upsert("bot_instances", {"id": INSTANCE_ID, "hostname": HOSTNAME}, "id", do_update=False)
+    except Exception as e:
+        log(f"bot_instances INSERT failed: {e}", "ERROR")
 
     # Restore cached display_name if Supabase row was freshly created (display_name is null)
     _CACHE_FILE = os.path.expanduser("~/.avibm_device.json")
@@ -1463,12 +1538,9 @@ if __name__ == "__main__":
     log("Starting all monitors...", "OK")
 
     # Update status to running now that active hours have started
-    requests.post(
-        f"{SUPABASE_URL}/rest/v1/monitor_status",
-        headers={**HEADERS, "Prefer": "resolution=merge-duplicates,return=minimal"},
-        json={"id": "main", "last_run": datetime.now(timezone.utc).isoformat(), "status": "running",
-              "qld_count": 0, "sa_count": 0, "active_customers": 0}
-    )
+    _pg_upsert("monitor_status",
+        {"id": "main", "last_run": datetime.now(timezone.utc).isoformat(), "status": "running",
+         "qld_count": 0, "sa_count": 0, "active_customers": 0}, "id")
     db_patch("bot_instances", "id", INSTANCE_ID, {
         "last_seen": datetime.now(timezone.utc).isoformat(),
         "status": "running",
@@ -1477,11 +1549,10 @@ if __name__ == "__main__":
 
     # Clear stale booking locks (in case a previous instance crashed mid-booking)
     stale_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
-    requests.patch(
-        f"{SUPABASE_URL}/rest/v1/vehicles?booking_in_progress=eq.true&booking_started_at=lt.{stale_cutoff}",
-        headers=HEADERS,
-        json={"booking_in_progress": False}
-    )
+    _pg_execute(
+        "UPDATE vehicles SET booking_in_progress = false "
+        "WHERE booking_in_progress = true AND booking_started_at < %s",
+        [stale_cutoff])
     log("Cleared any stale booking locks (>15 min old)", "INFO")
 
     # SA in background thread
