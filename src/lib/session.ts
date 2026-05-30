@@ -80,6 +80,42 @@ export async function getSessionCustomer<T = any>(request: Request): Promise<T |
   return await one<T>('SELECT * FROM customers WHERE id = $1', [s.sub])
 }
 
+// Resolve a customer id by email (prefer active, non-deleted, most-recent).
+// Shared by the magic-link + Google callbacks.
+export async function findCustomerIdByEmail(email: string): Promise<string | null> {
+  const row = await one<{ id: string }>(
+    `SELECT id FROM customers
+      WHERE lower(email) = $1 AND pending_deletion = false
+      ORDER BY active DESC, archived ASC, created_at DESC
+      LIMIT 1`,
+    [email.toLowerCase()],
+  )
+  return row?.id ?? null
+}
+
+// Short-lived signed CSRF state for the OAuth round-trip (carries `next`).
+export function signState(data: Record<string, any>): string {
+  const body = Buffer.from(
+    JSON.stringify({ ...data, exp: Math.floor(Date.now() / 1000) + 600 }),
+  ).toString('base64url')
+  const sig = createHmac('sha256', getSecret()).update(body).digest('base64url')
+  return `${body}.${sig}`
+}
+
+export function verifyState(token: string): Record<string, any> | null {
+  try {
+    const [body, sig] = token.split('.')
+    if (!body || !sig) return null
+    const expected = createHmac('sha256', getSecret()).update(body).digest('base64url')
+    if (sig !== expected) return null
+    const p = JSON.parse(Buffer.from(body, 'base64url').toString())
+    if (!p.exp || p.exp < Math.floor(Date.now() / 1000)) return null
+    return p
+  } catch {
+    return null
+  }
+}
+
 // Set / clear the session cookie on a NextResponse (route handlers).
 export function setSessionCookie(res: NextResponse, customerId: string, email: string): void {
   res.cookies.set(SESSION_COOKIE, signSession(customerId, email), SESSION_COOKIE_OPTS)
