@@ -63,7 +63,11 @@ export default function AddVehiclePage() {
   })
 
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
-  const [lookup, setLookup] = useState<{ status: 'idle' | 'searching' | 'found' | 'none'; count: number }>({ status: 'idle', count: 0 })
+  // Found-in-auction-records match, held for the customer to confirm before
+  // we touch their form (Yes → autofill, No → manual entry). No "appearances"
+  // count shown — it confused customers on the booking page.
+  const [candidate, setCandidate] = useState<{ make: string; model: string; year: string; colour: string } | null>(null)
+  const [lookup, setLookup] = useState<{ status: 'idle' | 'searching' | 'found' | 'autofilled' | 'declined' | 'none' }>({ status: 'idle' })
 
   // Bootstrap — fetch profile + prefill the (hidden) customer fields.
   useEffect(() => {
@@ -90,35 +94,51 @@ export default function AddVehiclePage() {
   // VIN → auction-intel lookup (debounced). Autofills only empty fields.
   useEffect(() => {
     const vin = v.vin.trim().toUpperCase()
-    if (validateVin(vin)) { setLookup({ status: 'idle', count: 0 }); setPhotoUrl(null); return }
+    if (validateVin(vin)) { setLookup({ status: 'idle' }); setCandidate(null); setPhotoUrl(null); return }
     let cancelled = false
-    setLookup({ status: 'searching', count: 0 })
+    setLookup({ status: 'searching' }); setCandidate(null)
     const t = setTimeout(async () => {
       try {
         const r = await fetch(`/api/vehicle-lookup?vin=${encodeURIComponent(vin)}`)
         const d = await r.json()
         if (cancelled) return
         if (d?.found) {
-          setLookup({ status: 'found', count: d.appearance_count || 0 })
+          // Hold the match for confirmation — don't touch the form yet.
+          setCandidate({
+            make: d.make || '', model: d.model || '',
+            year: d.year ? String(d.year) : '', colour: d.colour || '',
+          })
           setPhotoUrl(d.photo_url || null)
-          setV(s => ({
-            ...s,
-            make: s.make || (d.make || ''),
-            model: s.model || (d.model || ''),
-            year: s.year || (d.year ? String(d.year) : ''),
-            colour: s.colour || (d.colour || ''),
-          }))
+          setLookup({ status: 'found' })
         } else {
-          setLookup({ status: 'none', count: 0 }); setPhotoUrl(null)
+          setLookup({ status: 'none' }); setCandidate(null); setPhotoUrl(null)
         }
       } catch {
-        if (!cancelled) setLookup({ status: 'idle', count: 0 })
+        if (!cancelled) setLookup({ status: 'idle' })
       }
     }, 500)
     return () => { cancelled = true; clearTimeout(t) }
   }, [v.vin])
 
   function updV<K extends keyof typeof v>(k: K, val: typeof v[K]) { setV(s => ({ ...s, [k]: val })) }
+
+  // "Yes — autofill": fill the form from the confirmed auction match.
+  function acceptMatch() {
+    if (!candidate) return
+    setV(s => ({
+      ...s,
+      make: candidate.make || s.make,
+      model: candidate.model || s.model,
+      year: candidate.year || s.year,
+      colour: candidate.colour || s.colour,
+    }))
+    setLookup({ status: 'autofilled' })
+  }
+  // "No": not their vehicle — drop the photo + let them type it in.
+  function declineMatch() {
+    setPhotoUrl(null)
+    setLookup({ status: 'declined' })
+  }
 
   function toggleLoc(loc: string) {
     if (locations.includes(loc)) {
@@ -247,18 +267,43 @@ export default function AddVehiclePage() {
               <p className="text-[12px] text-[#f87171] mt-2">{validateVin(v.vin)}</p>
             ) : lookup.status === 'searching' ? (
               <p className="text-[13px] text-[#99907e] mt-3">Searching auction records…</p>
-            ) : lookup.status === 'found' ? (
-              <div className="mt-3 rounded-lg p-3" style={{ background: 'rgba(90,219,90,0.08)' }}>
-                <div className="flex items-center gap-1.5 text-[#7fe07f] text-[13px]">
+            ) : lookup.status === 'found' && candidate ? (
+              <div className="mt-3 rounded-lg p-3" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.3)' }}>
+                <div className="flex items-center gap-1.5 text-[#7fe07f] text-[13px] mb-3">
                   <span className="material-symbols-outlined" style={{ fontSize: 18 }}>verified</span>
-                  Match found{lookup.count ? ` · ${lookup.count} appearance${lookup.count > 1 ? 's' : ''}` : ''} — details autofilled below.
+                  We found this vehicle in auction records
                 </div>
-                {photoUrl && (
-                  <div className="mt-2 rounded-lg overflow-hidden border border-[#222]" style={{ maxWidth: 300 }}>
-                    <img src={photoUrl} alt="Vehicle" onError={() => setPhotoUrl(null)} className="w-full block" />
+                <div className="flex gap-3">
+                  {photoUrl && (
+                    <img src={photoUrl} alt="" onError={() => setPhotoUrl(null)}
+                      className="rounded-lg border border-[#222]" style={{ width: 104, height: 78, objectFit: 'cover', flexShrink: 0 }} />
+                  )}
+                  <div>
+                    <div className="av-bebas text-[20px] text-[#e6c364] leading-none">
+                      {[candidate.year, candidate.make, candidate.model].filter(Boolean).join(' ') || 'Vehicle'}
+                    </div>
+                    {candidate.colour && <div className="text-[12px] text-[#99907e] mt-1">{candidate.colour}</div>}
                   </div>
-                )}
+                </div>
+                <p className="text-[14px] text-[#e5e2e1] mt-3 mb-2">Is this your vehicle?</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={acceptMatch}
+                    style={{ background: '#c9a84c', color: '#3d2e00', border: 'none', borderRadius: 8, padding: '9px 16px', fontWeight: 600, cursor: 'pointer' }}>
+                    Yes — autofill
+                  </button>
+                  <button type="button" onClick={declineMatch}
+                    style={{ background: 'transparent', color: '#d0c5b2', border: '1px solid #4d4637', borderRadius: 8, padding: '9px 16px', cursor: 'pointer' }}>
+                    No, I&apos;ll enter manually
+                  </button>
+                </div>
               </div>
+            ) : lookup.status === 'autofilled' ? (
+              <div className="mt-3 flex items-center gap-1.5 text-[#7fe07f] text-[13px]">
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>check_circle</span>
+                Autofilled from auction records — edit anything that&apos;s different.
+              </div>
+            ) : lookup.status === 'declined' ? (
+              <p className="text-[13px] text-[#99907e] mt-3">No problem — enter the details manually below.</p>
             ) : lookup.status === 'none' ? (
               <p className="text-[13px] text-[#99907e] mt-3">No auction record on file — enter the details manually.</p>
             ) : (
