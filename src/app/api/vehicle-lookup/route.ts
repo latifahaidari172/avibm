@@ -11,16 +11,22 @@ const AUCTION_INTEL_BASE = process.env.AUCTION_INTEL_BASE || 'https://admin.auct
 const VIN_RE = /^[A-HJ-NPR-Z0-9]{6,17}$/i
 
 export async function GET(request: Request) {
-  const vin = (new URL(request.url).searchParams.get('vin') || '').trim().toUpperCase()
+  const url = new URL(request.url)
+  const debug = url.searchParams.get('debug') === '1'
+  const vin = (url.searchParams.get('vin') || '').trim().toUpperCase()
   if (!VIN_RE.test(vin)) {
     return NextResponse.json({ found: false, error: 'invalid_vin' }, { status: 400 })
   }
+  const upstreamUrl = `${AUCTION_INTEL_BASE}/api/public/vin/${encodeURIComponent(vin)}`
   try {
-    const r = await fetch(`${AUCTION_INTEL_BASE}/api/public/vin/${encodeURIComponent(vin)}`, {
+    const r = await fetch(upstreamUrl, {
       headers: { Accept: 'application/json' },
       cache: 'no-store',
     })
-    if (!r.ok) return NextResponse.json({ found: false }, { status: 200 })
+    if (!r.ok) {
+      if (debug) return NextResponse.json({ found: false, _debug: { base: AUCTION_INTEL_BASE, url: upstreamUrl, status: r.status, body: (await r.text()).slice(0, 400) } }, { status: 200 })
+      return NextResponse.json({ found: false }, { status: 200 })
+    }
     const d = await r.json()
     const v = d?.vehicle || null
     const found = !!v || (d?.appearance_count || 0) > 0
@@ -35,7 +41,8 @@ export async function GET(request: Request) {
       photo_url: d?.thumbnail_url ?? null,
       appearance_count: d?.appearance_count ?? 0,
     })
-  } catch {
+  } catch (e) {
+    if (debug) return NextResponse.json({ found: false, error: 'lookup_failed', _debug: { base: AUCTION_INTEL_BASE, url: upstreamUrl, message: String(e) } }, { status: 200 })
     return NextResponse.json({ found: false, error: 'lookup_failed' }, { status: 200 })
   }
 }
