@@ -95,7 +95,7 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
               {/* QLD */}
               <Link href="/register/qld" className="relative group cursor-pointer overflow-hidden rounded-xl lustre-border h-64 block">
-                <img className="w-full h-full object-cover grayscale opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-700" alt="Brisbane skyline" src="/brisbane-skyline.jpg" />
+                <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Brisbane skyline" src="/brisbane-skyline.jpg" />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent p-card-padding flex flex-col justify-end">
                   <div className="flex justify-between items-end">
                     <div>
@@ -109,7 +109,7 @@ export default function Home() {
               </Link>
               {/* SA */}
               <Link href="/register/sa" className="relative group cursor-pointer overflow-hidden rounded-xl lustre-border h-64 block">
-                <img className="w-full h-full object-cover grayscale opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-700" alt="Adelaide skyline" src="/adelaide-skyline.jpg" />
+                <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Adelaide skyline" src="/adelaide-skyline-2022.jpg" />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent p-card-padding flex flex-col justify-end">
                   <div className="flex justify-between items-end">
                     <div>
