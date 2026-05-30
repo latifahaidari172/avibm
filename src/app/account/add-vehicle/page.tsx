@@ -30,6 +30,14 @@ const TIERS = [
 const MAX_LOC = 4
 const MAX_PRIO = 2
 
+// Format an auction date (ISO or YYYY-MM-DD) → "29 May 2026"; null if absent.
+function fmtDate(d: string | null | undefined): string | null {
+  if (!d) return null
+  const dt = new Date(d)
+  if (isNaN(dt.getTime())) return d
+  return dt.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 // "Add a vehicle" for signed-in customers — the "My Garage" design. The
 // customer's personal details come from their saved profile (edited on the
 // Edit Details page); here they enter the VIN (auto-fills from auction
@@ -73,6 +81,7 @@ export default function AddVehiclePage() {
     make: string; model: string; year: string; colour: string
     series?: string | null; badge?: string | null; body_type?: string | null
     transmission?: string | null; odometer_km?: number | null; source?: string | null
+    auction_date?: string | null
   } | null>(null)
   const [lookup, setLookup] = useState<{ status: 'idle' | 'searching' | 'found' | 'autofilled' | 'declined' | 'none' }>({ status: 'idle' })
 
@@ -116,6 +125,7 @@ export default function AddVehiclePage() {
             year: d.year ? String(d.year) : '', colour: d.colour || '',
             series: d.series || null, badge: d.badge || null, body_type: d.body_type || null,
             transmission: d.transmission || null, odometer_km: d.odometer_km ?? null, source: d.source || null,
+            auction_date: d.auction_date || null,
           })
           setPhotoUrl(d.photo_url || null)
           setPhotoFallback(d.photo_fallback || null)
@@ -141,6 +151,9 @@ export default function AddVehiclePage() {
       model: candidate.model || s.model,
       year: candidate.year || s.year,
       colour: candidate.colour || s.colour,
+      // It's in the auction database → it was bought at auction, from this source.
+      purchase_method: 'Auction',
+      purchased_from: candidate.source || s.purchased_from,
     }))
     setLookup({ status: 'autofilled' })
   }
@@ -317,7 +330,8 @@ export default function AddVehiclePage() {
                     ['Transmission', candidate.transmission],
                     ['Odometer', candidate.odometer_km ? `${candidate.odometer_km.toLocaleString()} km` : null],
                     ['Colour', candidate.colour],
-                    ['Source', candidate.source],
+                    ['Bought from', candidate.source],
+                    ['Auction date', fmtDate(candidate.auction_date)],
                   ] as [string, any][]).filter(([, val]) => val)
                   return specs.length > 0 ? (
                     <div className="grid grid-cols-2 gap-x-4 gap-y-3 px-3.5 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>

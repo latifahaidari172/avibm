@@ -58,6 +58,7 @@ export async function GET(request: Request) {
       transmission: veh.transmission ?? null,
       odometer_km: veh.odometer_km ?? listing.odometer_km ?? null,
       source: auctionName(listing.source_url),
+      auction_date: listing.auction_date || listing.sold_at || null,
       photo_url: hero || thumb,
       photo_fallback: thumb,
     })
