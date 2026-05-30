@@ -1,205 +1,245 @@
 'use client'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
+// AVIBM landing page. Dark/gold "Stitch" design ported to the app's Tailwind
+// (tokens added in tailwind.config.js; Material Symbols + custom classes in
+// globals.css). Wired to the real routes: Sign In → /account/sign-in, the
+// QLD/SA cards → /register/{qld,sa}, CTAs scroll to the relevant sections.
 export default function Home() {
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 50)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  const fill1 = { fontVariationSettings: "'FILL' 1" } as React.CSSProperties
+
   return (
-    <main style={{ minHeight: '100vh' }}>
-
-      {/* Header */}
-      <header style={{
-        borderBottom: '1px solid var(--border)',
-        padding: '16px 20px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        position: 'sticky', top: 0,
-        background: 'rgba(10,10,10,0.95)',
-        backdropFilter: 'blur(10px)',
-        zIndex: 100,
-      }}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontFamily: 'Bebas Neue', fontSize: 22, letterSpacing: '0.15em', color: 'var(--gold)' }}>AVIBM</span>
-          <span style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.08em', lineHeight: 1 }}>VEHICLE INSPECTION BOOKING MONITOR</span>
-        </div>
-        <Link href="/account/sign-in" style={{ color: 'var(--gold)', fontSize: 13, textDecoration: 'none', letterSpacing: '0.05em', border: '1px solid var(--gold)', padding: '6px 14px', borderRadius: 6 }}>
-          Sign In / Sign Up
-        </Link>
-      </header>
-
-      {/* Hero */}
-      <section style={{ padding: 'clamp(40px,8vw,100px) 20px 40px', maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
-        <div className="section-label" style={{ marginBottom: 16 }}>Automated Booking Technology</div>
-        <h1 style={{ fontSize: 'clamp(40px,9vw,96px)', lineHeight: 1, marginBottom: 20, color: 'var(--text)' }}>
-          NEVER MISS AN<br /><span className="gold">EARLIER SLOT</span><br />AGAIN
-        </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: 'clamp(14px,3.5vw,17px)', maxWidth: 540, margin: '0 auto 32px', lineHeight: 1.7, padding: '0 8px' }}>
-          AVIBM monitors written-off vehicle inspection booking systems 24/7 and automatically reschedules your vehicle the moment an earlier date becomes available.
-        </p>
-
-        {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 48, maxWidth: 500, margin: '0 auto 48px' }}>
-          {[
-            { n: '24/7', label: 'Monitoring' },
-            { n: '~1 min', label: 'Check Interval' },
-            { n: 'Auto', label: 'Booking' },
-            { n: 'Instant', label: 'Email Alert' },
-          ].map(s => (
-            <div key={s.n} style={{
-              background: 'var(--dark-2)',
-              border: '1px solid var(--border)',
-              padding: '16px 12px',
-              borderRadius: 8,
-              textAlign: 'center',
-            }}>
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 'clamp(22px,5vw,28px)', color: 'var(--gold)', letterSpacing: '0.05em' }}>{s.n}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* State Cards */}
-      <section style={{ padding: '0 20px 60px', maxWidth: 900, margin: '0 auto' }}>
-        <div className="section-label" style={{ textAlign: 'center', marginBottom: 24 }}>Select Your State</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
-
-          {/* QLD */}
-          <Link href="/register/qld" style={{ textDecoration: 'none', display: 'block' }}>
-            <div style={{
-              background: 'var(--dark-2)', border: '1px solid var(--border)',
-              borderRadius: 12, padding: '32px 24px', cursor: 'pointer',
-              transition: 'border-color 0.2s, transform 0.2s', position: 'relative',
-            }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--gold)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}
-            >
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, color: 'var(--gold)', letterSpacing: '0.2em', marginBottom: 8 }}>QLD</div>
-              <h2 style={{ fontSize: 'clamp(24px,5vw,36px)', color: 'var(--text)', marginBottom: 8 }}>QUEENSLAND</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.6, marginBottom: 40 }}>
-                WOVI — Written Off Vehicle Inspections<br />
-                Brisbane · Burleigh Heads · Narangba · Yatala
-              </p>
-              <div style={{ position: 'absolute', bottom: 20, right: 24, fontFamily: 'Bebas Neue', fontSize: 14, color: 'var(--gold)', letterSpacing: '0.1em' }}>REGISTER →</div>
-            </div>
-          </Link>
-
-          {/* SA */}
-          <Link href="/register/sa" style={{ textDecoration: 'none', display: 'block' }}>
-            <div style={{
-              background: 'var(--dark-2)', border: '1px solid var(--border)',
-              borderRadius: 12, padding: '32px 24px', cursor: 'pointer',
-              transition: 'border-color 0.2s, transform 0.2s', position: 'relative',
-            }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--gold)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}
-            >
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, color: 'var(--gold)', letterSpacing: '0.2em', marginBottom: 8 }}>SA</div>
-              <h2 style={{ fontSize: 'clamp(24px,5vw,36px)', color: 'var(--text)', marginBottom: 8 }}>SOUTH AUSTRALIA</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.6, marginBottom: 40 }}>
-                Service SA — Vehicle Inspection Bookings<br />
-                Regency Park
-              </p>
-              <div style={{ position: 'absolute', bottom: 20, right: 24, fontFamily: 'Bebas Neue', fontSize: 14, color: 'var(--gold)', letterSpacing: '0.1em' }}>REGISTER →</div>
-            </div>
-          </Link>
-        </div>
-
-        {/* Coming soon */}
-        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-          {['VIC', 'NSW', 'WA', 'NT'].map(s => (
-            <div key={s} style={{
-              background: 'var(--dark-2)', border: '1px solid var(--border)',
-              borderRadius: 8, padding: '12px 8px', textAlign: 'center', opacity: 0.4,
-            }}>
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 18, color: 'var(--text-muted)' }}>{s}</div>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>COMING SOON</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section style={{ borderTop: '1px solid var(--border)', padding: 'clamp(40px,6vw,80px) 20px', maxWidth: 900, margin: '0 auto' }}>
-        <div className="section-label" style={{ textAlign: 'center', marginBottom: 8 }}>Pricing</div>
-        <h2 style={{ fontSize: 'clamp(28px,6vw,48px)', textAlign: 'center', marginBottom: 32 }}>ONE-TIME FEE <span className="gold">PER VEHICLE</span></h2>
-
-        {/* QLD Pricing */}
-        <div style={{ marginBottom: 40 }}>
-          <div style={{ textAlign: 'center', marginBottom: 16 }}>
-            <span style={{ fontFamily: 'Bebas Neue', fontSize: 13, letterSpacing: '0.2em', color: '#5ab0ff' }}>QUEENSLAND — WOVI</span>
+    <div className="font-body-md text-body-md bg-background text-on-background min-h-screen selection:bg-primary selection:text-on-primary">
+      {/* TopNavBar */}
+      <nav className={`fixed top-0 w-full z-50 bg-background/80 backdrop-blur-md border-b border-outline-variant/10 h-20 transition-all ${scrolled ? 'bg-background/95 shadow-lg' : ''}`}>
+        <div className="flex justify-between items-center px-grid-gutter max-w-container-max-width mx-auto h-full">
+          <div className="font-display-lg text-primary tracking-tighter text-[32px]">AVIBM</div>
+          <div className="hidden md:flex items-center gap-8">
+            <a className="text-primary font-bold border-b-2 border-primary pb-1 text-body-md" href="#features">Monitoring</a>
+            <a className="text-on-surface-variant hover:text-primary transition-colors duration-300 text-body-md" href="#process">Auto Booking</a>
+            <a className="text-on-surface-variant hover:text-primary transition-colors duration-300 text-body-md" href="#regions">Regions</a>
+            <a className="text-on-surface-variant hover:text-primary transition-colors duration-300 text-body-md" href="#pricing">Pricing</a>
+            <a className="text-on-surface-variant hover:text-primary transition-colors duration-300 text-body-md" href="#process">Process</a>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, maxWidth: 700, margin: '0 auto' }}>
+          <Link href="/account/sign-in" className="bg-primary text-on-primary px-6 py-2 rounded-lg font-label-bold text-label-bold uppercase tracking-widest hover:bg-primary/90 transition-all">
+            Sign In
+          </Link>
+        </div>
+      </nav>
+
+      <main>
+        {/* Hero */}
+        <section className="relative h-screen flex items-center overflow-hidden pt-20">
+          <div className="absolute inset-0 z-0">
+            <img className="w-full h-full object-cover" alt="" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAcUZQa6lyqvIlvLhdig43uLymJUoeupWSifX-5LL7hkna067scSLc1d-6xcJqTUbaoDmjvD9yTzvBIUpUOG9L7_TxRqdXNtUL8UTZEN6tNo7_pVXAK7_LLUMTPekNJuTYoKD-3DkOgpJcqIM5eRsqvo1q5CfHCndQo-vMtIlwDz7Mam-w4se1LLkjUvU4p8xuqc9H1dNmR4eXrHjXi7S7QRXB02sz_I004ABBEP5GbKE66aJ-QwVGTvkN-qLATP6rqJGyP1waWmXg" />
+            <div className="absolute inset-0 hero-gradient"></div>
+          </div>
+          <div className="relative z-10 max-w-container-max-width mx-auto px-grid-gutter w-full">
+            <div className="max-w-2xl">
+              <div className="inline-block bg-primary/10 border border-primary/20 text-primary px-3 py-1 rounded-full text-label-bold mb-6 tracking-widest">
+                AUTOMATED BOOKING TECHNOLOGY
+              </div>
+              <h1 className="font-display-lg text-display-lg text-on-background mb-6 leading-none">
+                NEVER MISS AN<br />
+                <span className="text-primary">EARLIER SLOT</span><br />
+                AGAIN
+              </h1>
+              <p className="font-body-lg text-body-lg text-on-surface-variant mb-10 max-w-lg">
+                AVIBM monitors written-off vehicle inspection systems 24/7 and automatically reschedules your vehicle the moment an earlier date becomes available.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <a href="#regions" className="bg-primary text-on-primary px-10 py-4 rounded-lg font-label-bold text-label-bold uppercase tracking-widest hover:scale-105 transition-transform gold-glow">
+                  REGISTER VEHICLE
+                </a>
+                <a href="#pricing" className="border border-primary text-primary px-10 py-4 rounded-lg font-label-bold text-label-bold uppercase tracking-widest hover:bg-primary/5 transition-colors">
+                  VIEW PRICING
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Feature Grid */}
+        <section id="features" className="landing-anchor py-section-gap max-w-container-max-width mx-auto px-grid-gutter">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-grid-gutter">
             {[
-              { rank: '1', tier: 'Priority', price: '$5', color: 'var(--gold)', border: 'var(--gold)', desc: 'First in queue — books immediately' },
-              { rank: '2', tier: 'Standard', price: '$3', color: '#aaa', border: 'var(--border)', desc: '30 second delay after Priority' },
-              { rank: '3', tier: 'Basic', price: '$1.50', color: '#888', border: 'var(--border)', desc: '60 second delay after Standard' },
-            ].map(t => (
-              <div key={t.tier} style={{
-                background: 'var(--dark-2)', border: `1px solid ${t.border}`,
-                borderRadius: 10, padding: '24px 16px', textAlign: 'center',
-              }}>
-                <div style={{ width: 36, height: 36, margin: '0 auto 10px', borderRadius: '50%', border: `1px solid ${t.color}`, color: t.color, fontFamily: 'Bebas Neue', fontSize: 18, lineHeight: '34px', letterSpacing: '0.05em' }}>{t.rank}</div>
-                <div style={{ fontFamily: 'Bebas Neue', fontSize: 18, color: t.color, letterSpacing: '0.1em' }}>{t.tier}</div>
-                <div style={{ fontFamily: 'Bebas Neue', fontSize: 40, color: t.color, lineHeight: 1, margin: '6px 0' }}>{t.price}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Per Vehicle</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{t.desc}</div>
+              { icon: 'schedule', title: '24/7 MONITORING', body: 'Constant surveillance of booking portals while you sleep.' },
+              { icon: 'speed', title: '~1 MIN CHECK', body: "High-frequency polling ensures you're always first in line." },
+              { icon: 'smart_toy', title: 'AUTO BOOKING', body: 'Instant automated rescheduling the millisecond a slot opens.' },
+              { icon: 'notifications_active', title: 'INSTANT ALERTS', body: 'Receive email confirmation the moment your booking is secured.' },
+            ].map((c) => (
+              <div key={c.title} className="bg-surface-container-low lustre-border p-card-padding rounded-xl surface-lift group hover:bg-surface-container-high transition-all">
+                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined" style={fill1}>{c.icon}</span>
+                </div>
+                <h3 className="font-headline-md text-[24px] mb-2">{c.title}</h3>
+                <p className="text-on-surface-variant font-body-md">{c.body}</p>
               </div>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* SA Pricing */}
-        <div style={{ maxWidth: 340, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 16 }}>
-            <span style={{ fontFamily: 'Bebas Neue', fontSize: 13, letterSpacing: '0.2em', color: '#c080ff' }}>SOUTH AUSTRALIA — SERVICE SA</span>
-          </div>
-          <div style={{
-            background: 'var(--dark-2)', border: '1px solid var(--gold)',
-            borderRadius: 10, padding: '24px 16px', textAlign: 'center',
-          }}>
-            <div style={{ width: 36, height: 36, margin: '0 auto 10px', borderRadius: '50%', border: '1px solid var(--gold)', color: 'var(--gold)', fontFamily: 'Bebas Neue', fontSize: 18, lineHeight: '34px', letterSpacing: '0.05em' }}>1</div>
-            <div style={{ fontFamily: 'Bebas Neue', fontSize: 18, color: 'var(--gold)', letterSpacing: '0.1em' }}>Priority</div>
-            <div style={{ fontFamily: 'Bebas Neue', fontSize: 40, color: 'var(--gold)', lineHeight: 1, margin: '6px 0' }}>FREE</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>No charge</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>Always priority, checks every minute 24/7</div>
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section style={{ borderTop: '1px solid var(--border)', padding: 'clamp(40px,6vw,80px) 20px', maxWidth: 900, margin: '0 auto' }}>
-        <div className="section-label" style={{ textAlign: 'center', marginBottom: 32 }}>How It Works</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-          {[
-            { n: '01', title: 'Register', desc: 'Fill in your details and vehicle information for your state.' },
-            { n: '02', title: 'Activate', desc: 'We review your registration and activate your monitoring.' },
-            { n: '03', title: 'Monitor', desc: 'AVIBM checks for earlier slots every minute, 24/7.' },
-            { n: '04', title: 'Booked', desc: 'When a slot opens, we book it and email you instantly.' },
-          ].map(s => (
-            <div key={s.n} style={{
-              background: 'var(--dark-2)', border: '1px solid var(--border)',
-              borderRadius: 10, padding: '20px 16px',
-            }}>
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 36, color: 'var(--gold)', opacity: 0.3, lineHeight: 1 }}>{s.n}</div>
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 20, marginTop: 8, marginBottom: 8 }}>{s.title}</div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>{s.desc}</div>
+        {/* Region Selection */}
+        <section id="regions" className="landing-anchor py-section-gap bg-surface-container-lowest">
+          <div className="max-w-container-max-width mx-auto px-grid-gutter">
+            <h2 className="font-headline-md text-headline-md text-center mb-16 tracking-widest">SELECT YOUR STATE</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+              {/* QLD */}
+              <Link href="/register/qld" className="relative group cursor-pointer overflow-hidden rounded-xl lustre-border h-64 block">
+                <img className="w-full h-full object-cover grayscale opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-700" alt="" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCz9XPltbN4kvXIWa0Qooa5hcqbePnzSxQJmdPkrrIZIzWGlg_mg42eFfXV0g0HDDbAEivtEtj9dZ-xJZmh2cXY-Bkp6OrKZmjZH7xKBHEfkAFHO8r0oSGnoFa3UvS0M2i1wMI43i4bxWmVpph2T6sx2Ld9xTYuzNW1lztkYko97GGkmSz0wwG3SzFYk7eYhqsmPc6U6CNPmZngaMOB0p4ErOqx_ZyZFQkC2ddObbouCvdZhUGmzdsPAqxQpOj1xhmwv-3uUHlXWs8" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent p-card-padding flex flex-col justify-end">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <span className="text-primary font-label-bold tracking-widest">QLD - QUEENSLAND</span>
+                      <h3 className="font-display-lg text-[40px] leading-tight mt-2">WOVI INSPECTIONS</h3>
+                      <p className="text-on-surface-variant text-sm mt-1">Brisbane · Burleigh Heads · Narangba · Yatala</p>
+                    </div>
+                    <span className="material-symbols-outlined text-primary text-4xl group-hover:translate-x-2 transition-transform">arrow_forward</span>
+                  </div>
+                </div>
+              </Link>
+              {/* SA */}
+              <Link href="/register/sa" className="relative group cursor-pointer overflow-hidden rounded-xl lustre-border h-64 block">
+                <img className="w-full h-full object-cover grayscale opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-700" alt="" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPuBJFSaa9yBWVhgXsfMxAv171LaIabPzowYhBoJWSiQJi-CUzLfgu8C7DLSV1yHx5C_2IlwarS1lkWm-y1VVS55d6HGCLnVFMNd79KQ_XyDmIhwoijiNBua-SDo4SC_iSqPIQqind26AvlosPszWfGnB4pWxD672XVAE9aWrqF4hn0firWK-fqyC7hYmno4lyDSAKHdNAOTRGwtF7LM0JReUjobcLYD8abmJUjDeLIxkq66fTSuNw9SoHmSut5nw2zia-8Mkd_4I" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent p-card-padding flex flex-col justify-end">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <span className="text-primary font-label-bold tracking-widest">SA - SOUTH AUSTRALIA</span>
+                      <h3 className="font-display-lg text-[40px] leading-tight mt-2">SERVICE SA</h3>
+                      <p className="text-on-surface-variant text-sm mt-1">Regency Park Inspection Centre</p>
+                    </div>
+                    <span className="material-symbols-outlined text-primary text-4xl group-hover:translate-x-2 transition-transform">arrow_forward</span>
+                  </div>
+                </div>
+              </Link>
             </div>
-          ))}
-        </div>
-      </section>
+            <div className="flex flex-wrap justify-center gap-4 opacity-50">
+              {['VIC', 'NSW', 'WA', 'NT'].map((s) => (
+                <span key={s} className="px-4 py-2 border border-outline-variant rounded-full text-label-bold uppercase">{s} - COMING SOON</span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Pricing */}
+        <section id="pricing" className="landing-anchor py-section-gap max-w-container-max-width mx-auto px-grid-gutter">
+          <div className="text-center mb-16">
+            <span className="text-primary font-label-bold tracking-[0.3em] uppercase">Pricing</span>
+            <h2 className="font-headline-md text-headline-md mt-4">ONE-TIME FEE PER VEHICLE</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-grid-gutter">
+            {/* Basic */}
+            <div className="bg-surface-container-low lustre-border p-10 rounded-xl surface-lift text-center flex flex-col h-full">
+              <h3 className="font-display-lg text-[24px] mb-4 text-on-surface-variant">BASIC</h3>
+              <div className="mb-6">
+                <span className="text-[56px] font-display-lg">$1.50</span>
+                <span className="text-on-surface-variant block font-label-bold">PER VEHICLE</span>
+              </div>
+              <div className="border-t border-outline-variant/10 my-6"></div>
+              <p className="text-on-surface-variant mb-8 flex-grow">60 second delay after Standard monitoring</p>
+              <a href="#regions" className="border border-outline text-on-surface-variant w-full py-3 rounded-lg font-label-bold hover:bg-white/5 transition-all">SELECT BASIC</a>
+            </div>
+            {/* Priority */}
+            <div className="bg-surface-container-high border-2 border-primary p-10 rounded-xl surface-lift text-center relative flex flex-col h-full gold-glow transform md:-translate-y-4 md:scale-105">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-on-primary px-4 py-1 rounded-full text-label-bold uppercase">MOST POPULAR</div>
+              <h3 className="font-display-lg text-[24px] mb-4 text-primary">PRIORITY</h3>
+              <div className="mb-6">
+                <span className="text-[56px] font-display-lg">$5</span>
+                <span className="text-on-surface-variant block font-label-bold">PER VEHICLE</span>
+              </div>
+              <div className="border-t border-outline-variant/10 my-6"></div>
+              <p className="text-on-surface-variant mb-8 flex-grow">First in queue — booking portal checks every minute and books immediately.</p>
+              <a href="#regions" className="bg-primary text-on-primary w-full py-3 rounded-lg font-label-bold hover:bg-primary/90 transition-all">SELECT PRIORITY</a>
+            </div>
+            {/* Standard */}
+            <div className="bg-surface-container-low lustre-border p-10 rounded-xl surface-lift text-center flex flex-col h-full">
+              <h3 className="font-display-lg text-[24px] mb-4 text-on-surface-variant">STANDARD</h3>
+              <div className="mb-6">
+                <span className="text-[56px] font-display-lg">$3</span>
+                <span className="text-on-surface-variant block font-label-bold">PER VEHICLE</span>
+              </div>
+              <div className="border-t border-outline-variant/10 my-6"></div>
+              <p className="text-on-surface-variant mb-8 flex-grow">30 second delay after Priority monitoring</p>
+              <a href="#regions" className="border border-outline text-on-surface-variant w-full py-3 rounded-lg font-label-bold hover:bg-white/5 transition-all">SELECT STANDARD</a>
+            </div>
+          </div>
+          <p className="text-center mt-12 text-on-surface-variant font-label-bold uppercase tracking-widest">
+            SOUTH AUSTRALIA - SERVICE SA: <span className="text-primary ml-2">FREE / ALWAYS PRIORITY</span>
+          </p>
+        </section>
+
+        {/* Process Flow */}
+        <section id="process" className="landing-anchor py-section-gap bg-surface-container-lowest border-t border-outline-variant/10 overflow-hidden">
+          <div className="max-w-container-max-width mx-auto px-grid-gutter">
+            <h2 className="font-headline-md text-headline-md text-center mb-24 tracking-widest">HOW IT WORKS</h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-12 relative">
+              <div className="hidden md:block absolute top-12 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent z-0"></div>
+              {[
+                { n: '01', icon: 'edit_note', title: 'REGISTER', body: 'Fill in your details and vehicle information for your state.', last: false },
+                { n: '02', icon: 'verified_user', title: 'ACTIVATE', body: 'We review your registration and activate your monitoring.', last: false },
+                { n: '03', icon: 'visibility', title: 'MONITOR', body: 'AVIBM checks for earlier slots every minute, 24/7.', last: false },
+                { n: '04', icon: 'task_alt', title: 'BOOKED', body: 'When a slot opens, we book it and email you instantly.', last: true },
+              ].map((s) => (
+                <div key={s.n} className="relative z-10 text-center">
+                  <div className="relative inline-block mb-8">
+                    <span className="font-display-lg text-[100px] leading-none opacity-20 absolute -top-8 -left-4 step-number">{s.n}</span>
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto relative z-10 ${s.last ? 'bg-primary gold-glow' : 'bg-background border-2 border-primary'}`}>
+                      <span className={`material-symbols-outlined ${s.last ? 'text-on-primary' : 'text-primary'}`}>{s.icon}</span>
+                    </div>
+                  </div>
+                  <h4 className="font-display-lg text-[24px] mb-4 tracking-wider">{s.title}</h4>
+                  <p className="text-on-surface-variant">{s.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
 
       {/* Footer */}
-      <footer style={{
-        borderTop: '1px solid var(--border)', padding: '20px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8,
-      }}>
-        <span style={{ fontFamily: 'Bebas Neue', fontSize: 16, color: 'var(--gold)', letterSpacing: '0.15em' }}>AVIBM</span>
-        <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-          <Link href="/account/sign-in" style={{ fontSize: 12, color: 'var(--text-muted)', textDecoration: 'none' }}>Sign in or create an account</Link>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Australian Vehicle Inspection Booking Monitor</span>
+      <footer className="w-full pt-section-gap pb-10 bg-surface-container-lowest border-t border-outline-variant/10">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-grid-gutter max-w-container-max-width mx-auto px-grid-gutter">
+          <div className="col-span-1 md:col-span-1">
+            <div className="font-headline-md text-primary mb-4">AVIBM</div>
+            <p className="text-on-surface-variant font-body-md">High-performance automated inspection monitoring for Australian vehicles.</p>
+          </div>
+          <div>
+            <h5 className="font-label-bold text-primary mb-6 uppercase tracking-widest">Navigation</h5>
+            <ul className="space-y-4">
+              <li><a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="#features">Monitoring</a></li>
+              <li><a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="#process">Auto Booking</a></li>
+              <li><a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="#regions">Regions</a></li>
+            </ul>
+          </div>
+          <div>
+            <h5 className="font-label-bold text-primary mb-6 uppercase tracking-widest">Support</h5>
+            <ul className="space-y-4">
+              <li><a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="mailto:navidhaidari12@gmail.com">Contact Support</a></li>
+              <li><a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="/status">Monitor Status</a></li>
+              <li><Link className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="/account/sign-in">Account Management</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h5 className="font-label-bold text-primary mb-6 uppercase tracking-widest">Legal</h5>
+            <ul className="space-y-4">
+              <li><a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="#">Terms of Service</a></li>
+              <li><a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="#">Privacy Policy</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="max-w-container-max-width mx-auto px-grid-gutter mt-20 pt-8 border-t border-outline-variant/5 text-center">
+          <p className="text-on-surface-variant font-body-md opacity-60">© 2026 AVIBM. High-Performance Inspection Monitoring.</p>
         </div>
       </footer>
-
-    </main>
+    </div>
   )
 }

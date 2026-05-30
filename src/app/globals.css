@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -351,3 +352,30 @@ label {
 .pill-gold { background: #2a1a00; color: #C9A84C; border: 1px solid #3a2a00; }
 .pill-green { background: #1a2a1a; color: #5adb5a; border: 1px solid #2a4a2a; }
 .pill-muted { background: #1a1a1a; color: #666; border: 1px solid #2a2a2a; }
+
+/* ── Landing page (Material Symbols + Stitch design tokens) ── */
+html { scroll-behavior: smooth; }
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+.lustre-border { border: 1px solid rgba(242, 202, 80, 0.15); }
+.surface-lift { background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%); }
+.gold-glow { box-shadow: 0 20px 40px -20px rgba(242, 202, 80, 0.2); }
+.hero-gradient { background: linear-gradient(to right, #131313 30%, transparent 100%); }
+.step-number { -webkit-text-stroke: 1px rgba(242, 202, 80, 0.2); color: transparent; }
+
+/* Offset anchored sections for the fixed 80px navbar */
+.landing-anchor { scroll-margin-top: 96px; }
