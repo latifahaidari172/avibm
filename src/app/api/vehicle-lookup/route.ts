@@ -38,6 +38,12 @@ export async function GET(request: Request) {
 
     const veh = d.vehicle || {}
     const listing = d.listing || {}
+    // The reliable low-res option (curated hero thumb / live photo).
+    const thumb = listing.thumbnail_url || listing.photo_url || null
+    // Full-resolution version of that same hero (first stored photo) — sharp
+    // on the banner instead of the pixelated 200×150 thumb. Falls back to the
+    // thumb in the browser (via onError) if the full photo isn't available.
+    const hero = listing.id ? `https://admin.auction-intel.com/api/public/photo/${listing.id}/0` : null
     return NextResponse.json({
       vin,
       found: true,
@@ -52,10 +58,8 @@ export async function GET(request: Request) {
       transmission: veh.transmission ?? null,
       odometer_km: veh.odometer_km ?? listing.odometer_km ?? null,
       source: auctionName(listing.source_url),
-      // Prefer the curated stored hero thumbnail (the clean exterior shot the
-      // deals page uses) over the live photos[0], which is often an awkward
-      // angle. Fall back to the live photo when there's no stored thumb.
-      photo_url: listing.thumbnail_url || listing.photo_url || null,
+      photo_url: hero || thumb,
+      photo_fallback: thumb,
     })
   } catch {
     return NextResponse.json({ vin, found: false, error: 'lookup_failed' }, { status: 200 })

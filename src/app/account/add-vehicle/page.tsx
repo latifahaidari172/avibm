@@ -63,6 +63,7 @@ export default function AddVehiclePage() {
   })
 
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [photoFallback, setPhotoFallback] = useState<string | null>(null)
   // Found-in-auction-records match, held for the customer to confirm before
   // we touch their form (Yes → autofill, No → manual entry). No "appearances"
   // count shown — it confused customers on the booking page.
@@ -98,7 +99,7 @@ export default function AddVehiclePage() {
   // VIN → auction-intel lookup (debounced). Autofills only empty fields.
   useEffect(() => {
     const vin = v.vin.trim().toUpperCase()
-    if (validateVin(vin)) { setLookup({ status: 'idle' }); setCandidate(null); setPhotoUrl(null); return }
+    if (validateVin(vin)) { setLookup({ status: 'idle' }); setCandidate(null); setPhotoUrl(null); setPhotoFallback(null); return }
     let cancelled = false
     setLookup({ status: 'searching' }); setCandidate(null)
     const t = setTimeout(async () => {
@@ -115,9 +116,10 @@ export default function AddVehiclePage() {
             transmission: d.transmission || null, odometer_km: d.odometer_km ?? null, source: d.source || null,
           })
           setPhotoUrl(d.photo_url || null)
+          setPhotoFallback(d.photo_fallback || null)
           setLookup({ status: 'found' })
         } else {
-          setLookup({ status: 'none' }); setCandidate(null); setPhotoUrl(null)
+          setLookup({ status: 'none' }); setCandidate(null); setPhotoUrl(null); setPhotoFallback(null)
         }
       } catch {
         if (!cancelled) setLookup({ status: 'idle' })
@@ -143,7 +145,13 @@ export default function AddVehiclePage() {
   // "No": not their vehicle — drop the photo + let them type it in.
   function declineMatch() {
     setPhotoUrl(null)
+    setPhotoFallback(null)
     setLookup({ status: 'declined' })
+  }
+  // Banner image: if the full-res hero fails, drop to the thumb, then hide.
+  function onPhotoError() {
+    if (photoFallback && photoUrl !== photoFallback) setPhotoUrl(photoFallback)
+    else setPhotoUrl(null)
   }
 
   function toggleLoc(loc: string) {
@@ -284,7 +292,7 @@ export default function AddVehiclePage() {
                   const title = [candidate.year, candidate.make, candidate.model, candidate.badge].filter(Boolean).join(' ') || 'Vehicle'
                   return photoUrl ? (
                     <div className="relative" style={{ height: 152 }}>
-                      <img src={photoUrl} alt="" onError={() => setPhotoUrl(null)} className="w-full h-full object-cover" />
+                      <img src={photoUrl} alt="" onError={onPhotoError} className="w-full h-full object-cover" />
                       <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(13,13,13,0.97) 8%, rgba(13,13,13,0.15) 64%, rgba(13,13,13,0.4))' }} />
                       <div className="absolute top-2.5 left-2.5">{found}</div>
                       <div className="absolute left-3.5 right-3.5 bottom-3 av-bebas text-[28px] text-white leading-none" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.85)' }}>{title}</div>
