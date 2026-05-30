@@ -66,7 +66,11 @@ export default function AddVehiclePage() {
   // Found-in-auction-records match, held for the customer to confirm before
   // we touch their form (Yes → autofill, No → manual entry). No "appearances"
   // count shown — it confused customers on the booking page.
-  const [candidate, setCandidate] = useState<{ make: string; model: string; year: string; colour: string } | null>(null)
+  const [candidate, setCandidate] = useState<{
+    make: string; model: string; year: string; colour: string
+    series?: string | null; badge?: string | null; body_type?: string | null
+    transmission?: string | null; odometer_km?: number | null; source?: string | null
+  } | null>(null)
   const [lookup, setLookup] = useState<{ status: 'idle' | 'searching' | 'found' | 'autofilled' | 'declined' | 'none' }>({ status: 'idle' })
 
   // Bootstrap — fetch profile + prefill the (hidden) customer fields.
@@ -107,6 +111,8 @@ export default function AddVehiclePage() {
           setCandidate({
             make: d.make || '', model: d.model || '',
             year: d.year ? String(d.year) : '', colour: d.colour || '',
+            series: d.series || null, badge: d.badge || null, body_type: d.body_type || null,
+            transmission: d.transmission || null, odometer_km: d.odometer_km ?? null, source: d.source || null,
           })
           setPhotoUrl(d.photo_url || null)
           setLookup({ status: 'found' })
@@ -269,19 +275,30 @@ export default function AddVehiclePage() {
               <p className="text-[13px] text-[#99907e] mt-3">Searching auction records…</p>
             ) : lookup.status === 'found' && candidate ? (
               <div className="mt-3 rounded-lg p-2.5" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.3)' }}>
-                <div className="flex items-center gap-2.5">
+                <div className="flex gap-2.5">
                   {photoUrl && (
                     <img src={photoUrl} alt="" onError={() => setPhotoUrl(null)}
-                      className="rounded-md border border-[#222]" style={{ width: 72, height: 54, objectFit: 'cover', flexShrink: 0 }} />
+                      className="rounded-md border border-[#222]" style={{ width: 88, height: 66, objectFit: 'cover', flexShrink: 0 }} />
                   )}
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1 text-[#7fe07f]" style={{ fontSize: 11 }}>
                       <span className="material-symbols-outlined" style={{ fontSize: 13 }}>verified</span> Found in auction records
                     </div>
-                    <div className="av-bebas text-[17px] text-[#e6c364] leading-tight truncate">
-                      {[candidate.year, candidate.make, candidate.model].filter(Boolean).join(' ') || 'Vehicle'}
+                    <div className="av-bebas text-[18px] text-[#e6c364] leading-tight">
+                      {[candidate.year, candidate.make, candidate.model, candidate.badge].filter(Boolean).join(' ') || 'Vehicle'}
                     </div>
-                    {candidate.colour && <div className="text-[11px] text-[#99907e] leading-tight">{candidate.colour}</div>}
+                    <div className="mt-1 text-[11px] text-[#99907e]" style={{ lineHeight: 1.6 }}>
+                      {(([
+                        ['Series', candidate.series],
+                        ['Body', candidate.body_type],
+                        ['Colour', candidate.colour],
+                        ['Transmission', candidate.transmission],
+                        ['Odometer', candidate.odometer_km ? `${candidate.odometer_km.toLocaleString()} km` : null],
+                        ['Source', candidate.source],
+                      ]) as [string, any][]).filter(([, val]) => val).map(([label, val]) => (
+                        <div key={label}><span style={{ color: '#6f6757' }}>{label}: </span>{val}</div>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mt-2.5">

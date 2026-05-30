@@ -10,6 +10,18 @@ const AUCTION_INTEL_LOCAL = process.env.AUCTION_INTEL_LOCAL || 'http://127.0.0.1
 // AU VINs/chassis can be 6–17 chars (pre-1989 + imports) — feedback_non_standard_vins.
 const VIN_RE = /^[A-HJ-NPR-Z0-9]{6,17}$/i
 
+// Friendly auction name from the listing's source URL.
+function auctionName(url: string | null | undefined): string | null {
+  const u = (url || '').toLowerCase()
+  if (!u) return null
+  if (u.includes('pickles')) return 'Pickles'
+  if (u.includes('manheim')) return 'Manheim'
+  if (u.includes('iaai') || u.includes('iaa.')) return 'IAAI'
+  if (u.includes('grays')) return 'Grays'
+  if (u.includes('slattery')) return 'Slattery'
+  return null
+}
+
 export async function GET(request: Request) {
   const vin = (new URL(request.url).searchParams.get('vin') || '').trim().toUpperCase()
   if (!VIN_RE.test(vin)) {
@@ -33,6 +45,13 @@ export async function GET(request: Request) {
       model: veh.model ?? null,
       year: veh.year ?? null,
       colour: veh.colour ?? null,
+      // Extra detail shown in the match card to help confirm the vehicle.
+      series: veh.series ?? null,
+      badge: veh.badge ?? null,
+      body_type: veh.body_type ?? null,
+      transmission: veh.transmission ?? null,
+      odometer_km: veh.odometer_km ?? listing.odometer_km ?? null,
+      source: auctionName(listing.source_url),
       // main_photo from the smart lookup (live photo if fetched, else our
       // resolved thumbnail) — the same image check-listing shows.
       photo_url: listing.photo_url || listing.thumbnail_url || null,
