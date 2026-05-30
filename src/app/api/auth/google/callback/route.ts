@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { verifyState, setSessionCookie, findCustomerIdByEmail } from '@/lib/session'
+import { verifyState, setSessionCookie, findCustomerIdByEmail, ensureSharedIdentity } from '@/lib/session'
 
 // Google OAuth2 callback (no Supabase). Exchanges the code server-side, reads
 // the verified email from the id_token, then reuses the same find/link-customer
@@ -49,6 +49,9 @@ export async function GET(request: Request) {
     if (!email || !verified) {
       return bounce(`/account/sign-in?error=${encodeURIComponent('email_unverified')}`)
     }
+
+    // Mirror the canonical auction-intel identity (shared account by email).
+    await ensureSharedIdentity(email)
 
     const customerId = await findCustomerIdByEmail(email)
     if (customerId) {

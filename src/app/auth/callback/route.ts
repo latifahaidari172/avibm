@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { consumeMagicLink } from '@/lib/magicLink'
 import { one } from '@/lib/db'
-import { setSessionCookie } from '@/lib/session'
+import { setSessionCookie, ensureSharedIdentity } from '@/lib/session'
 
 // Magic-link callback (native auth — replaces Supabase OAuth/OTP).
 //   GET ?t=<raw-token>&next=<path>
@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
 
   const email = consumed.email.toLowerCase()
   const next = consumed.next || fallbackNext
+
+  // Mirror the canonical auction-intel identity (shared account by email).
+  await ensureSharedIdentity(email)
 
   // Find an existing customer for this email. Some emails have both an active
   // and an archived/legacy row — prefer the active, most-recent, non-deleted.

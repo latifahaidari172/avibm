@@ -1,6 +1,6 @@
 import { createHmac } from 'crypto'
 import { NextResponse } from 'next/server'
-import { one } from '@/lib/db'
+import { one, query } from '@/lib/db'
 
 // Native AVIBM customer session — replaces Supabase Auth. Compact HMAC token
 // (same shape as the admin token in lib/auth.ts), stored in a host-only
@@ -78,6 +78,24 @@ export async function getSessionCustomer<T = any>(request: Request): Promise<T |
   const s = getSession(request)
   if (!s?.sub) return null
   return await one<T>('SELECT * FROM customers WHERE id = $1', [s.sub])
+}
+
+// Ensure the canonical auction-intel identity (public.customers) exists for
+// this email. auction-intel is the main site; every avibm sign-in mirrors the
+// identity there so accounts are "the same on both" (shared by email). The
+// shared Postgres makes future cross-profile views a plain join. Idempotent;
+// never throws into the auth flow.
+export async function ensureSharedIdentity(email: string): Promise<void> {
+  try {
+    await query(
+      `INSERT INTO public.customers (email, email_verified_at, signup_source)
+       VALUES ($1, now(), 'avibm')
+       ON CONFLICT (email) DO NOTHING`,
+      [email.toLowerCase()],
+    )
+  } catch {
+    // Non-fatal — identity mirroring must never block an avibm sign-in.
+  }
 }
 
 // Resolve a customer id by email (prefer active, non-deleted, most-recent).
