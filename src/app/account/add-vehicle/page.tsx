@@ -274,43 +274,60 @@ export default function AddVehiclePage() {
             ) : lookup.status === 'searching' ? (
               <p className="text-[13px] text-[#99907e] mt-3">Searching auction records…</p>
             ) : lookup.status === 'found' && candidate ? (
-              <div className="mt-3 rounded-lg p-2.5" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.3)' }}>
-                <div className="flex gap-2.5">
-                  {photoUrl && (
-                    <img src={photoUrl} alt="" onError={() => setPhotoUrl(null)}
-                      className="rounded-md border border-[#222]" style={{ width: 88, height: 66, objectFit: 'cover', flexShrink: 0 }} />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1 text-[#7fe07f]" style={{ fontSize: 11 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 13 }}>verified</span> Found in auction records
+              <div className="mt-3 rounded-xl overflow-hidden" style={{ background: '#0d0d0d', border: '1px solid rgba(201,168,76,0.32)', boxShadow: '0 0 24px rgba(201,168,76,0.06)' }}>
+                {(() => {
+                  const found = (
+                    <span className="inline-flex items-center gap-1" style={{ background: 'rgba(90,219,90,0.16)', border: '1px solid rgba(90,219,90,0.45)', color: '#7fe07f', borderRadius: 999, padding: '3px 9px', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 13 }}>verified</span> FOUND IN AUCTION RECORDS
+                    </span>
+                  )
+                  const title = [candidate.year, candidate.make, candidate.model, candidate.badge].filter(Boolean).join(' ') || 'Vehicle'
+                  return photoUrl ? (
+                    <div className="relative" style={{ height: 152 }}>
+                      <img src={photoUrl} alt="" onError={() => setPhotoUrl(null)} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(13,13,13,0.97) 8%, rgba(13,13,13,0.15) 64%, rgba(13,13,13,0.4))' }} />
+                      <div className="absolute top-2.5 left-2.5">{found}</div>
+                      <div className="absolute left-3.5 right-3.5 bottom-2.5 av-bebas text-[23px] text-white leading-none" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.85)' }}>{title}</div>
                     </div>
-                    <div className="av-bebas text-[18px] text-[#e6c364] leading-tight">
-                      {[candidate.year, candidate.make, candidate.model, candidate.badge].filter(Boolean).join(' ') || 'Vehicle'}
+                  ) : (
+                    <div className="px-3.5 pt-3.5">
+                      {found}
+                      <div className="av-bebas text-[22px] text-[#e6c364] leading-none mt-2">{title}</div>
                     </div>
-                    <div className="mt-1 text-[11px] text-[#99907e]" style={{ lineHeight: 1.6 }}>
-                      {(([
-                        ['Series', candidate.series],
-                        ['Body', candidate.body_type],
-                        ['Colour', candidate.colour],
-                        ['Transmission', candidate.transmission],
-                        ['Odometer', candidate.odometer_km ? `${candidate.odometer_km.toLocaleString()} km` : null],
-                        ['Source', candidate.source],
-                      ]) as [string, any][]).filter(([, val]) => val).map(([label, val]) => (
-                        <div key={label}><span style={{ color: '#6f6757' }}>{label}: </span>{val}</div>
+                  )
+                })()}
+                {(() => {
+                  const specs = ([
+                    ['Series', candidate.series],
+                    ['Body', candidate.body_type],
+                    ['Transmission', candidate.transmission],
+                    ['Odometer', candidate.odometer_km ? `${candidate.odometer_km.toLocaleString()} km` : null],
+                    ['Colour', candidate.colour],
+                    ['Source', candidate.source],
+                  ] as [string, any][]).filter(([, val]) => val)
+                  return specs.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-3 px-3.5 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {specs.map(([label, val]) => (
+                        <div key={label}>
+                          <div className="uppercase text-[#6f6757]" style={{ fontSize: 9.5, letterSpacing: '0.09em', fontWeight: 600 }}>{label}</div>
+                          <div className="text-[#e5e2e1]" style={{ fontSize: 13, lineHeight: 1.35 }}>{val}</div>
+                        </div>
                       ))}
                     </div>
+                  ) : null
+                })()}
+                <div className="px-3.5 py-3">
+                  <div className="text-[13px] text-[#d0c5b2] mb-2">Is this your vehicle?</div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={acceptMatch}
+                      style={{ flex: 1, background: '#c9a84c', color: '#3d2e00', border: 'none', borderRadius: 8, padding: '10px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>check</span> Yes, autofill
+                    </button>
+                    <button type="button" onClick={declineMatch}
+                      style={{ background: 'transparent', color: '#d0c5b2', border: '1px solid #4d4637', borderRadius: 8, padding: '10px 18px', fontSize: 14, cursor: 'pointer' }}>
+                      No
+                    </button>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 mt-2.5">
-                  <span className="text-[12px] text-[#d0c5b2] mr-auto">Is this your vehicle?</span>
-                  <button type="button" onClick={acceptMatch}
-                    style={{ background: '#c9a84c', color: '#3d2e00', border: 'none', borderRadius: 6, padding: '6px 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                    Yes
-                  </button>
-                  <button type="button" onClick={declineMatch}
-                    style={{ background: 'transparent', color: '#d0c5b2', border: '1px solid #4d4637', borderRadius: 6, padding: '6px 14px', fontSize: 13, cursor: 'pointer' }}>
-                    No
-                  </button>
                 </div>
               </div>
             ) : lookup.status === 'autofilled' ? (
