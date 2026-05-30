@@ -238,6 +238,9 @@ export default function Home() {
         </div>
         <div className="max-w-container-max-width mx-auto px-grid-gutter mt-20 pt-8 border-t border-outline-variant/5 text-center">
           <p className="text-on-surface-variant font-body-md opacity-60">© 2026 AVIBM. High-Performance Inspection Monitoring.</p>
+          <p className="text-on-surface-variant text-[11px] opacity-40 mt-2">
+            Adelaide skyline by <a className="hover:text-secondary" href="https://commons.wikimedia.org/wiki/File:Adelaide_2022_Skyline.jpg" target="_blank" rel="noopener noreferrer">Outoftheblue9</a>, <a className="hover:text-secondary" href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>
+          </p>
         </div>
       </footer>
     </div>
