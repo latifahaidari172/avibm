@@ -64,7 +64,15 @@ export default function AddVehiclePage() {
     vehicle_type: 'Car', build_month: '',
     damage: '', purchase_method: '', purchased_from: '',
     cutoff_date: '',
+    // Original WOVI booking — the slot the bot tries to beat.
+    current_booking_time: '',
+    current_booking_location: '',
   })
+
+  // Auction-intel VIN lookup — autofill + photo. status drives the hint
+  // under the VIN field; photoUrl renders the image block only when present.
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [lookup, setLookup] = useState<{ status: 'idle' | 'searching' | 'found' | 'none'; count: number }>({ status: 'idle', count: 0 })
 
   // Bootstrap — fetch the customer profile via API and prefill
   useEffect(() => {
@@ -105,6 +113,39 @@ export default function AddVehiclePage() {
       setAuthReady(true)
     })()
   }, [supabase, router])
+
+  // VIN → auction-intel lookup. Fires (debounced) only when the VIN is
+  // structurally valid. Autofills ONLY empty fields — never clobbers what
+  // the customer has already typed. Fails silent → manual entry.
+  useEffect(() => {
+    const vin = v.vin.trim().toUpperCase()
+    if (validateVin(vin)) { setLookup({ status: 'idle', count: 0 }); setPhotoUrl(null); return }
+    let cancelled = false
+    setLookup({ status: 'searching', count: 0 })
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/vehicle-lookup?vin=${encodeURIComponent(vin)}`)
+        const d = await r.json()
+        if (cancelled) return
+        if (d?.found) {
+          setLookup({ status: 'found', count: d.appearance_count || 0 })
+          setPhotoUrl(d.photo_url || null)
+          setV(s => ({
+            ...s,
+            make: s.make || (d.make || ''),
+            model: s.model || (d.model || ''),
+            year: s.year || (d.year ? String(d.year) : ''),
+            colour: s.colour || (d.colour || ''),
+          }))
+        } else {
+          setLookup({ status: 'none', count: 0 }); setPhotoUrl(null)
+        }
+      } catch {
+        if (!cancelled) setLookup({ status: 'idle', count: 0 })
+      }
+    }, 500)
+    return () => { cancelled = true; clearTimeout(t) }
+  }, [v.vin])
 
   function updC<K extends keyof typeof c>(k: K, val: typeof c[K]) { setC(s => ({ ...s, [k]: val })) }
   function updV<K extends keyof typeof v>(k: K, val: typeof v[K]) { setV(s => ({ ...s, [k]: val })) }
@@ -161,6 +202,10 @@ export default function AddVehiclePage() {
           ...v,
           vin: v.vin.toUpperCase(),
           state: c.state,
+          tier: c.tier,                                   // per-vehicle plan
+          photo_url: photoUrl,                            // auction-intel thumbnail (null if none)
+          current_booking_time: v.current_booking_time || null,
+          current_booking_location: v.current_booking_location || (c.state === 'SA' ? 'Regency Park' : null),
           locations: c.state === 'QLD' ? locations : ['Regency Park'],
           priority_locations: c.state === 'QLD' ? priorityLocations : [],
         },
@@ -295,7 +340,29 @@ export default function AddVehiclePage() {
               <Field label="Model" value={v.model} onChange={x => updV('model', x.replace(/[^A-Za-z0-9\s\-/.]/g, '').slice(0, 40))} error={v.model ? validateModel(v.model) : null} />
               <Field label="Vehicle year" value={v.year} onChange={x => updV('year', clampYearInput(x))} error={v.year ? validateYear(v.year) : null} />
               <Field label="Colour" value={v.colour} onChange={x => updV('colour', x.replace(/[^A-Za-z\s\-/]/g, '').slice(0, 30))} />
-              <Field label="VIN" value={v.vin} onChange={x => updV('vin', x.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17))} fullRow error={v.vin ? validateVin(v.vin) : null} />
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={lbl}>VIN</label>
+                <input
+                  value={v.vin}
+                  onChange={e => updV('vin', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17))}
+                  placeholder="Enter VIN — we'll look up the rest"
+                  style={{ ...inp, borderColor: (v.vin && validateVin(v.vin)) ? '#a33' : '#222' }}
+                />
+                {v.vin && validateVin(v.vin)
+                  ? <p style={{ fontSize: 11, color: '#f87171', margin: '4px 0 0 0' }}>{validateVin(v.vin)}</p>
+                  : lookup.status === 'searching'
+                    ? <p style={{ fontSize: 11, color: '#888', margin: '6px 0 0 0' }}>Searching auction records…</p>
+                  : lookup.status === 'found'
+                    ? <p style={{ fontSize: 11, color: '#5adb5a', margin: '6px 0 0 0' }}>Found in auction records{lookup.count ? ` · ${lookup.count} appearance${lookup.count > 1 ? 's' : ''}` : ''} — details autofilled below.</p>
+                  : lookup.status === 'none'
+                    ? <p style={{ fontSize: 11, color: '#888', margin: '6px 0 0 0' }}>No auction record on file — enter the details manually.</p>
+                  : null}
+                {photoUrl && (
+                  <div style={{ marginTop: 10, borderRadius: 8, overflow: 'hidden', border: '1px solid #222', maxWidth: 300 }}>
+                    <img src={photoUrl} alt="Vehicle" onError={() => setPhotoUrl(null)} style={{ width: '100%', display: 'block' }} />
+                  </div>
+                )}
+              </div>
               <Select label="Vehicle Type" value={v.vehicle_type} options={VEHICLE_TYPES} onChange={x => updV('vehicle_type', x)} />
               <Select label="Build Month" value={v.build_month} options={['', ...MONTHS]} onChange={x => updV('build_month', x)} />
               <Select label="Damage type" value={v.damage} options={['', ...DAMAGES]} onChange={x => updV('damage', x)} fullRow />
@@ -314,6 +381,13 @@ export default function AddVehiclePage() {
                   </div>
                 )
               })()}
+              <Field label="Existing booking time (optional)" type="time" value={v.current_booking_time} onChange={x => updV('current_booking_time', x)} />
+              <Select
+                label="Existing booking location (optional)"
+                value={v.current_booking_location}
+                options={['', ...(c.state === 'QLD' ? WOVI_LOCATIONS : ['Regency Park'])]}
+                onChange={x => updV('current_booking_location', x)}
+              />
             </Grid>
           </Section>
 
