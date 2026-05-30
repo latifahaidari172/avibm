@@ -2,23 +2,12 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { signToken, getAuthToken, unauthorized } from '@/lib/auth'
 import { checkRateLimit, getIP, tooManyRequests } from '@/lib/rateLimit'
-
-const getHeaders = () => ({
-  apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-  'Content-Type': 'application/json',
-  Prefer: 'return=representation',
-})
-const BASE = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/admin_users`
+import { query, insertRow, updateById, deleteById } from '@/lib/db'
 
 /** Migrate a plaintext password to bcrypt hash in the DB */
 async function migratePassword(id: string, plaintext: string) {
   const hash = await bcrypt.hash(plaintext, 12)
-  await fetch(`${BASE()}?id=eq.${id}`, {
-    method: 'PATCH',
-    headers: getHeaders(),
-    body: JSON.stringify({ password: hash }),
-  })
+  await updateById('admin_users', id, { password: hash })
 }
 
 export async function GET(request: Request) {
@@ -27,8 +16,11 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const action = searchParams.get('action')
     if (action === 'list') {
-      const res = await fetch(`${BASE()}?role=neq.owner&select=id,created_at,username,role,active&order=created_at.asc`, { headers: getHeaders() })
-      return NextResponse.json(await res.json())
+      const rows = await query(
+        `SELECT id, created_at, username, role, active FROM admin_users WHERE role <> $1 ORDER BY created_at ASC`,
+        ['owner'],
+      )
+      return NextResponse.json(rows)
     }
     if (action === 'refresh') {
       const payload = getAuthToken(request) as { id: string; username: string; role: string }
@@ -55,10 +47,15 @@ export async function POST(request: Request) {
       const { username, password } = body
       if (!username || !password) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
-      const url = `${BASE()}?select=id,username,password,role&active=eq.true`
-      const res = await fetch(url, { headers: getHeaders() })
-      const rows = await res.json()
-      if (!Array.isArray(rows)) return NextResponse.json({ error: 'Database error' }, { status: 500 })
+      let rows: any[]
+      try {
+        rows = await query(
+          `SELECT id, username, password, role FROM admin_users WHERE active = $1`,
+          [true],
+        )
+      } catch {
+        return NextResponse.json({ error: 'Database error' }, { status: 500 })
+      }
 
       const user = rows.find((r: any) => r.username?.toLowerCase() === username.trim().toLowerCase())
 
@@ -93,27 +90,24 @@ export async function POST(request: Request) {
     if (action === 'add') {
       const { username, password } = body
       const hash = await bcrypt.hash(password.trim(), 12)
-      await fetch(BASE(), {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ username: username.trim(), password: hash, role: 'admin', active: true }),
+      await insertRow('admin_users', {
+        username: username.trim(),
+        password: hash,
+        role: 'admin',
+        active: true,
       })
       return NextResponse.json({ ok: true })
     }
 
     if (action === 'remove') {
-      await fetch(`${BASE()}?id=eq.${body.id}`, { method: 'DELETE', headers: getHeaders() })
+      await deleteById('admin_users', body.id)
       return NextResponse.json({ ok: true })
     }
 
     if (action === 'update') {
       const updates = { ...body.updates }
       if (updates.password) updates.password = await bcrypt.hash(updates.password.trim(), 12)
-      await fetch(`${BASE()}?id=eq.${body.id}`, {
-        method: 'PATCH',
-        headers: getHeaders(),
-        body: JSON.stringify(updates),
-      })
+      await updateById('admin_users', body.id, updates)
       return NextResponse.json({ ok: true })
     }
 

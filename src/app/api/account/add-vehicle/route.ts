@@ -1,30 +1,22 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createSupabaseServer } from '@/lib/supabase/server'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const h = () => ({
-  apikey: serviceKey, Authorization: `Bearer ${serviceKey}`,
-  'Content-Type': 'application/json', Prefer: 'return=representation',
-})
+import { one, insertRow, updateById } from '@/lib/db'
+import { getSession } from '@/lib/session'
 
 // Add a vehicle for the signed-in customer.
 //
-// New richer body shape (matches the unified add-vehicle page):
+// Rich body shape (matches the unified add-vehicle page):
 //   {
-//     customer_patch: {...},      // editable customer fields (PATCHed if changed)
-//     preferred_locations: [],    // saved to user_metadata + becomes vehicle.locations
-//     priority_locations: [],     // ordered, max 3 — saved to metadata + vehicle.priority_locations
+//     customer_patch: {...},      // editable customer fields (updated if present)
+//     preferred_locations: [],    // saved on the customer row + becomes vehicle.locations default
+//     priority_locations: [],     // ordered, max 3 — saved on customer + vehicle.priority_locations
 //     vehicle: { ...all fields..., locations, priority_locations }
 //   }
 //
-// Backward-compatible: if the body is just a flat vehicle object (legacy
-// /account/add-vehicle/page.tsx shape), still works.
+// Backward-compatible: a flat vehicle object (legacy shape) still works.
 export async function POST(req: NextRequest) {
-  const supabase = await createSupabaseServer()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
-  const customerId = user.user_metadata?.customer_id as string | undefined
+  const s = getSession(req)
+  if (!s) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+  const customerId = s.sub
   if (!customerId) return NextResponse.json({ error: 'profile not set up' }, { status: 400 })
 
   const body = await req.json()
@@ -33,22 +25,21 @@ export async function POST(req: NextRequest) {
   // 1. Patch the customer row if customer_patch is non-empty.
   if (isRichShape && body.customer_patch && Object.keys(body.customer_patch).length > 0) {
     const patch = { ...body.customer_patch }
-    delete patch.email // email is the auth user's, not editable here
-    const r = await fetch(`${supabaseUrl}/rest/v1/customers?id=eq.${customerId}`, {
-      method: 'PATCH', headers: h(), body: JSON.stringify(patch),
-    })
-    if (!r.ok) {
-      return NextResponse.json({ error: `customer patch: ${await r.text()}` }, { status: 400 })
+    delete patch.email // email is identity, not editable here
+    try {
+      await updateById('customers', customerId, patch)
+    } catch (e: any) {
+      return NextResponse.json({ error: `customer patch: ${e.message}` }, { status: 400 })
     }
   }
 
-  // 2. Persist preferred + priority locations into user_metadata so they
-  //    flow back next time.
+  // 2. Persist preferred + priority locations on the customer row so they
+  //    flow back as defaults next time.
   if (isRichShape) {
-    const meta: Record<string, unknown> = { customer_id: customerId }
+    const meta: Record<string, unknown> = {}
     if (Array.isArray(body.preferred_locations)) meta.preferred_locations = body.preferred_locations
     if (Array.isArray(body.priority_locations)) meta.priority_locations = body.priority_locations
-    await supabase.auth.updateUser({ data: meta })
+    if (Object.keys(meta).length > 0) await updateById('customers', customerId, meta)
   }
 
   // 3. Build the vehicle row.
@@ -77,16 +68,21 @@ export async function POST(req: NextRequest) {
     active: true, archived: false, booking_in_progress: false,
   }
   // Locations columns exist on vehicles; use the rich payload if present,
-  // otherwise fall back to the customer's saved metadata + sensible defaults.
-  const fromMeta = (user.user_metadata?.preferred_locations as string[] | undefined) || []
+  // otherwise fall back to the customer's saved preferred_locations.
+  let fromCustomer: string[] = []
+  if (!Array.isArray(vIn.locations)) {
+    const c = await one<{ preferred_locations: string[] | null }>(
+      'SELECT preferred_locations FROM customers WHERE id = $1', [customerId])
+    fromCustomer = c?.preferred_locations || []
+  }
   vehicle.locations = Array.isArray(vIn.locations) ? vIn.locations
-    : (fromMeta.length > 0 ? fromMeta : null)
+    : (fromCustomer.length > 0 ? fromCustomer : null)
   vehicle.priority_locations = Array.isArray(vIn.priority_locations) ? vIn.priority_locations : []
 
-  const r = await fetch(`${supabaseUrl}/rest/v1/vehicles`, {
-    method: 'POST', headers: h(), body: JSON.stringify(vehicle),
-  })
-  if (!r.ok) return NextResponse.json({ error: `vehicle insert: ${await r.text()}` }, { status: 400 })
-  const arr = await r.json()
-  return NextResponse.json({ id: arr[0]?.id })
+  try {
+    const row = await insertRow<{ id: string }>('vehicles', vehicle, 'id')
+    return NextResponse.json({ id: row?.id })
+  } catch (e: any) {
+    return NextResponse.json({ error: `vehicle insert: ${e.message}` }, { status: 400 })
+  }
 }

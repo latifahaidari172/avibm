@@ -1,48 +1,55 @@
 import { NextResponse } from 'next/server'
+import { query } from '@/lib/db'
 
-// Server-side proxy to auction-intel's public VIN lookup.
-// Keeps the call off the browser (no CORS, no exposed backend) and
-// normalises the shape AVIBM's Add Vehicle form needs: make/model/year/
-// colour for autofill, plus photo_url (auction-intel's durable /thumbs
-// URL). Degrades gracefully — any failure returns { found:false } 200 so
-// the form simply falls back to manual entry.
-const AUCTION_INTEL_BASE = process.env.AUCTION_INTEL_BASE || 'https://admin.auction-intel.com'
+// VIN autofill for the Add Vehicle form. Now that AVIBM shares auction-intel's
+// Postgres, this reads the scraped vehicle + listings DIRECTLY from the
+// `public` schema — no outbound HTTP, so the Cloudflare bot-challenge that
+// blocked the old admin.auction-intel.com proxy is gone entirely.
+//
+// Returns make/model/year/colour for autofill + photo_url (auction-intel's
+// durable /thumbs image, served as a plain static GET, not the bot-gated API).
+// Degrades to { found:false } on any error so the form falls back to manual.
+
 // AU VINs/chassis can be 6–17 chars (pre-1989 + imports) — feedback_non_standard_vins.
 const VIN_RE = /^[A-HJ-NPR-Z0-9]{6,17}$/i
 
 export async function GET(request: Request) {
-  const url = new URL(request.url)
-  const debug = url.searchParams.get('debug') === '1'
-  const vin = (url.searchParams.get('vin') || '').trim().toUpperCase()
+  const vin = (new URL(request.url).searchParams.get('vin') || '').trim().toUpperCase()
   if (!VIN_RE.test(vin)) {
     return NextResponse.json({ found: false, error: 'invalid_vin' }, { status: 400 })
   }
-  const upstreamUrl = `${AUCTION_INTEL_BASE}/api/public/vin/${encodeURIComponent(vin)}`
   try {
-    const r = await fetch(upstreamUrl, {
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-    })
-    if (!r.ok) {
-      if (debug) return NextResponse.json({ found: false, _debug: { base: AUCTION_INTEL_BASE, url: upstreamUrl, status: r.status, body: (await r.text()).slice(0, 400) } }, { status: 200 })
-      return NextResponse.json({ found: false }, { status: 200 })
+    const vehicles = await query<any>(
+      'SELECT id, make, model, year, body_type, colour FROM public.vehicles WHERE vin = $1',
+      [vin],
+    )
+    if (vehicles.length === 0) {
+      return NextResponse.json({ vin, found: false, appearance_count: 0 })
     }
-    const d = await r.json()
-    const v = d?.vehicle || null
-    const found = !!v || (d?.appearance_count || 0) > 0
+    const ids = vehicles.map((v) => v.id)
+    const listings = await query<{ source: string; external_id: string }>(
+      `SELECT source, external_id FROM public.auction_listings
+        WHERE vehicle_id = ANY($1::int[])
+        ORDER BY first_seen_at DESC NULLS LAST`,
+      [ids],
+    )
+    const v = vehicles[0]
+    const l0 = listings[0]
+    const photo_url = l0?.source && l0?.external_id
+      ? `https://admin.auction-intel.com/thumbs/${l0.source}_${l0.external_id}.jpg`
+      : null
     return NextResponse.json({
       vin,
-      found,
-      make: v?.make ?? null,
-      model: v?.model ?? null,
-      year: v?.year ?? null,
-      colour: v?.colour ?? null,
-      body_type: v?.body_type ?? null,
-      photo_url: d?.thumbnail_url ?? null,
-      appearance_count: d?.appearance_count ?? 0,
+      found: true,
+      make: v.make ?? null,
+      model: v.model ?? null,
+      year: v.year ?? null,
+      colour: v.colour ?? null,
+      body_type: v.body_type ?? null,
+      photo_url,
+      appearance_count: listings.length,
     })
-  } catch (e) {
-    if (debug) return NextResponse.json({ found: false, error: 'lookup_failed', _debug: { base: AUCTION_INTEL_BASE, url: upstreamUrl, message: String(e) } }, { status: 200 })
+  } catch {
     return NextResponse.json({ found: false, error: 'lookup_failed' }, { status: 200 })
   }
 }

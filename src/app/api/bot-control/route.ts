@@ -1,18 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getAuthToken, unauthorized } from '@/lib/auth'
-
-const headers = () => ({
-  apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-  'Content-Type': 'application/json',
-})
-const BASE = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/bot_instances`
+import { query, updateById, deleteById } from '@/lib/db'
 
 export async function GET(request: Request) {
   if (!getAuthToken(request)) return unauthorized()
   try {
-    const res = await fetch(`${BASE()}?select=*&order=last_seen.desc`, { headers: headers() })
-    return NextResponse.json(await res.json())
+    const rows = await query(`SELECT * FROM bot_instances ORDER BY last_seen DESC`)
+    return NextResponse.json(rows)
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
@@ -25,22 +19,11 @@ export async function POST(request: Request) {
     const { id, action } = body
 
     if (action === 'delete') {
-      await fetch(`${BASE()}?id=eq.${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: headers(),
-      })
+      await deleteById('bot_instances', id)
     } else if ('display_name' in body) {
-      await fetch(`${BASE()}?id=eq.${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        headers: headers(),
-        body: JSON.stringify({ display_name: body.display_name || null }),
-      })
+      await updateById('bot_instances', id, { display_name: body.display_name || null })
     } else {
-      await fetch(`${BASE()}?id=eq.${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        headers: headers(),
-        body: JSON.stringify({ enabled: body.enabled }),
-      })
+      await updateById('bot_instances', id, { enabled: body.enabled })
     }
 
     return NextResponse.json({ ok: true })

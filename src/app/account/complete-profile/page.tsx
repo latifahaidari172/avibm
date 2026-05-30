@@ -2,16 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createSupabaseBrowser } from '@/lib/supabase/client'
 
 const QLD_LOCATIONS = ['Bundaberg', 'Burleigh Heads', 'Cairns', 'Mackay', 'Rockhampton City', 'Toowoomba', 'Townsville', 'Yatala', 'Brisbane']
 
-// First-time post-OAuth profile completion. Captures the customer
-// details that are otherwise scattered across the long QLD/SA
-// registration form, links the new customers row back to the
-// authenticated user via user_metadata.customer_id.
+// First-time profile completion after a verified-email session. Captures the
+// customer details and creates + links the customers row (create-profile then
+// upgrades the session cookie to carry the new customer id).
 export default function CompleteProfilePage() {
-  const supabase = createSupabaseBrowser()
   const router = useRouter()
   const [authEmail, setAuthEmail] = useState('')
   const [busy, setBusy] = useState(false)
@@ -23,19 +20,15 @@ export default function CompleteProfilePage() {
   })
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        router.replace('/account/sign-in')
-        return
-      }
-      setAuthEmail(user.email || '')
-      // If a name came from the OAuth provider, prefill it
-      const m = user.user_metadata as Record<string, unknown>
-      const fn = (m?.given_name || m?.first_name || '') as string
-      const ln = (m?.family_name || m?.last_name || '') as string
-      setForm(f => ({ ...f, first_name: f.first_name || fn, last_name: f.last_name || ln }))
-    })
-  }, [supabase, router])
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then(async r => {
+        if (!r.ok) { router.replace('/account/sign-in'); return }
+        const me = await r.json()
+        if (me.customer) { router.replace('/account'); return } // profile already exists
+        setAuthEmail(me.email || '')
+      })
+      .catch(() => router.replace('/account/sign-in'))
+  }, [router])
 
   function update<K extends keyof typeof form>(field: K, v: typeof form[K]) {
     setForm(f => ({ ...f, [field]: v }))

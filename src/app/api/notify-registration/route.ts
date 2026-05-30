@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { emailHtml } from '@/lib/emailTemplate'
 import { checkRateLimit, getIP, tooManyRequests } from '@/lib/rateLimit'
+import { query } from '@/lib/db'
 
 export async function POST(request: Request) {
   const ip = getIP(request)
@@ -31,9 +32,10 @@ export async function POST(request: Request) {
     // ── FREE CUSTOMER ────────────────────────────────────────────────────────
     if (isFree) {
       // Auto-activate in DB
-      const { createClient } = await import('@supabase/supabase-js')
-      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-      await sb.from('customers').update({ active: true, tier: 'priority' }).eq('email', email)
+      await query(
+        `UPDATE customers SET active = $1, tier = $2 WHERE email = $3`,
+        [true, 'priority', email],
+      )
 
       // Notify admin
       const adminHtml = emailHtml(`

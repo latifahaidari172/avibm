@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { checkRateLimit, getIP, tooManyRequests } from '@/lib/rateLimit'
+import { one, query } from '@/lib/db'
 
 export async function POST(request: Request) {
   const ip = getIP(request)
@@ -13,23 +14,21 @@ export async function POST(request: Request) {
     if (!cleanEmail || !cleanPhone)
       return NextResponse.json({ error: 'Please enter both email and phone number.' }, { status: 400 })
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-    const headers = {
-      'apikey': supabaseKey,
-      'Authorization': `Bearer ${supabaseKey}`,
-    }
-
-    const res = await fetch(
-      `${supabaseUrl}/rest/v1/customers?email=eq.${encodeURIComponent(cleanEmail)}&phone=eq.${encodeURIComponent(cleanPhone)}&select=first_name,state,tier,active,auto_payment_email,vehicles(label,make,model,year,active,cutoff_date,booked_date,booked_time,booked_location)`,
-      { headers }
+    const c = await one<any>(
+      `SELECT id, first_name, state, tier, active, auto_payment_email
+         FROM customers
+        WHERE email = $1 AND phone = $2`,
+      [cleanEmail, cleanPhone],
     )
-    const data = await res.json()
 
-    if (!Array.isArray(data) || data.length === 0)
+    if (!c)
       return NextResponse.json({ error: 'No account found with those details. Please check your email and phone number.' }, { status: 404 })
 
-    const c = data[0]
+    const vehicles = await query<any>(
+      `SELECT label, make, model, year, active, cutoff_date, booked_date, booked_time, booked_location
+         FROM vehicles WHERE customer_id = $1`,
+      [c.id],
+    )
 
     // Only return what's needed to display status — no sensitive fields
     return NextResponse.json({
@@ -38,7 +37,7 @@ export async function POST(request: Request) {
       tier: c.tier,
       active: c.active,
       pending_payment: !c.active && c.auto_payment_email,
-      vehicles: (c.vehicles || []).map((v: any) => ({
+      vehicles: vehicles.map((v: any) => ({
         label: v.label || `${v.make} ${v.model} ${v.year}`.trim(),
         active: v.active,
         cutoff_date: v.cutoff_date,

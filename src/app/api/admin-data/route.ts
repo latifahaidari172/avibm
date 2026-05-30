@@ -1,13 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createHash } from 'crypto'
 import { getAuthToken, unauthorized } from '@/lib/auth'
-
-const headers = () => ({
-  apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-  'Content-Type': 'application/json',
-})
-const BASE = () => process.env.NEXT_PUBLIC_SUPABASE_URL!
+import { query, one } from '@/lib/db'
 
 // ── Reference numbers ───────────────────────────────────────────────────
 // Customers: P-XXXXXX  (P for "profile") = first 6 hex chars of
@@ -53,27 +47,33 @@ function vehicleRef(v: any): string {
 export async function GET(request: Request) {
   if (!getAuthToken(request)) return unauthorized()
   try {
-    const [custsRes, statusRes] = await Promise.all([
-      fetch(`${BASE()}/rest/v1/customers?select=*,vehicles(*)&order=created_at.desc`, { headers: headers() }),
-      fetch(`${BASE()}/rest/v1/monitor_status?id=eq.main&select=*`, { headers: headers() }),
+    const [customers, allVehicles, monitorStatus] = await Promise.all([
+      query<any>(`SELECT * FROM customers ORDER BY created_at DESC`),
+      query<any>(`SELECT * FROM vehicles`),
+      one(`SELECT * FROM monitor_status WHERE id = $1`, ['main']),
     ])
-    const customers = await custsRes.json()
-    const statusRows = await statusRes.json()
+
+    // Group vehicles by customer_id, mirroring PostgREST's vehicles(*) embed.
+    const byCustomer = new Map<any, any[]>()
+    for (const v of allVehicles) {
+      const arr = byCustomer.get(v.customer_id) ?? []
+      arr.push(v)
+      byCustomer.set(v.customer_id, arr)
+    }
 
     // Annotate every customer + vehicle with a stable display ref.
-    const annotated = Array.isArray(customers)
-      ? customers.map((c: any) => ({
-          ...c,
-          ref: customerRef(c?.email),
-          vehicles: Array.isArray(c?.vehicles)
-            ? c.vehicles.map((v: any) => ({ ...v, ref: vehicleRef(v) }))
-            : c?.vehicles,
-        }))
-      : []
+    const annotated = customers.map((c: any) => {
+      const vehicles = byCustomer.get(c.id) ?? []
+      return {
+        ...c,
+        ref: customerRef(c?.email),
+        vehicles: vehicles.map((v: any) => ({ ...v, ref: vehicleRef(v) })),
+      }
+    })
 
     return NextResponse.json({
       customers: annotated,
-      monitorStatus: Array.isArray(statusRows) && statusRows.length > 0 ? statusRows[0] : null,
+      monitorStatus,
     })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })

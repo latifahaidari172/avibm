@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { checkRateLimit, getIP, tooManyRequests } from '@/lib/rateLimit'
+import { one } from '@/lib/db'
 
 // Lightweight existence check used by the registration page to decide
 // whether to sign an existing user in via magic link, or show the
@@ -41,23 +42,20 @@ export async function POST(request: Request) {
     if (!cleanEmail || !/^\S+@\S+\.\S+$/.test(cleanEmail))
       return NextResponse.json({ error: 'Please enter a valid email.' }, { status: 400 })
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    // Cheap indexed lookup first — most returning customers hit here.
+    const row = await one(`SELECT id FROM customers WHERE email = $1 LIMIT 1`, [cleanEmail])
+    if (row) return NextResponse.json({ exists: true })
+
+    // Fall back to Auth — covers sign-in accounts with no customer row.
+    // The GoTrue admin API has no avibm-schema equivalent; only query it
+    // when Supabase env is still configured, otherwise treat as not-found.
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !supabaseKey) return NextResponse.json({ exists: false })
     const headers = {
       'apikey': supabaseKey,
       'Authorization': `Bearer ${supabaseKey}`,
     }
-
-    // Cheap indexed lookup first — most returning customers hit here.
-    const res = await fetch(
-      `${supabaseUrl}/rest/v1/customers?email=eq.${encodeURIComponent(cleanEmail)}&select=id&limit=1`,
-      { headers }
-    )
-    const data = await res.json()
-    if (Array.isArray(data) && data.length > 0)
-      return NextResponse.json({ exists: true })
-
-    // Fall back to Auth — covers sign-in accounts with no customer row.
     const exists = await authUserExists(supabaseUrl, headers, cleanEmail)
     return NextResponse.json({ exists })
   } catch {

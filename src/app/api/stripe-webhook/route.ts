@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { emailHtml } from '@/lib/emailTemplate'
+import { one, query, updateById } from '@/lib/db'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -21,30 +22,13 @@ export async function POST(request: Request) {
     const { customer_id, state } = session.metadata || {}
     if (!customer_id) return NextResponse.json({ error: 'No customer_id' }, { status: 400 })
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-    const headers = {
-      'apikey': supabaseKey,
-      'Authorization': `Bearer ${supabaseKey}`,
-      'Content-Type': 'application/json',
-    }
-
     // Activate customer
-    await fetch(`${supabaseUrl}/rest/v1/customers?id=eq.${customer_id}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({ active: true }),
-    })
+    await updateById('customers', customer_id, { active: true })
 
-    // Fetch customer details for email
-    const res = await fetch(
-      `${supabaseUrl}/rest/v1/customers?id=eq.${customer_id}&select=*,vehicles(*)`,
-      { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
-    )
-    const data = await res.json()
-    const customer = data[0]
-
+    // Fetch customer details (+ vehicles) for the confirmation email
+    const customer = await one<any>('SELECT * FROM customers WHERE id = $1', [customer_id])
     if (customer) {
+      customer.vehicles = await query<any>('SELECT * FROM vehicles WHERE customer_id = $1', [customer_id])
       const name = `${customer.first_name} ${customer.last_name}`
       const vehicleCount = customer.vehicles?.length || 1
 

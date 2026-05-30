@@ -1,11 +1,9 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createHash } from 'crypto'
-import { createSupabaseServer } from '@/lib/supabase/server'
+import { one, query } from '@/lib/db'
+import { getSessionFromCookies } from '@/lib/session'
 import { IconCheck, IconChevronRight } from '@/components/icons'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 function customerRefOf(email?: string | null): string {
   if (!email) return 'P-??????'
@@ -27,34 +25,21 @@ function vehicleRefOf(v: any): string {
   return `${vehicleTypePrefix(v?.vehicle_type)}-${h.slice(0, 6).toUpperCase()}`
 }
 
-// Customer profile dashboard. Queries Supabase directly via the
-// service-role key (server-side only — the key never reaches the
-// browser). This avoids the Server-Component-fetching-its-own-API-route
-// pitfall that broke first attempt.
+// Customer profile dashboard. Server component — reads the signed-in
+// customer straight from the shared Postgres (avibm schema) via the local
+// pool; no service key, no self-fetch of its own API route.
 export default async function AccountPage() {
-  const supabase = await createSupabaseServer()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await getSessionFromCookies()
+  if (!session) redirect('/account/sign-in')
 
-  if (!user) redirect('/account/sign-in')
-
-  const customerId = user.user_metadata?.customer_id as string | undefined
+  const customerId = session.sub
   if (!customerId) redirect('/account/complete-profile')
 
   let customer: any = null
   try {
-    const r = await fetch(
-      `${supabaseUrl}/rest/v1/customers?id=eq.${customerId}&select=*,vehicles(*)`,
-      {
-        headers: {
-          apikey: serviceKey,
-          Authorization: `Bearer ${serviceKey}`,
-        },
-        cache: 'no-store',
-      },
-    )
-    if (r.ok) {
-      const arr = await r.json()
-      customer = Array.isArray(arr) ? arr[0] : null
+    customer = await one<any>('SELECT * FROM customers WHERE id = $1', [customerId])
+    if (customer) {
+      customer.vehicles = await query<any>('SELECT * FROM vehicles WHERE customer_id = $1', [customerId])
     }
   } catch {}
 
@@ -165,8 +150,8 @@ export default async function AccountPage() {
 
       {customer.state !== "SA" && <Section title="Preferred inspection locations">
         {(() => {
-          const fromMeta = (user.user_metadata?.preferred_locations as string[] | undefined) || []
-          const list = fromMeta.length > 0 ? fromMeta : (Array.isArray(customer.locations) ? customer.locations : [])
+          const fromCustomer = (customer.preferred_locations as string[] | undefined) || []
+          const list = fromCustomer.length > 0 ? fromCustomer : (Array.isArray(customer.locations) ? customer.locations : [])
           return list.length > 0 ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {list.map((loc: string) => (

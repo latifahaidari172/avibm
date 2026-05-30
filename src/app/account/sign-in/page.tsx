@@ -3,19 +3,15 @@
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { createSupabaseBrowser } from '@/lib/supabase/client'
 import { IconArrowLeft } from '@/components/icons'
 
-// Customer-facing sign-in. Google OAuth + a magic-link email fallback
-// (covers everyone else — Outlook, Hotmail, Yahoo, ProtonMail, BigPond,
-// iCloud, etc., all just type their address and get a one-click link).
-// Microsoft / Apple buttons removed — too much setup overhead (Azure
-// tenant config / paid Apple Developer Program) for marginal gain. No
-// password storage anywhere — Supabase Auth handles all session state.
+// Customer-facing sign-in. Native magic-link email (no password, no Supabase).
+// Everyone — Gmail, Outlook, Hotmail, Yahoo, ProtonMail, BigPond, iCloud —
+// just types their address and gets a one-click sign-in link. (Google OAuth
+// will be re-added natively in a later phase.)
 //
-// Supports ?next=/some/path — that path is forwarded through OAuth and
-// magic-link flows so callers (e.g. /register/qld) can drop the
-// customer back where they wanted to land after sign-in.
+// Supports ?next=/some/path — forwarded through the magic-link flow so callers
+// (e.g. /register/qld) can drop the customer back where they wanted to land.
 export default function SignInPage() {
   return (
     <Suspense fallback={null}>
@@ -30,42 +26,31 @@ function SignInInner() {
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
-  const supabase = createSupabaseBrowser()
-
-  async function signInWithProvider(provider: 'google') {
-    setBusy(provider)
-    setMsg(null)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
-      },
-    })
-    if (error) {
-      setBusy(null)
-      setMsg({ kind: 'err', text: `${provider}: ${error.message}` })
-    }
-    // On success the browser is redirected to the OAuth provider — no
-    // further code runs here.
-  }
 
   async function signInWithMagicLink(e: React.FormEvent) {
     e.preventDefault()
     if (!email) return
     setBusy('magic')
     setMsg(null)
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
-    })
-    setBusy(null)
-    if (error) {
-      setMsg({ kind: 'err', text: error.message })
-    } else {
-      setMsg({
-        kind: 'ok',
-        text: `Sign-in link sent to ${email}. Check your inbox (and spam folder) — click the link to continue.`,
+    try {
+      const r = await fetch('/api/auth/magic-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), next }),
       })
+      const j = await r.json().catch(() => ({}))
+      setBusy(null)
+      if (!r.ok) {
+        setMsg({ kind: 'err', text: j.error === 'invalid_email' ? 'Please enter a valid email address.' : 'Could not send the link. Please try again.' })
+      } else {
+        setMsg({
+          kind: 'ok',
+          text: `Sign-in link sent to ${email}. Check your inbox (and spam folder) — click the link to continue.`,
+        })
+      }
+    } catch {
+      setBusy(null)
+      setMsg({ kind: 'err', text: 'Could not send the link. Please try again.' })
     }
   }
 
@@ -84,26 +69,9 @@ function SignInInner() {
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <h1 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 32, letterSpacing: '0.08em', color: '#C9A84C', margin: 0 }}>SIGN IN / SIGN UP</h1>
           <p style={{ color: '#888', fontSize: 14, marginTop: 8, lineHeight: 1.5 }}>
-            New to AVIBM? Use one of the options below — your account is created automatically.
-            Already a customer? Same buttons sign you in.
+            New to AVIBM? Enter your email below — your account is created automatically.
+            Already a customer? The same link signs you in.
           </p>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button
-            onClick={() => signInWithProvider('google')}
-            disabled={busy !== null}
-            style={btn('#fff', '#000')}
-          >
-            <GoogleLogo />
-            <span>{busy === 'google' ? 'Redirecting…' : 'Continue with Google'}</span>
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '24px 0', color: '#555', fontSize: 12 }}>
-          <div style={{ flex: 1, height: 1, background: '#222' }} />
-          OR
-          <div style={{ flex: 1, height: 1, background: '#222' }} />
         </div>
 
         <form onSubmit={signInWithMagicLink} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -130,7 +98,7 @@ function SignInInner() {
         )}
 
         <p style={{ marginTop: 24, fontSize: 12, color: '#555', textAlign: 'center' }}>
-          We never store your password. Sign-in is handled by Google or a one-time email link.
+          We never store a password. Sign-in is handled by a one-time email link.
         </p>
         </div>
       </div>
@@ -154,15 +122,4 @@ function btn(bg: string, color: string, border = 'none'): React.CSSProperties {
     justifyContent: 'center',
     gap: 10,
   }
-}
-
-function GoogleLogo() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-      <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
-      <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
-      <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
-      <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
-    </svg>
-  )
 }

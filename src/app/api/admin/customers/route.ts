@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHash } from 'crypto'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY!
+import { query, one, updateById, deleteById } from '@/lib/db'
 
 // ── Reference numbers (display-only, computed server-side) ──────────────
 // Customers: P-XXXXXX  (P for "profile") = first 6 hex chars of
@@ -43,41 +41,39 @@ function annotate(customers: any[]): any[] {
   }))
 }
 
-const h = {
-  'apikey':        serviceKey,
-  'Authorization': `Bearer ${serviceKey}`,
-  'Content-Type':  'application/json',
-}
-
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
 
     // ?type=monitor_status
     if (searchParams.get('type') === 'monitor_status') {
-      const res = await fetch(`${supabaseUrl}/rest/v1/monitor_status?id=eq.main`, { headers: h })
-      const data = await res.json()
-      return NextResponse.json(data[0] || null)
+      const row = await one(`SELECT * FROM monitor_status WHERE id = $1`, ['main'])
+      return NextResponse.json(row || null)
     }
 
     // ?type=new_since&since=<iso>
     if (searchParams.get('type') === 'new_since') {
       const since = searchParams.get('since') || new Date().toISOString()
-      const res = await fetch(
-        `${supabaseUrl}/rest/v1/customers?select=id&created_at=gt.${encodeURIComponent(since)}`,
-        { headers: h }
-      )
-      const data = await res.json()
-      return NextResponse.json(Array.isArray(data) ? data : [])
+      const rows = await query(`SELECT id FROM customers WHERE created_at > $1`, [since])
+      return NextResponse.json(rows)
     }
 
     // Default: all customers + vehicles, annotated with display refs
-    const res = await fetch(
-      `${supabaseUrl}/rest/v1/customers?select=*,vehicles(*)&order=created_at.desc`,
-      { headers: h }
-    )
-    const data = await res.json()
-    return NextResponse.json(Array.isArray(data) ? annotate(data) : [])
+    const [customers, allVehicles] = await Promise.all([
+      query<any>(`SELECT * FROM customers ORDER BY created_at DESC`),
+      query<any>(`SELECT * FROM vehicles`),
+    ])
+    const byCustomer = new Map<any, any[]>()
+    for (const v of allVehicles) {
+      const arr = byCustomer.get(v.customer_id) ?? []
+      arr.push(v)
+      byCustomer.set(v.customer_id, arr)
+    }
+    const withVehicles = customers.map((c: any) => ({
+      ...c,
+      vehicles: byCustomer.get(c.id) ?? [],
+    }))
+    return NextResponse.json(annotate(withVehicles))
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
@@ -89,14 +85,10 @@ export async function PATCH(request: Request) {
     if (!['customers', 'vehicles'].includes(table))
       return NextResponse.json({ error: 'Invalid table' }, { status: 400 })
 
-    const res = await fetch(
-      `${supabaseUrl}/rest/v1/${table}?id=eq.${id}`,
-      { method: 'PATCH', headers: h, body: JSON.stringify(updates) }
-    )
-    if (!res.ok) return NextResponse.json({ error: await res.text() }, { status: 400 })
+    await updateById(table, id, updates)
     return NextResponse.json({ ok: true })
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    return NextResponse.json({ error: e.message }, { status: 400 })
   }
 }
 
@@ -106,13 +98,9 @@ export async function DELETE(request: Request) {
     if (!['customers', 'vehicles'].includes(table))
       return NextResponse.json({ error: 'Invalid table' }, { status: 400 })
 
-    const res = await fetch(
-      `${supabaseUrl}/rest/v1/${table}?id=eq.${id}`,
-      { method: 'DELETE', headers: h }
-    )
-    if (!res.ok) return NextResponse.json({ error: await res.text() }, { status: 400 })
+    await deleteById(table, id)
     return NextResponse.json({ ok: true })
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    return NextResponse.json({ error: e.message }, { status: 400 })
   }
 }

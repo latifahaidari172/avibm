@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 import { getAuthToken, unauthorized } from '@/lib/auth'
 import { emailHtml } from '@/lib/emailTemplate'
+import { query, one } from '@/lib/db'
 
 // Whitelist API. Backed by the existing public.free_customers Supabase
 // table — bot's /api/check-whitelist endpoint already reads from this
@@ -19,15 +20,6 @@ import { emailHtml } from '@/lib/emailTemplate'
 // pointer when added via the customer picker; legacy / manual entries
 // have customer_id = null.
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const h = (extra: Record<string, string> = {}) => ({
-  apikey: serviceKey,
-  Authorization: `Bearer ${serviceKey}`,
-  'Content-Type': 'application/json',
-  ...extra,
-})
-
 type Customer = {
   id: string
   first_name?: string
@@ -38,12 +30,10 @@ type Customer = {
 }
 
 async function fetchCustomer(id: string): Promise<Customer | null> {
-  const r = await fetch(
-    `${supabaseUrl}/rest/v1/customers?id=eq.${id}&select=id,first_name,last_name,email,phone,state&limit=1`,
-    { headers: h(), cache: 'no-store' },
+  return one<Customer>(
+    `SELECT id, first_name, last_name, email, phone, state FROM customers WHERE id = $1 LIMIT 1`,
+    [id],
   )
-  const arr = await r.json()
-  return Array.isArray(arr) && arr[0] ? arr[0] : null
 }
 
 async function sendWhitelistEmail(c: Customer) {
@@ -91,13 +81,14 @@ async function sendWhitelistEmail(c: Customer) {
 // GET — list all whitelist entries, joined to customer if linked.
 export async function GET(request: Request) {
   if (!getAuthToken(request)) return unauthorized()
-  const r = await fetch(
-    `${supabaseUrl}/rest/v1/free_customers?select=entry,customer_id,notified_at,created_at&order=created_at.desc`,
-    { headers: h(), cache: 'no-store' },
-  )
-  if (!r.ok) return NextResponse.json({ error: await r.text() }, { status: 500 })
-  const rows = await r.json()
-  return NextResponse.json(rows)
+  try {
+    const rows = await query(
+      `SELECT entry, customer_id, notified_at, created_at FROM free_customers ORDER BY created_at DESC`,
+    )
+    return NextResponse.json(rows)
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
 }
 
 // POST — add to whitelist. Two shapes:
@@ -120,21 +111,27 @@ export async function POST(request: Request) {
     if (entries.length === 0) {
       return NextResponse.json({ error: 'customer has no email or phone' }, { status: 400 })
     }
-    // Upsert (entry is primary key); the merge-duplicates resolves
-    // existing rows so adding a customer who has a stray entry is OK.
-    const r = await fetch(
-      `${supabaseUrl}/rest/v1/free_customers?on_conflict=entry`,
-      { method: 'POST', headers: h({ Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify(entries) },
-    )
-    if (!r.ok) return NextResponse.json({ error: await r.text() }, { status: 500 })
+    // Upsert (entry is primary key); merge-duplicates resolves existing
+    // rows so adding a customer who has a stray entry is OK.
+    try {
+      for (const e of entries) {
+        await query(
+          `INSERT INTO free_customers (entry, customer_id) VALUES ($1, $2)
+             ON CONFLICT (entry) DO UPDATE SET customer_id = EXCLUDED.customer_id`,
+          [e.entry, e.customer_id],
+        )
+      }
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 500 })
+    }
 
     // Send the welcome email — best effort, don't fail the API if it errors.
     let emailed = false
     try { emailed = await sendWhitelistEmail(c) } catch (e) { console.error('whitelist email failed:', e) }
     if (emailed) {
-      await fetch(
-        `${supabaseUrl}/rest/v1/free_customers?customer_id=eq.${c.id}`,
-        { method: 'PATCH', headers: h(), body: JSON.stringify({ notified_at: new Date().toISOString() }) },
+      await query(
+        `UPDATE free_customers SET notified_at = $1 WHERE customer_id = $2`,
+        [new Date().toISOString(), c.id],
       ).catch(() => {})
     }
     return NextResponse.json({ ok: true, entries, emailed })
@@ -143,11 +140,14 @@ export async function POST(request: Request) {
   if (body.entry) {
     const cleaned = String(body.entry).toLowerCase().trim()
     if (!cleaned) return NextResponse.json({ error: 'empty entry' }, { status: 400 })
-    const r = await fetch(
-      `${supabaseUrl}/rest/v1/free_customers?on_conflict=entry`,
-      { method: 'POST', headers: h({ Prefer: 'resolution=merge-duplicates' }), body: JSON.stringify([{ entry: cleaned }]) },
-    )
-    if (!r.ok) return NextResponse.json({ error: await r.text() }, { status: 500 })
+    try {
+      await query(
+        `INSERT INTO free_customers (entry) VALUES ($1) ON CONFLICT (entry) DO NOTHING`,
+        [cleaned],
+      )
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 500 })
+    }
     return NextResponse.json({ ok: true, entry: cleaned })
   }
 
@@ -160,19 +160,22 @@ export async function DELETE(request: Request) {
   if (!getAuthToken(request)) return unauthorized()
   const body = await request.json().catch(() => ({}))
   if (body.customer_id) {
-    const r = await fetch(
-      `${supabaseUrl}/rest/v1/free_customers?customer_id=eq.${body.customer_id}`,
-      { method: 'DELETE', headers: h() },
-    )
-    if (!r.ok) return NextResponse.json({ error: await r.text() }, { status: 500 })
+    try {
+      await query(`DELETE FROM free_customers WHERE customer_id = $1`, [body.customer_id])
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 500 })
+    }
     return NextResponse.json({ ok: true })
   }
   if (body.entry) {
-    const r = await fetch(
-      `${supabaseUrl}/rest/v1/free_customers?entry=eq.${encodeURIComponent(String(body.entry).toLowerCase().trim())}`,
-      { method: 'DELETE', headers: h() },
-    )
-    if (!r.ok) return NextResponse.json({ error: await r.text() }, { status: 500 })
+    try {
+      await query(
+        `DELETE FROM free_customers WHERE entry = $1`,
+        [String(body.entry).toLowerCase().trim()],
+      )
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 500 })
+    }
     return NextResponse.json({ ok: true })
   }
   return NextResponse.json({ error: 'provide customer_id or entry' }, { status: 400 })

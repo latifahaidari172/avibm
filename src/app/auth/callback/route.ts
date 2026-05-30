@@ -1,88 +1,51 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createSupabaseServer } from '@/lib/supabase/server'
+import { consumeMagicLink } from '@/lib/magicLink'
+import { one } from '@/lib/db'
+import { setSessionCookie } from '@/lib/session'
 
-// OAuth + magic-link callback. Supports two flows:
-//
-//   PKCE (Google OAuth)    : ?code=xxx
-//      -> exchangeCodeForSession(code) — needs the code_verifier cookie
-//         that the browser client stored when signInWithOAuth was called.
-//
-//   Email OTP (magic link) : ?token_hash=xxx&type=magiclink|email|recovery
-//      -> verifyOtp({ token_hash, type }) — server-side, NO verifier
-//         cookie required. Survives across browsers/devices, doesn't
-//         break if cookies were cleared, doesn't depend on the email
-//         being clicked in the same browser the link was requested in.
-//
-// We previously only handled `code`, which meant magic links failed
-// with "PKCE code verifier not found in storage" whenever the cookie
-// went missing (cleared cookies, cross-device click, browser preview,
-// 3rd-party-cookie blocking). Switching the magic-link email template
-// to point here with ?token_hash=... bypasses that whole class of bug.
+// Magic-link callback (native auth — replaces Supabase OAuth/OTP).
+//   GET ?t=<raw-token>&next=<path>
+// Consumes the single-use token, resolves the customer by email, sets the
+// avibm_session cookie, and redirects. First-time visitors (no customer row
+// yet) get a verified-email session and are routed to complete-profile.
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
-  const tokenHash = searchParams.get('token_hash')
-  const otpType = searchParams.get('type')
-  const next = searchParams.get('next') || '/account'
+  const token = searchParams.get('t')
+  const fallbackNext = searchParams.get('next') || '/account'
 
-  const supabase = await createSupabaseServer()
-
-  let authError: string | null = null
-
-  if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (error) authError = error.message
-  } else if (tokenHash && otpType) {
-    const { error } = await supabase.auth.verifyOtp({
-      token_hash: tokenHash,
-      type: otpType as 'email' | 'magiclink' | 'recovery' | 'invite' | 'signup',
-    })
-    if (error) authError = error.message
-  } else {
-    authError = 'missing_code_and_token'
+  if (!token) {
+    return NextResponse.redirect(`${origin}/account/sign-in?error=missing_token`)
   }
 
-  if (authError) {
+  const consumed = await consumeMagicLink(token)
+  if (!consumed) {
     return NextResponse.redirect(
-      `${origin}/account/sign-in?error=${encodeURIComponent(authError)}`,
+      `${origin}/account/sign-in?error=${encodeURIComponent('invalid_or_expired_link')}`,
     )
   }
 
-  // After session is established, decide where to send them.
-  const { data: { user } } = await supabase.auth.getUser()
-  const linkedCustomerId = user?.user_metadata?.customer_id as string | undefined
+  const email = consumed.email.toLowerCase()
+  const next = consumed.next || fallbackNext
 
-  if (linkedCustomerId) {
-    return NextResponse.redirect(`${origin}${next}`)
+  // Find an existing customer for this email. Some emails have both an active
+  // and an archived/legacy row — prefer the active, most-recent, non-deleted.
+  const existing = await one<{ id: string }>(
+    `SELECT id FROM customers
+      WHERE lower(email) = $1 AND pending_deletion = false
+      ORDER BY active DESC, archived ASC, created_at DESC
+      LIMIT 1`,
+    [email],
+  )
+
+  if (existing) {
+    const res = NextResponse.redirect(`${origin}${next}`)
+    setSessionCookie(res, existing.id, email)
+    return res
   }
 
-  // No metadata link yet. Before forcing them through complete-profile,
-  // check if a customer row already exists for this email — common when
-  // someone registered via /register/qld (which creates a customer row
-  // by email/phone, no auth user) and is now signing in for the first
-  // time. If we find one, link it on user_metadata so this won't ask
-  // again and route them straight to the dashboard.
-  const email = user?.email?.toLowerCase()
-  if (email) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-    try {
-      const r = await fetch(
-        `${supabaseUrl}/rest/v1/customers?email=eq.${encodeURIComponent(email)}&select=id&limit=1`,
-        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }, cache: 'no-store' },
-      )
-      const arr = await r.json()
-      const existingId = Array.isArray(arr) && arr[0]?.id
-      if (existingId) {
-        await supabase.auth.updateUser({ data: { customer_id: existingId } })
-        return NextResponse.redirect(`${origin}${next}`)
-      }
-    } catch (e) {
-      console.error('[auth/callback] customer lookup failed:', e)
-    }
-  }
-
-  // Genuinely first-time visitor: route to profile-completion which
-  // writes the customer row and links it via user_metadata.customer_id.
-  return NextResponse.redirect(`${origin}/account/complete-profile`)
+  // First-time visitor: issue a verified-email session (no customer id yet)
+  // and send them through profile completion, which creates + links the row.
+  const res = NextResponse.redirect(`${origin}/account/complete-profile`)
+  setSessionCookie(res, '', email)
+  return res
 }

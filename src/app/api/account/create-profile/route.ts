@@ -1,15 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createSupabaseServer } from '@/lib/supabase/server'
 import { promises as dns } from 'dns'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const h = () => ({
-  apikey: serviceKey,
-  Authorization: `Bearer ${serviceKey}`,
-  'Content-Type': 'application/json',
-  Prefer: 'return=representation',
-})
+import { one, insertRow, updateById } from '@/lib/db'
+import { getSession, setSessionCookie } from '@/lib/session'
 
 async function checkEmailMx(email: string): Promise<string | null> {
   const at = email.lastIndexOf('@')
@@ -26,31 +18,22 @@ async function checkEmailMx(email: string): Promise<string | null> {
   }
 }
 
-// First-time post-OAuth setup: create the customer row + link it back
-// to the auth user via user_metadata.customer_id.
+// First-time setup after a verified-email session: create (or re-link) the
+// customer row and upgrade the session cookie to carry the customer id.
 export async function POST(req: NextRequest) {
-  const supabase = await createSupabaseServer()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+  const session = getSession(req)
+  if (!session) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
-  // If they already have a linked customer that STILL EXISTS, don't
-  // create a duplicate. A stale link — the customer row was since
-  // removed (e.g. by the admin dedupe tool) — falls through and is
-  // re-created + re-linked below instead of dead-ending on a 409.
-  const existingLink = user.user_metadata?.customer_id as string | undefined
-  if (existingLink) {
-    const chk = await fetch(
-      `${supabaseUrl}/rest/v1/customers?id=eq.${existingLink}&select=id&limit=1`,
-      { headers: h() },
-    )
-    const linkRows = await chk.json()
-    if (Array.isArray(linkRows) && linkRows.length > 0) {
-      return NextResponse.json({ error: 'profile already exists' }, { status: 409 })
-    }
+  // If the session already points at a customer that STILL EXISTS, don't
+  // duplicate. A stale link (row since removed) falls through and is
+  // re-created below.
+  if (session.sub) {
+    const linked = await one<{ id: string }>('SELECT id FROM customers WHERE id = $1', [session.sub])
+    if (linked) return NextResponse.json({ error: 'profile already exists' }, { status: 409 })
   }
 
   const body = await req.json()
-  const email = (body.email || user.email || '').toLowerCase().trim()
+  const email = (body.email || session.email || '').toLowerCase().trim()
   if (!email) return NextResponse.json({ error: 'email required' }, { status: 400 })
   if (!/^04\d{8}$/.test(body.phone || '')) {
     return NextResponse.json({ error: 'Mobile must be 10 digits starting with 04.' }, { status: 400 })
@@ -58,52 +41,40 @@ export async function POST(req: NextRequest) {
   const mxErr = await checkEmailMx(email)
   if (mxErr) return NextResponse.json({ error: mxErr }, { status: 400 })
 
-  // Reuse an existing customer row if email matches (admin pre-created
-  // them, etc.) — link instead of duplicating.
-  const findRes = await fetch(
-    `${supabaseUrl}/rest/v1/customers?email=eq.${encodeURIComponent(email)}&select=id`,
-    { headers: h() },
+  const prefLoc = Array.isArray(body.preferred_locations) ? body.preferred_locations : []
+
+  // Reuse an existing row for this email (admin pre-created, prior signup)
+  // — link instead of duplicating.
+  const existing = await one<{ id: string }>(
+    `SELECT id FROM customers
+      WHERE lower(email) = $1 AND pending_deletion = false
+      ORDER BY active DESC, archived ASC, created_at DESC
+      LIMIT 1`,
+    [email],
   )
-  const existing = await findRes.json()
   let customerId: string
 
-  if (Array.isArray(existing) && existing.length > 0) {
-    customerId = existing[0].id
-    // Update existing row with whatever the user just typed
-    await fetch(`${supabaseUrl}/rest/v1/customers?id=eq.${customerId}`, {
-      method: 'PATCH', headers: h(),
-      body: JSON.stringify({
-        first_name: body.first_name, last_name: body.last_name,
-        phone: body.phone, address: body.address, suburb: body.suburb,
-        postcode: body.postcode, crn: body.crn, state: body.state, tier: body.tier,
-        active: true, archived: false,
-      }),
+  if (existing) {
+    customerId = existing.id
+    await updateById('customers', customerId, {
+      first_name: body.first_name, last_name: body.last_name,
+      phone: body.phone, address: body.address, suburb: body.suburb,
+      postcode: body.postcode, crn: body.crn, state: body.state, tier: body.tier,
+      active: true, archived: false, preferred_locations: prefLoc,
     })
   } else {
-    const cRes = await fetch(`${supabaseUrl}/rest/v1/customers`, {
-      method: 'POST', headers: h(),
-      body: JSON.stringify({
-        first_name: body.first_name, last_name: body.last_name, email,
-        phone: body.phone, address: body.address, suburb: body.suburb, postcode: body.postcode,
-        crn: body.crn, state: body.state, tier: body.tier || 'priority',
-        active: true, auto_payment_email: true, archived: false,
-      }),
-    })
-    if (!cRes.ok) return NextResponse.json({ error: await cRes.text() }, { status: 400 })
-    const arr = await cRes.json()
-    customerId = arr[0]?.id
+    const row = await insertRow<{ id: string }>('customers', {
+      first_name: body.first_name, last_name: body.last_name, email,
+      phone: body.phone, address: body.address, suburb: body.suburb, postcode: body.postcode,
+      crn: body.crn, state: body.state, tier: body.tier || 'priority',
+      active: true, auto_payment_email: true, archived: false, preferred_locations: prefLoc,
+    }, 'id')
+    customerId = row?.id
     if (!customerId) return NextResponse.json({ error: 'failed to create customer' }, { status: 500 })
   }
 
-  // Link the auth user → customer + stash preferred_locations
-  // (customers table doesn't have a locations column; vehicles do).
-  const { error: updErr } = await supabase.auth.updateUser({
-    data: {
-      customer_id: customerId,
-      preferred_locations: Array.isArray(body.preferred_locations) ? body.preferred_locations : [],
-    },
-  })
-  if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 })
-
-  return NextResponse.json({ customer_id: customerId })
+  // Upgrade the verified-email session to a full customer session.
+  const res = NextResponse.json({ customer_id: customerId })
+  setSessionCookie(res, customerId, email)
+  return res
 }

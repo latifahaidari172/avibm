@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAuthToken, unauthorized } from '@/lib/auth'
-
-const headers = () => ({
-  apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-})
-const BASE = () => process.env.NEXT_PUBLIC_SUPABASE_URL!
+import { one } from '@/lib/db'
 
 export async function GET(request: Request) {
   if (!getAuthToken(request)) return unauthorized()
@@ -13,12 +8,11 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const since = searchParams.get('since')
     if (!since) return NextResponse.json({ count: 0 })
-    const res = await fetch(
-      `${BASE()}/rest/v1/customers?created_at=gt.${encodeURIComponent(since)}&select=id`,
-      { headers: headers() }
+    const row = await one<{ count: number }>(
+      `SELECT count(*)::int AS count FROM customers WHERE created_at > $1`,
+      [since],
     )
-    const rows = await res.json()
-    return NextResponse.json({ count: Array.isArray(rows) ? rows.length : 0 })
+    return NextResponse.json({ count: row?.count ?? 0 })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

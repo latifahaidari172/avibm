@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /Users/navidhaidari/Downloads/avibm -maxdepth 3 \\\\\\(-name package.json -o -name package-lock.json -o -name yarn.lock -o -name pnpm-lock.yaml -o -name Makefile -o -name Procfile -o -name docker-compose.yml -o -name vite.config.* -o -name next.config.* -o -name nuxt.config.* -o -name svelte.config.* -o -name astro.config.* -o -name webpack.config.* -o -name *.py -o -name manage.py -o -name requirements.txt -o -name Cargo.toml -o -name go.mod \\\\\\))",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(python3:*)",
+      "Bash(netlify --version)",
+      "Bash(npx netlify:*)",
+      "Bash(gh --version)",
+      "Bash(curl -s -X POST -H \"Content-Type: application/zip\" --data-binary @/tmp/tabla-tuner-deploy.zip \"https://api.netlify.com/api/v1/sites\")",
+      "Bash(npx surge:*)",
+      "Bash(timeout 120 npx netlify-cli deploy --dir . --prod)",
+      "Bash(npx netlify-cli:*)",
+      "Read(//tmp/**)",
+      "Bash(jobs)",
+      "Bash(open \"https://app.netlify.com/drop\")",
+      "Bash(open /Users/navidhaidari/Downloads/avibm/)",
+      "WebFetch(domain:avibm.vercel.app)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://avibm.vercel.app/api/admin-data)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://avibm.vercel.app/api/admin-login?action=list)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://avibm.vercel.app/api/bot-control)",
+      "Bash(curl -s -w \"\\\\nSTATUS:%{http_code}\" \"https://avibm.vercel.app/api/admin-data\")",
+      "Bash(curl -s -w \"\\\\nSTATUS:%{http_code}\" \"https://avibm.vercel.app/api/admin-login?action=list\")",
+      "Bash(curl -s -w \"\\\\nSTATUS:%{http_code}\" \"https://avibm.vercel.app/api/bot-control\")",
+      "Bash(curl -s -w \"\\\\nSTATUS:%{http_code}\" \"https://avibm.vercel.app/api/customers\")",
+      "Bash(npm install:*)",
+      "Bash(node -e \"const p=require\\(''./package.json''\\); console.log\\(''next:'', p.dependencies.next\\)\")"
+    ]
+  }
+}

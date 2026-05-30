@@ -5,7 +5,6 @@ import { IconCheckCircle, IconArrowLeft, IconCalendar, IconMapPin, IconExclamati
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { createSupabaseBrowser } from '@/lib/supabase/client'
 
 const DAMAGE_OPTIONS = ['HAIL DAMAGE', 'WATER DAMAGE', 'MALICIOUS DAMAGE', 'FIRE DAMAGE', 'STRUCTURAL DAMAGE', 'IMPACT DAMAGE DRIVERS FRONT', 'IMPACT DAMAGE PASSENGER FRONT', 'IMPACT DAMAGE DRIVERS SIDE', 'IMPACT DAMAGE PASSENGER SIDE', 'IMPACT DAMAGE DRIVERS REAR', 'IMPACT DAMAGE PASSENGER REAR', 'OTHER']
 const PURCHASE_OPTIONS = ['Auction', 'Private Sale', 'Insurance', 'Other']
@@ -145,11 +144,10 @@ export default function RegisterQLD() {
   useEffect(() => {
     (async () => {
       try {
-        const supabase = createSupabaseBrowser()
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.user_metadata?.customer_id) {
-          router.replace('/account/add-vehicle')
-          return
+        const r = await fetch('/api/auth/me', { cache: 'no-store' })
+        if (r.ok) {
+          const me = await r.json()
+          if (me.customer) { router.replace('/account/add-vehicle'); return }
         }
       } catch {}
       setAuthChecked(true)
@@ -175,17 +173,6 @@ export default function RegisterQLD() {
   // Re-checking is required any time the email changes after a check.
   const resetEmailGate = () => { if (emailStage !== 'entry') setEmailStage('entry') }
 
-  const signInWithGoogle = async () => {
-    setError('')
-    const supabase = createSupabaseBrowser()
-    const { error: oauthErr } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/account/add-vehicle')}` },
-    })
-    // On success the browser redirects to Google — nothing else runs here.
-    if (oauthErr) setError(oauthErr.message)
-  }
-
   const checkEmail = async () => {
     const email = owner.email.trim().toLowerCase()
     if (!/^\S+@\S+\.\S+$/.test(email)) { setError('Please enter a valid email.'); return }
@@ -201,12 +188,15 @@ export default function RegisterQLD() {
       if (data.exists) {
         // Returning customer — send them a one-click sign-in link that
         // lands them on the prefilled add-vehicle flow.
-        const supabase = createSupabaseBrowser()
-        const { error: otpErr } = await supabase.auth.signInWithOtp({
-          email,
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/account/add-vehicle')}` },
+        const lr = await fetch('/api/auth/magic-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, next: '/account/add-vehicle' }),
         })
-        if (otpErr) throw new Error(otpErr.message)
+        if (!lr.ok) {
+          const j = await lr.json().catch(() => ({}))
+          throw new Error(j.error || 'Could not send sign-in link.')
+        }
         setEmailStage('existing')
       } else {
         setEmailStage('new')
@@ -673,30 +663,10 @@ export default function RegisterQLD() {
                 </div>
               )}
 
-              {/* Google as an alternative to the email link */}
               {emailStage === 'entry' && (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '18px 0', color: 'var(--text-muted)', fontSize: 12 }}>
-                    <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                    OR
-                    <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={signInWithGoogle}
-                    style={{
-                      width: '100%', background: '#fff', color: '#000', border: 'none',
-                      padding: '11px 14px', borderRadius: 6, cursor: 'pointer',
-                      fontSize: 14, fontWeight: 600, fontFamily: 'DM Sans, sans-serif',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                    }}
-                  >
-                    <GoogleLogo />Continue with Google
-                  </button>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, marginBottom: 0, textAlign: 'center' }}>
-                    Already a customer? Google or the email link signs you straight in.
-                  </p>
-                </>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 12, marginBottom: 0, textAlign: 'center' }}>
+                  Already a customer? The email link signs you straight in.
+                </p>
               )}
             </div>
 
@@ -1117,16 +1087,5 @@ export default function RegisterQLD() {
         )}
       </div>
     </main>
-  )
-}
-
-function GoogleLogo() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-      <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
-      <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
-      <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
-      <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
-    </svg>
   )
 }

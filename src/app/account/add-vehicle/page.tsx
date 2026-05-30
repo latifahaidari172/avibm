@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createSupabaseBrowser } from '@/lib/supabase/client'
 import { validateVin, validateYear, validatePostcode, validateAuMobile, validateCutoffDate, normaliseAuMobile, validateCrn, validateStreetAddress, validateSuburb, clampYearInput, validateMake, validateModel } from '@/lib/validators'
 
 const WOVI_LOCATIONS = [
@@ -31,7 +30,6 @@ const TIERS = [
 // anything, and on submit creates the vehicle + (if anything changed)
 // patches the customer.
 export default function AddVehiclePage() {
-  const supabase = createSupabaseBrowser()
   const router = useRouter()
 
   const [authReady, setAuthReady] = useState(false)
@@ -74,22 +72,17 @@ export default function AddVehiclePage() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [lookup, setLookup] = useState<{ status: 'idle' | 'searching' | 'found' | 'none'; count: number }>({ status: 'idle', count: 0 })
 
-  // Bootstrap — fetch the customer profile via API and prefill
+  // Bootstrap — fetch the customer profile via API and prefill. The profile
+  // route gates on the session cookie: 401 = not signed in, 404 = no profile
+  // linked yet (send to complete-profile).
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.replace('/account/sign-in'); return }
-      setAuthEmail(user.email || '')
-      if (!user.user_metadata?.customer_id) { router.replace('/account/complete-profile'); return }
-
       const res = await fetch('/api/account/profile', { cache: 'no-store' })
-      // Linked customer row is gone (stale metadata link, e.g. removed by
-      // the dedupe tool) — send them through first-time profile setup so
-      // it gets re-created and re-linked, rather than showing an empty
-      // "saved details" form.
+      if (res.status === 401) { router.replace('/account/sign-in'); return }
       if (res.status === 404) { router.replace('/account/complete-profile'); return }
       if (!res.ok) { setAuthReady(true); return }
       const cust = await res.json()
+      setAuthEmail(cust.email || '')
       setOriginalCustomer(cust)
       setC(s => ({
         ...s,
@@ -106,13 +99,11 @@ export default function AddVehiclePage() {
         licence_number: cust.licence_number || '',
         date_of_birth: cust.date_of_birth || '',
       }))
-      // Do NOT carry over preferred_locations / priority_locations from
-      // user_metadata — locations must always be a deliberate choice for
-      // each new vehicle. Saved metadata still drives the existing-vehicle
-      // edit page; just not the add-vehicle flow.
+      // Locations/priority always start empty by design — a deliberate choice
+      // per vehicle, never carried over.
       setAuthReady(true)
     })()
-  }, [supabase, router])
+  }, [router])
 
   // VIN → auction-intel lookup. Fires (debounced) only when the VIN is
   // structurally valid. Autofills ONLY empty fields — never clobbers what

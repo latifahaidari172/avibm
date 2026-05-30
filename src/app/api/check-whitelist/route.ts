@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { one } from '@/lib/db'
 
 export async function POST(req: NextRequest) {
   try {
@@ -7,29 +8,19 @@ export async function POST(req: NextRequest) {
     const cleanEmail = (email || '').toLowerCase().trim()
     const cleanPhone = (phone || '').replace(/\s/g, '').trim()
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-    const headers = {
-      'apikey': supabaseKey,
-      'Authorization': `Bearer ${supabaseKey}`,
-    }
-
     // Check email
-    const emailRes = await fetch(
-      `${supabaseUrl}/rest/v1/free_customers?entry=eq.${encodeURIComponent(cleanEmail)}&select=entry&limit=1`,
-      { headers }
+    const emailRow = await one(
+      `SELECT entry FROM free_customers WHERE entry = $1 LIMIT 1`,
+      [cleanEmail],
     )
-    const emailData = await emailRes.json()
-    if (Array.isArray(emailData) && emailData.length > 0)
-      return NextResponse.json({ whitelisted: true })
+    if (emailRow) return NextResponse.json({ whitelisted: true })
 
     // Check phone
-    const phoneRes = await fetch(
-      `${supabaseUrl}/rest/v1/free_customers?entry=eq.${encodeURIComponent(cleanPhone)}&select=entry&limit=1`,
-      { headers }
+    const phoneRow = await one(
+      `SELECT entry FROM free_customers WHERE entry = $1 LIMIT 1`,
+      [cleanPhone],
     )
-    const phoneData = await phoneRes.json()
-    return NextResponse.json({ whitelisted: Array.isArray(phoneData) && phoneData.length > 0 })
+    return NextResponse.json({ whitelisted: phoneRow !== null })
 
   } catch (e) {
     console.error('Whitelist check error:', e)

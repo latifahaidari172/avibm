@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createSupabaseBrowser } from '@/lib/supabase/client'
 import { IconArrowLeft } from '@/components/icons'
 import {
   validateAuMobile, validatePostcode, validateStreetAddress, validateSuburb,
@@ -57,16 +56,8 @@ export default function EditDetailsPage() {
         date_of_birth: c.date_of_birth || '',
         preferred_locations: Array.isArray(c.preferred_locations) ? c.preferred_locations : [],
       })
-      // preferred_locations live in user_metadata, not on the customers
-      // row — read them straight from the supabase browser client.
-      try {
-        const supabase = createSupabaseBrowser()
-        const { data: { user } } = await supabase.auth.getUser()
-        const fromMeta = (user?.user_metadata?.preferred_locations as string[] | undefined) || []
-        if (fromMeta.length > 0) {
-          setF(s => s ? { ...s, preferred_locations: fromMeta } : s)
-        }
-      } catch {}
+      // preferred_locations now live on the customers row (returned by the
+      // profile API above) — no separate auth lookup needed.
       setLoading(false)
     })()
   }, [router])

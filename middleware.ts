@@ -1,20 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
 
 // Domains that should 301 to the canonical avibm.com host.
-// Temporarily empty until avibm.com DNS has fully propagated to the
-// owner's network — re-add 'avibm.vercel.app' here once the new domain
-// resolves cleanly from their ISP. www.avibm.com still redirects since
-// CF DNS resolves it correctly from the moment we created the record.
 const REDIRECT_HOSTS = new Set([
   'www.avibm.com',
 ])
 
-// Middleware:
-//  1. Redirects legacy / www hosts to avibm.com (301, path + query preserved)
-//  2. Refreshes the Supabase session cookie on every request to the canonical
-//     host so OAuth-signed-in customers don't get silently logged out.
-export async function middleware(request: NextRequest) {
+// Middleware: canonical-host redirect only. Sessions are now stateless,
+// HMAC-signed cookies (lib/session.ts) — no per-request refresh needed, so
+// the old Supabase session-refresh step is gone.
+export function middleware(request: NextRequest) {
   const host = request.headers.get('host') || ''
   if (REDIRECT_HOSTS.has(host)) {
     const url = new URL(request.url)
@@ -22,32 +16,7 @@ export async function middleware(request: NextRequest) {
     url.protocol = 'https:'
     return NextResponse.redirect(url, 301)
   }
-
-  let response = NextResponse.next({ request })
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          response = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          )
-        },
-      },
-    },
-  )
-
-  // Calling getUser() refreshes the session if it's about to expire.
-  await supabase.auth.getUser()
-
-  return response
+  return NextResponse.next()
 }
 
 export const config = {
