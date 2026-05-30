@@ -40,7 +40,10 @@ export async function GET(request: Request) {
       [ids],
     )
     const v = vehicles[0]
-    // Most-recent listing whose thumbnail file actually exists on disk.
+    // Use the most-recent listing whose durable thumbnail file actually exists
+    // on disk (served from our own domain). Full source photos move to cold
+    // storage and aren't reliably served, so the stored thumb is the only
+    // dependable image — when none exists, the form shows details only.
     let photo_url: string | null = null
     for (const l of listings) {
       if (!l.source || !l.external_id) continue
