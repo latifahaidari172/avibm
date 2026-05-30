@@ -277,8 +277,8 @@ export default function AddVehiclePage() {
               <div className="mt-3 rounded-xl overflow-hidden" style={{ background: '#0d0d0d', border: '1px solid rgba(201,168,76,0.32)', boxShadow: '0 0 24px rgba(201,168,76,0.06)' }}>
                 {(() => {
                   const found = (
-                    <span className="inline-flex items-center gap-1" style={{ background: 'rgba(90,219,90,0.16)', border: '1px solid rgba(90,219,90,0.45)', color: '#7fe07f', borderRadius: 999, padding: '3px 9px', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 13 }}>verified</span> FOUND IN AUCTION RECORDS
+                    <span className="inline-flex items-center gap-1" style={{ background: 'rgba(90,219,90,0.16)', border: '1px solid rgba(90,219,90,0.45)', color: '#7fe07f', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>verified</span> FOUND IN AUCTION RECORDS
                     </span>
                   )
                   const title = [candidate.year, candidate.make, candidate.model, candidate.badge].filter(Boolean).join(' ') || 'Vehicle'
@@ -287,12 +287,12 @@ export default function AddVehiclePage() {
                       <img src={photoUrl} alt="" onError={() => setPhotoUrl(null)} className="w-full h-full object-cover" />
                       <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(13,13,13,0.97) 8%, rgba(13,13,13,0.15) 64%, rgba(13,13,13,0.4))' }} />
                       <div className="absolute top-2.5 left-2.5">{found}</div>
-                      <div className="absolute left-3.5 right-3.5 bottom-2.5 av-bebas text-[23px] text-white leading-none" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.85)' }}>{title}</div>
+                      <div className="absolute left-3.5 right-3.5 bottom-3 av-bebas text-[28px] text-white leading-none" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.85)' }}>{title}</div>
                     </div>
                   ) : (
                     <div className="px-3.5 pt-3.5">
                       {found}
-                      <div className="av-bebas text-[22px] text-[#e6c364] leading-none mt-2">{title}</div>
+                      <div className="av-bebas text-[26px] text-[#e6c364] leading-none mt-2">{title}</div>
                     </div>
                   )
                 })()}
@@ -309,22 +309,22 @@ export default function AddVehiclePage() {
                     <div className="grid grid-cols-2 gap-x-4 gap-y-3 px-3.5 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                       {specs.map(([label, val]) => (
                         <div key={label}>
-                          <div className="uppercase text-[#6f6757]" style={{ fontSize: 9.5, letterSpacing: '0.09em', fontWeight: 600 }}>{label}</div>
-                          <div className="text-[#e5e2e1]" style={{ fontSize: 13, lineHeight: 1.35 }}>{val}</div>
+                          <div className="uppercase text-[#6f6757]" style={{ fontSize: 11, letterSpacing: '0.08em', fontWeight: 600 }}>{label}</div>
+                          <div className="text-[#e5e2e1]" style={{ fontSize: 15, lineHeight: 1.35 }}>{val}</div>
                         </div>
                       ))}
                     </div>
                   ) : null
                 })()}
-                <div className="px-3.5 py-3">
-                  <div className="text-[13px] text-[#d0c5b2] mb-2">Is this your vehicle?</div>
+                <div className="px-3.5 py-3.5">
+                  <div className="text-[15px] text-[#e5e2e1] mb-2.5 font-medium">Is this your vehicle?</div>
                   <div className="flex gap-2">
                     <button type="button" onClick={acceptMatch}
-                      style={{ flex: 1, background: '#c9a84c', color: '#3d2e00', border: 'none', borderRadius: 8, padding: '10px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>check</span> Yes, autofill
+                      style={{ flex: 1, background: '#c9a84c', color: '#3d2e00', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 700, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 19 }}>check</span> Yes, autofill
                     </button>
                     <button type="button" onClick={declineMatch}
-                      style={{ background: 'transparent', color: '#d0c5b2', border: '1px solid #4d4637', borderRadius: 8, padding: '10px 18px', fontSize: 14, cursor: 'pointer' }}>
+                      style={{ background: 'transparent', color: '#d0c5b2', border: '1px solid #4d4637', borderRadius: 8, padding: '12px 20px', fontSize: 15, cursor: 'pointer' }}>
                       No
                     </button>
                   </div>

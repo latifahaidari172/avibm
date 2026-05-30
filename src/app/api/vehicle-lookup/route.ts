@@ -52,9 +52,10 @@ export async function GET(request: Request) {
       transmission: veh.transmission ?? null,
       odometer_km: veh.odometer_km ?? listing.odometer_km ?? null,
       source: auctionName(listing.source_url),
-      // main_photo from the smart lookup (live photo if fetched, else our
-      // resolved thumbnail) — the same image check-listing shows.
-      photo_url: listing.photo_url || listing.thumbnail_url || null,
+      // Prefer the curated stored hero thumbnail (the clean exterior shot the
+      // deals page uses) over the live photos[0], which is often an awkward
+      // angle. Fall back to the live photo when there's no stored thumb.
+      photo_url: listing.thumbnail_url || listing.photo_url || null,
     })
   } catch {
     return NextResponse.json({ vin, found: false, error: 'lookup_failed' }, { status: 200 })
