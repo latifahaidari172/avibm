@@ -1025,23 +1025,27 @@ export default function Admin() {
           <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 'clamp(34px,5vw,54px)', letterSpacing: '-0.02em', lineHeight: 1, marginTop: 14 }}>Customer <span className="admin-shimmer">control</span></h1>
         </div>
 
-        {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 10, marginBottom: 24 }}>
-          {[
-            { label: 'Total', value: stats.total },
-            { label: 'Active', value: stats.active, gold: true },
-            { label: 'QLD', value: stats.qld },
-            { label: 'SA', value: stats.sa },
-            { label: 'Priority', value: stats.priority },
-            { label: 'Standard', value: stats.standard },
-            { label: 'Basic', value: stats.basic },
-          ].map(s => (
-            <div key={s.label} className={`admin-stat-card${s.gold ? ' gold' : ''}`}>
-              <div style={{ fontFamily: 'Bricolage Grotesque', fontSize: 34, lineHeight: 1, color: s.gold ? 'var(--gold)' : 'var(--text)', marginBottom: 4 }}>{s.value}</div>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.3 }}>{s.label}</div>
+        {/* Stats — prototype 4-card */}
+        {(() => {
+          const bookedCount = active_customers.reduce((n, c) => n + (c.vehicles?.filter(v => v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date) && !v.archived && !v.deleted_at).length || 0), 0)
+          const cards = [
+            { label: 'Customers', value: stats.total, c: '#E9CE88', a: 'rgba(201,168,76,0.6)', g: 'rgba(201,168,76,0.14)' },
+            { label: 'Active', value: stats.active, c: '#6bb6ff', a: 'rgba(107,182,255,0.6)', g: 'rgba(107,182,255,0.12)' },
+            { label: 'Booked', value: bookedCount, c: '#62e36a', a: 'rgba(98,227,106,0.6)', g: 'rgba(98,227,106,0.14)' },
+            { label: 'Pending pay', value: pendingPayment.length, c: '#F0A93C', a: 'rgba(240,169,60,0.6)', g: 'rgba(240,169,60,0.12)' },
+          ]
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 22 }}>
+              {cards.map(s => (
+                <div key={s.label} style={{ position: 'relative', overflow: 'hidden', borderRadius: 18, padding: '22px 24px', border: '1px solid rgba(255,255,255,0.09)', background: `radial-gradient(130% 130% at 50% -20%, ${s.g}, transparent 55%), linear-gradient(180deg,rgba(22,20,17,0.88),rgba(11,10,9,0.93))` }}>
+                  <div style={{ position: 'absolute', top: 1, left: 22, right: 22, height: 2, borderRadius: 2, background: `linear-gradient(90deg,transparent,${s.a},transparent)` }} />
+                  <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 48, lineHeight: 1, color: s.c }}>{s.value}</div>
+                  <div style={{ fontSize: 10, letterSpacing: '0.13em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginTop: 12 }}>{s.label}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )
+        })()}
 
         {/* Monitor Status */}
         {(() => {
@@ -1696,7 +1700,7 @@ export default function Admin() {
           <div style={{ display: 'flex', gap: 8 }}>
             {(['all', 'QLD', 'SA'] as const).map(t => (
               <button key={t} className={`state-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-                {t === 'all' ? 'ALL' : t}
+                {t === 'all' ? 'All states' : t}
               </button>
             ))}
           </div>
