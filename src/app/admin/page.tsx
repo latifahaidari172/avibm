@@ -916,7 +916,8 @@ export default function Admin() {
 
   if (!authed) return (
     <main className="admin-max" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
-      <div className="card" style={{ maxWidth: 360, width: '100%', background: 'linear-gradient(135deg, #161616, #111)', border: '1px solid rgba(201,168,76,0.2)', boxShadow: '0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.05)' }}>
+      <div className="orb o1" /><div className="orb o2" /><div className="orb o3" /><div className="orb o4" /><div className="dots" />
+      <div className="card" style={{ maxWidth: 360, width: '100%' }}>
         <div className="section-label" style={{ marginBottom: 8 }}>Admin Access</div>
         <h2 style={{ fontSize: 32, marginBottom: 24 }}>AVIBM ADMIN</h2>
         <div style={{ marginBottom: 12 }}>
@@ -951,14 +952,16 @@ export default function Admin() {
 
   return (
     <main className="admin-max" style={{ minHeight: '100vh', padding: '0 0 80px' }}>
+      <div className="orb o1" /><div className="orb o2" /><div className="orb o3" /><div className="orb o4" /><div className="dots" />
       <header className='admin-header' style={{
-        borderBottom: '1px solid #111', padding: '14px 40px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        position: 'sticky', top: 0,
-        background: 'rgba(3,3,3,0.98)',
-        backdropFilter: 'blur(20px)',
+        margin: '16px clamp(12px,4vw,40px) 0', padding: '10px 12px 10px 22px', borderRadius: 999,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+        position: 'sticky', top: 12,
+        background: 'linear-gradient(180deg,rgba(22,20,17,0.92),rgba(11,10,9,0.96))',
+        border: '1px solid rgba(255,255,255,0.09)',
+        backdropFilter: 'blur(14px)',
         zIndex: 100,
-        boxShadow: '0 1px 0 rgba(201,168,76,0.06)',
+        boxShadow: '0 24px 50px -30px rgba(0,0,0,0.9)',
       }}>
         <div>
           <span style={{ fontFamily: 'Bricolage Grotesque', fontSize: 22, color: 'var(--gold)', letterSpacing: '0.15em' }}>AVIBM</span>
@@ -1016,6 +1019,11 @@ export default function Admin() {
       </header>
 
       <div className='admin-body' style={{ padding: 'clamp(14px,3vw,28px) clamp(12px,4vw,40px)' }}>
+
+        <div style={{ marginBottom: 22 }}>
+          <span className="admin-eyebrow">Admin panel</span>
+          <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 'clamp(34px,5vw,54px)', letterSpacing: '-0.02em', lineHeight: 1, marginTop: 14 }}>Customer <span className="admin-shimmer">control</span></h1>
+        </div>
 
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 10, marginBottom: 24 }}>

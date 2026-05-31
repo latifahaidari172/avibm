@@ -438,12 +438,29 @@ html { scroll-behavior: smooth; }
   --dark: #060606; --dark-2: #0e0c0a; --dark-3: #151310; --dark-4: #1c1916;
   --border: rgba(255,255,255,0.09);
   --text: #F5F2EB; --text-muted: #8d8678;
-  background:
-    radial-gradient(55vw 55vw at 92% -12%, rgba(201,168,76,0.10), transparent 60%),
-    radial-gradient(50vw 50vw at -8% 8%, rgba(107,182,255,0.06), transparent 62%),
-    #060606 !important;
+  background: #060606 !important;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  position: relative; overflow-x: hidden;
 }
+/* drifting colour-orb mesh (the prototype's signature backdrop) */
+.admin-max .orb { position: fixed; border-radius: 50%; filter: blur(90px); opacity: 0.5; pointer-events: none; z-index: 0; will-change: transform; }
+.admin-max .o1 { width: 48vw; height: 48vw; top: -16vw; right: -8vw; background: radial-gradient(circle, rgba(201,168,76,0.5), transparent 70%); animation: adrift1 22s cubic-bezier(0.23,1,0.32,1) infinite; }
+.admin-max .o2 { width: 40vw; height: 40vw; top: 8vh; left: -12vw; background: radial-gradient(circle, rgba(107,182,255,0.34), transparent 70%); animation: adrift2 26s cubic-bezier(0.23,1,0.32,1) infinite; }
+.admin-max .o3 { width: 42vw; height: 42vw; bottom: -14vw; right: 4vw; background: radial-gradient(circle, rgba(98,227,106,0.26), transparent 70%); animation: adrift3 30s cubic-bezier(0.23,1,0.32,1) infinite; }
+.admin-max .o4 { width: 34vw; height: 34vw; bottom: 6vh; left: 18vw; background: radial-gradient(circle, rgba(169,135,255,0.24), transparent 70%); animation: adrift1 28s cubic-bezier(0.23,1,0.32,1) infinite reverse; }
+@keyframes adrift1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-6vw,5vh) scale(1.1); } }
+@keyframes adrift2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(7vw,-4vh) scale(1.08); } }
+@keyframes adrift3 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-5vw,-6vh) scale(1.12); } }
+.admin-max .dots { position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.5; background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 34px 34px; mask: radial-gradient(70vw 70vh at 50% 25%, #000, transparent 75%); }
+/* keep content above the orbs */
+.admin-max .admin-header, .admin-max .admin-body, .admin-max .card { position: relative; z-index: 2; }
+/* shimmer display heading + eyebrow tag (prototype) */
+.admin-shimmer { background: linear-gradient(100deg,#F5F2EB 18%,#E9CE88 38%,#C9A84C 50%,#F5F2EB 70%); background-size: 220% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: ashine 7s linear infinite; }
+@keyframes ashine { to { background-position: -220% center; } }
+.admin-eyebrow { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 6px 13px; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; font-weight: 700; color: #E9CE88; background: rgba(201,168,76,0.07); border: 1px solid rgba(201,168,76,0.28); }
+/* stat-card top accent line (prototype) */
+.admin-stat-card::after { content: ''; position: absolute; top: 0; left: 18%; right: 18%; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, rgba(201,168,76,0.55), transparent); }
+.admin-stat-card.gold::after { background: linear-gradient(90deg, transparent, rgba(98,227,106,0.6), transparent); }
 .admin-max ::selection { background: var(--gold); color: #231900; }
 
 /* glass cards / panels */
