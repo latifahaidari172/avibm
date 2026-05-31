@@ -1871,20 +1871,24 @@ export default function Admin() {
                               </div>
                             ) : (
                               <>
-                                <div style={{ fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                                  <span>{v.label ? `${v.label} — ` : ''}{v.make} {v.model} {v.year}{v.vehicle_type ? ` (${v.vehicle_type})` : ''}</span>
+                                <div style={{ fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                                  <span>{v.label ? `${v.label} — ` : ''}{v.make} {v.model} {v.year}</span>
                                   {v.ref && (
                                     <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 10, color: '#5ab0ff', background: 'rgba(90,176,255,0.08)', border: '1px solid rgba(90,176,255,0.25)', padding: '1px 6px', borderRadius: 4, letterSpacing: '0.04em' }}>{v.ref}</span>
                                   )}
                                 </div>
-                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>VIN: {v.vin}{v.colour ? ` · ${v.colour}` : ''}{v.build_month ? ` · Built: ${v.build_month}` : ''}</div>
+                                {/* WOVI vehicle detail grid (matches prototype) */}
+                                <div style={{ fontSize: 10, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, margin: '12px 0 8px' }}>Vehicle details · for WOVI</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '12px 18px' }}>
+                                  {([['Make', v.make], ['Model', v.model], ['Year', String(v.year || '')], ['Build', v.build_month], ['Colour', v.colour], ['Body / type', v.vehicle_type], ['Damage', v.damage], ['VIN', v.vin], ['Source', [v.purchase_method, v.purchased_from].filter(Boolean).join(' · ')]] as [string, string | undefined][]).filter(([, val]) => val).map(([l, val]) => (
+                                    <div key={l}>
+                                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{l}</div>
+                                      <div style={{ fontSize: 13, marginTop: 3, color: 'var(--text)', ...(l === 'VIN' ? { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'nowrap', overflowX: 'auto' } : { wordBreak: 'break-word' }) }}>{val}</div>
+                                    </div>
+                                  ))}
+                                </div>
                                 {v.created_at && (
-                                  <div style={{ fontSize: 10, color: '#555', marginTop: 1, letterSpacing: '0.02em' }}>Registered: {new Date(v.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}</div>
-                                )}
-                                {(v.damage || v.purchase_method || v.purchased_from) && (
-                                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
-                                    {[v.damage && `Damage: ${v.damage}`, v.purchase_method && `Purchased: ${v.purchase_method}`, v.purchased_from && `From: ${v.purchased_from}`].filter(Boolean).join(' · ')}
-                                  </div>
+                                  <div style={{ fontSize: 10, color: '#555', marginTop: 8, letterSpacing: '0.02em' }}>Registered: {new Date(v.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}</div>
                                 )}
                               </>
                             )}
