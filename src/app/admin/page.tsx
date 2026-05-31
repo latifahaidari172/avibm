@@ -75,6 +75,29 @@ type AdminLog = { id: string; created_at: string; action: string; details: strin
 type AdminUser = { id: string; created_at: string; username: string; role: string; active: boolean }
 type BotInstance = { id: string; hostname: string; display_name?: string; last_seen: string; enabled: boolean; status: string; created_at: string }
 
+// ── prototype-style helpers for the customer cards ──
+const _fmtD = (d?: string | null) => { if (!d) return ''; const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d); return m ? `${m[3]}/${m[2]}/${m[1]}` : d }
+const _ic = { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7 } as const
+const _Cal = () => <svg {..._ic}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9h18M8 3v4M16 3v4" strokeLinecap="round" /></svg>
+const _Clock = () => <svg {..._ic}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+const _Pin = () => <svg {..._ic}><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z" /><circle cx="12" cy="11" r="2.5" /></svg>
+const _dtl = { display: 'inline-flex', alignItems: 'center', gap: 6 } as const
+const TIER_SHORT: Record<string, string> = { priority: 'Priority · $5', standard: 'Standard · $3', basic: 'Basic · $1.50' }
+
+// Click-to-copy reference chip — flips to "Copied!" for ~1s. stopPropagation
+// so clicking it inside a card header doesn't expand the card.
+function CopyRef({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+  const fallback = (t: string) => { try { const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta) } catch {} }
+  const copy = (e: any) => { e.stopPropagation(); try { if (navigator.clipboard?.writeText) navigator.clipboard.writeText(value).catch(() => fallback(value)); else fallback(value) } catch { fallback(value) } setCopied(true); setTimeout(() => setCopied(false), 1000) }
+  return (
+    <span role="button" title="Click to copy" onClick={copy}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'ui-monospace,monospace', fontSize: 11, fontWeight: 600, cursor: 'pointer', userSelect: 'none', borderRadius: 6, padding: '2px 7px', color: copied ? '#62e36a' : '#C9A84C', background: copied ? 'rgba(98,227,106,0.14)' : 'rgba(201,168,76,0.1)', border: `1px solid ${copied ? 'rgba(98,227,106,0.4)' : 'rgba(201,168,76,0.28)'}` }}>
+      {copied ? 'Copied!' : <>{value}<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ opacity: 0.6 }}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" strokeLinecap="round" /></svg></>}
+    </span>
+  )
+}
+
 export default function Admin() {
   const [authed, setAuthed] = useState(() => typeof window !== 'undefined' && !!localStorage.getItem('avibm_admin_user'))
   const [authedAdmin, setAuthedAdmin] = useState<{ id: string; username: string; role: string } | null>(() => {
@@ -1678,67 +1701,73 @@ export default function Admin() {
           <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 40 }}>No customers found.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {filtered.map(c => (
-              <div key={c.id} className={`admin-customer-card ${c.state === 'QLD' ? 'qld' : 'sa'}${c.active ? ' active-customer' : ''}`}
-                style={{ boxShadow: c.vehicles?.some(v => v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '0 0 16px rgba(90,219,90,0.2)' : 'none' }}>
-                {/* Customer row */}
-                <div className='admin-customer-row customer-row' onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}>
-                  <span className={`pill ${c.state === 'QLD' ? 'pill-qld' : 'pill-sa'}`} style={{ minWidth: 42, textAlign: 'center' }}>{c.state}</span>
-                  <div className='customer-name' style={{ flex: 1, minWidth: 140 }}>
-                    <div style={{ fontWeight: 600, fontSize: 15, display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                      <span>{c.first_name} {c.last_name}</span>
-                      {c.ref && (
-                        <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11, color: 'var(--gold)', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', padding: '1px 6px', borderRadius: 4, letterSpacing: '0.04em' }}>{c.ref}</span>
-                      )}
+            {filtered.map(c => {
+              const bookedVehicles = (c.vehicles || []).filter(v => v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date) && !v.archived && !v.deleted_at)
+              const booked = bookedVehicles.length > 0
+              const initials = `${(c.first_name || '?')[0] || '?'}${(c.last_name || '')[0] || ''}`.toUpperCase()
+              const sp = booked
+                ? { label: 'Booked', color: '#62e36a', bg: 'rgba(98,227,106,0.16)' }
+                : c.active ? { label: 'Active', color: '#62e36a', bg: 'rgba(98,227,106,0.16)' }
+                : { label: 'Pending', color: '#F0A93C', bg: 'rgba(240,169,60,0.16)' }
+              const tierLabel = c.state === 'SA' ? 'SA · Free' : (TIER_SHORT[c.tier || 'standard'] || 'Standard · $3')
+              return (
+              <div key={c.id} className={`admin-customer-card ${c.state === 'QLD' ? 'qld' : 'sa'}${c.active ? ' active-customer' : ''}${booked ? ' booked' : ''}`}>
+                {/* Customer row — prototype style */}
+                <div className='admin-customer-row customer-row' onClick={() => setExpandedId(expandedId === c.id ? null : c.id)} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 999, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14, color: '#10210f', background: booked ? 'linear-gradient(135deg,#7ef08a,#3fcf57)' : 'linear-gradient(135deg,#E9CE88,#C9A84C)' }}>{initials}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: 'Bricolage Grotesque', fontWeight: 700, fontSize: 18 }}>{c.first_name} {c.last_name}</span>
+                          {c.ref && <CopyRef value={c.ref} />}
+                          <span className={`pill ${c.state === 'QLD' ? 'pill-qld' : 'pill-sa'}`} style={{ fontSize: 10 }}>{c.state}</span>
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email} · {c.phone}</div>
+                      </div>
                     </div>
-                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{c.email} · {c.phone}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                      <span className="pill" style={{ color: '#cfcabb', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.15)' }}>{tierLabel}</span>
+                      <span className="pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: sp.color, background: sp.bg, border: `1px solid ${sp.color}` }}>
+                        {booked
+                          ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={sp.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                          : <span style={{ width: 6, height: 6, borderRadius: 999, background: sp.color, display: 'inline-block' }} />}
+                        {sp.label}
+                      </span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{expandedId === c.id ? <IconChevronUp size={11} /> : <IconChevronDown size={11} />}</span>
+                    </div>
                   </div>
-                  <div style={{ textAlign: 'center', minWidth: 60 }}>
-                    <div style={{ fontFamily: 'Bricolage Grotesque', fontSize: 22, color: 'var(--gold)' }}>{c.vehicles?.filter(v => !v.archived && !v.deleted_at).length || 0}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>VEHICLE{(c.vehicles?.filter(v => !v.archived && !v.deleted_at).length || 0) !== 1 ? 'S' : ''}</div>
-                    {(c.vehicles?.filter(v => v.archived).length ?? 0) > 0 && (
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>+{c.vehicles?.filter(v => v.archived).length} archived</div>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 90, textAlign: 'right' }}>
-                    {new Date(c.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}
-                  </div>
-                  {c.state === 'QLD' && (
-                    <div onClick={e => e.stopPropagation()}>
-                      <select value={c.tier || 'standard'} onChange={e => updateTier(c.id, e.target.value)} style={{
-                        padding: '4px 8px', fontSize: 12, borderRadius: 4,
-                        background: TIER_CONFIG[c.tier || 'standard'].bg,
-                        border: `1px solid ${TIER_CONFIG[c.tier || 'standard'].border}`,
-                        color: TIER_CONFIG[c.tier || 'standard'].color,
-                        cursor: 'pointer', minWidth: 110,
-                      }}>
-                        <option value="priority">Priority — $5</option>
-                        <option value="standard">Standard — $3</option>
-                        <option value="basic">Basic — $1.50</option>
-                      </select>
+                  {/* minimised booking strip — new booking date/time/location */}
+                  {bookedVehicles.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {bookedVehicles.map(v => (
+                        <div key={v.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', padding: '9px 14px', borderRadius: 12, background: 'rgba(98,227,106,0.08)', border: '1px solid rgba(98,227,106,0.3)', fontSize: 13 }}>
+                          <span style={{ ..._dtl, color: '#62e36a', fontWeight: 700 }}><_Cal />{_fmtD(v.booked_date)}</span>
+                          {v.booked_time && <span style={{ ..._dtl, color: '#dfeede' }}><_Clock />{v.booked_time}</span>}
+                          {v.booked_location && <span style={{ ..._dtl, color: '#dfeede' }}><_Pin />{v.booked_location}</span>}
+                          <span style={{ color: 'var(--text-muted)' }}>· {v.label || `${v.make} ${v.model}`.trim()}</span>
+                        </div>
+                      ))}
                     </div>
                   )}
-                  <div onClick={e => { e.stopPropagation(); adminPatch('customers', c.id, { auto_payment_email: !c.auto_payment_email }).then(() => setCustomers(cs => cs.map(x => x.id === c.id ? { ...x, auto_payment_email: !c.auto_payment_email } : x))) }} title="Auto-send payment request email when customer registers">
-                    <span style={{
-                      cursor: 'pointer', fontSize: 12, padding: '4px 10px', borderRadius: 4,
-                      background: c.auto_payment_email ? '#1a2a1a' : 'var(--dark-4)',
-                      border: `1px solid ${c.auto_payment_email ? '#2a4a2a' : 'var(--border)'}`,
-                      color: c.auto_payment_email ? '#5adb5a' : 'var(--text-muted)',
-                    }}>
-                      {c.auto_payment_email ? 'AUTO EMAIL' : 'MANUAL'}
-                    </span>
-                  </div>
-                  <div onClick={e => { e.stopPropagation(); toggleActive(c.id, c.active) }}>
-                    <span className={`badge ${c.active ? 'badge-active' : 'badge-pending'}`} style={{ cursor: 'pointer' }}>
-                      {c.active ? 'ACTIVE' : 'PENDING'}
-                    </span>
-                  </div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{expandedId === c.id ? <IconChevronUp size={11} /> : <IconChevronDown size={11} />}</div>
                 </div>
 
                 {/* Expanded detail */}
                 {expandedId === c.id && (
-                  <div style={{ borderTop: '1px solid #111', padding: '18px', background: '#030303' }}>
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', padding: '18px' }}>
+                    {/* Quick controls (moved off the collapsed row) */}
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, paddingBottom: 14, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                      <button onClick={() => toggleActive(c.id, c.active)} className={`admin-toggle ${c.active ? 'on' : 'off'}`}>{c.active ? 'ACTIVE' : 'PENDING'}</button>
+                      {c.state === 'QLD' && (
+                        <select value={c.tier || 'standard'} onChange={e => updateTier(c.id, e.target.value)} className="admin-input" style={{ width: 'auto', padding: '6px 10px', fontSize: 12 }}>
+                          <option value="priority">Priority — $5</option>
+                          <option value="standard">Standard — $3</option>
+                          <option value="basic">Basic — $1.50</option>
+                        </select>
+                      )}
+                      <button onClick={() => adminPatch('customers', c.id, { auto_payment_email: !c.auto_payment_email }).then(() => setCustomers(cs => cs.map(x => x.id === c.id ? { ...x, auto_payment_email: !c.auto_payment_email } : x)))} className={`admin-toggle ${c.auto_payment_email ? 'on' : 'off'}`}>{c.auto_payment_email ? 'AUTO EMAIL' : 'MANUAL'}</button>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 'auto' }}>Joined {new Date(c.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}</span>
+                    </div>
                     {/* Customer Details — view / edit */}
                     <div style={{ marginBottom: 20 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -2227,7 +2256,7 @@ export default function Admin() {
                   </div>
                 )}
               </div>
-            ))}
+            )})}
           </div>
         )}
 

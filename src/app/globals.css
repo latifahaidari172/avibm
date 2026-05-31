@@ -488,3 +488,11 @@ html { scroll-behavior: smooth; }
 
 /* display type → Bricolage (matches the rest of the redesigned site) */
 .admin-max .section-label, .admin-max .av-bebas { font-family: 'Bricolage Grotesque', sans-serif !important; }
+
+/* customer card turns green when a booking has been secured (matches prototype) */
+.admin-customer-card.booked {
+  background: radial-gradient(130% 80% at 0% 0%, rgba(98,227,106,0.12), transparent 52%), linear-gradient(180deg, rgba(18,22,18,0.9), rgba(10,12,10,0.94)) !important;
+  border-color: rgba(98,227,106,0.45) !important;
+  box-shadow: 0 0 0 1px rgba(98,227,106,0.4), 0 30px 60px -34px rgba(0,0,0,0.9) !important;
+}
+.admin-customer-card.booked.qld, .admin-customer-card.booked.sa { border-left-color: rgba(98,227,106,0.6) !important; }
