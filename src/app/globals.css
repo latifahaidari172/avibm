@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -427,3 +428,63 @@ html { scroll-behavior: smooth; }
   .veh-grid { grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr); }
   .veh-side { position: sticky; top: 20px; }
 }
+
+/* ════ Admin "Ethereal Glass" reskin (scoped to .admin-max; logic untouched) ════
+   Redefines the design tokens the admin's inline styles read (var(--dark*) /
+   --border / --text*) to the maximalist palette, and restyles the class-based
+   surfaces (cards, panels, buttons, inputs, tabs) to glass + pills. */
+.admin-max {
+  --gold: #C9A84C; --gold-light: #E9CE88;
+  --dark: #060606; --dark-2: #0e0c0a; --dark-3: #151310; --dark-4: #1c1916;
+  --border: rgba(255,255,255,0.09);
+  --text: #F5F2EB; --text-muted: #8d8678;
+  background:
+    radial-gradient(55vw 55vw at 92% -12%, rgba(201,168,76,0.10), transparent 60%),
+    radial-gradient(50vw 50vw at -8% 8%, rgba(107,182,255,0.06), transparent 62%),
+    #060606 !important;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.admin-max ::selection { background: var(--gold); color: #231900; }
+
+/* glass cards / panels */
+.admin-max .card,
+.admin-customer-card,
+.admin-section {
+  background: linear-gradient(180deg, rgba(22,20,17,0.88), rgba(11,10,9,0.93)) !important;
+  border: 1px solid rgba(255,255,255,0.09) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 30px 60px -34px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.admin-customer-card { border-radius: 18px !important; }
+.admin-section { overflow: hidden; }
+.admin-section-header { background: transparent !important; }
+.admin-section-body { background: rgba(0,0,0,0.22) !important; }
+.admin-stat-card {
+  background: linear-gradient(180deg, rgba(22,20,17,0.88), rgba(11,10,9,0.93)) !important;
+  border: 1px solid rgba(255,255,255,0.09) !important;
+  border-radius: 18px !important;
+}
+.admin-stat-card.gold { border-color: rgba(201,168,76,0.45) !important; box-shadow: 0 0 0 1px rgba(201,168,76,0.25); }
+
+/* pill buttons */
+.admin-btn { border-radius: 999px !important; }
+.admin-btn-gold { background: linear-gradient(180deg, #E9CE88, #C9A84C) !important; color: #231900 !important; }
+.admin-toggle { border-radius: 999px !important; }
+.admin-max .btn-gold {
+  border-radius: 999px; background: linear-gradient(180deg, #E9CE88, #C9A84C);
+  font-family: 'Bricolage Grotesque', sans-serif; color: #231900;
+}
+.admin-max .state-tab { border-radius: 999px; font-family: 'Bricolage Grotesque', sans-serif; }
+.admin-max .state-tab.active { background: linear-gradient(180deg, #E9CE88, #C9A84C); color: #231900; border-color: transparent; }
+.admin-max .pill { border-radius: 999px; }
+
+/* rounded glass inputs */
+.admin-max input, .admin-max select, .admin-max textarea, .admin-max .admin-input {
+  background: rgba(0,0,0,0.35) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: 12px !important;
+}
+.admin-max input:focus, .admin-max select:focus, .admin-max textarea:focus { border-color: rgba(201,168,76,0.6) !important; }
+
+/* display type → Bricolage (matches the rest of the redesigned site) */
+.admin-max .section-label, .admin-max .av-bebas { font-family: 'Bricolage Grotesque', sans-serif !important; }

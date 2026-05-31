@@ -892,7 +892,7 @@ export default function Admin() {
   }
 
   if (!authed) return (
-    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, background: 'radial-gradient(ellipse at 50% 40%, rgba(201,168,76,0.06) 0%, transparent 70%)' }}>
+    <main className="admin-max" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
       <div className="card" style={{ maxWidth: 360, width: '100%', background: 'linear-gradient(135deg, #161616, #111)', border: '1px solid rgba(201,168,76,0.2)', boxShadow: '0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.05)' }}>
         <div className="section-label" style={{ marginBottom: 8 }}>Admin Access</div>
         <h2 style={{ fontSize: 32, marginBottom: 24 }}>AVIBM ADMIN</h2>
@@ -927,7 +927,7 @@ export default function Admin() {
   )
 
   return (
-    <main style={{ minHeight: '100vh', padding: '0 0 80px', background: '#030303' }}>
+    <main className="admin-max" style={{ minHeight: '100vh', padding: '0 0 80px' }}>
       <header className='admin-header' style={{
         borderBottom: '1px solid #111', padding: '14px 40px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -938,18 +938,18 @@ export default function Admin() {
         boxShadow: '0 1px 0 rgba(201,168,76,0.06)',
       }}>
         <div>
-          <span style={{ fontFamily: 'Bebas Neue', fontSize: 22, color: 'var(--gold)', letterSpacing: '0.15em' }}>AVIBM</span>
+          <span style={{ fontFamily: 'Bricolage Grotesque', fontSize: 22, color: 'var(--gold)', letterSpacing: '0.15em' }}>AVIBM</span>
           <span style={{ color: 'var(--text-muted)', fontSize: 12, marginLeft: 12, letterSpacing: '0.1em' }}>ADMIN PANEL</span>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <button onClick={loadData} style={{
             background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)',
-            padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontFamily: 'DM Sans',
+            padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontFamily: 'Plus Jakarta Sans',
             display: 'inline-flex', alignItems: 'center', gap: 6,
           }}><IconArrowPath size={13} />Refresh</button>
           <Link href="/admin/logs" style={{
             border: '1px solid #2a4a2a', color: '#5adb5a',
-            padding: '8px 14px', borderRadius: 6, fontSize: 13, fontFamily: 'DM Sans', textDecoration: 'none',
+            padding: '8px 14px', borderRadius: 6, fontSize: 13, fontFamily: 'Plus Jakarta Sans', textDecoration: 'none',
             display: 'inline-flex', alignItems: 'center', gap: 6,
           }}><IconSignal size={15} />Live Logs</Link>
           <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconArrowLeft size={13} />Site</Link>
@@ -959,7 +959,7 @@ export default function Admin() {
               display: 'flex', alignItems: 'center', gap: 8,
               background: 'none', border: `1px solid ${isOwner ? 'var(--gold)' : '#2a4a2a'}`,
               color: isOwner ? 'var(--gold)' : '#5adb5a',
-              padding: '6px 12px', borderRadius: 20, cursor: 'pointer', fontSize: 12, fontFamily: 'DM Sans',
+              padding: '6px 12px', borderRadius: 20, cursor: 'pointer', fontSize: 12, fontFamily: 'Plus Jakarta Sans',
             }}>{isOwner ? <IconShieldCheck size={13} /> : <IconUser size={13} />} {authedAdmin?.username} <IconChevronDown size={11} /></button>
             {showMenu && (
               <>
@@ -973,17 +973,17 @@ export default function Admin() {
                     <button onClick={() => { setShowMenu(false); setShowAdminPanel(true); document.getElementById('admin-panel')?.scrollIntoView({ behavior: 'smooth' }) }} style={{
                       width: '100%', padding: '12px 16px', background: 'none', border: 'none',
                       borderBottom: '1px solid var(--border)', color: 'var(--gold)',
-                      cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13, textAlign: 'left',
+                      cursor: 'pointer', fontFamily: 'Plus Jakarta Sans', fontSize: 13, textAlign: 'left',
                     }}>Manage Admins</button>
                   )}
                   {isOwner && <button onClick={() => { setShowMenu(false); setSettingsSuccess(false); setSettingsError(''); setShowSettingsModal(true) }} style={{
                     width: '100%', padding: '12px 16px', background: 'none', border: 'none',
                     borderBottom: '1px solid var(--border)', color: 'var(--text)',
-                    cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13, textAlign: 'left',
+                    cursor: 'pointer', fontFamily: 'Plus Jakarta Sans', fontSize: 13, textAlign: 'left',
                   }}>Change Username / Password</button>}
                   <button onClick={logout} style={{
                     width: '100%', padding: '12px 16px', background: 'none', border: 'none',
-                    color: '#ff6b6b', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 13, textAlign: 'left',
+                    color: '#ff6b6b', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans', fontSize: 13, textAlign: 'left',
                   }}>Log Out</button>
                 </div>
               </>
@@ -1006,7 +1006,7 @@ export default function Admin() {
             { label: 'Basic', value: stats.basic },
           ].map(s => (
             <div key={s.label} className={`admin-stat-card${s.gold ? ' gold' : ''}`}>
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 34, lineHeight: 1, color: s.gold ? 'var(--gold)' : 'var(--text)', marginBottom: 4 }}>{s.value}</div>
+              <div style={{ fontFamily: 'Bricolage Grotesque', fontSize: 34, lineHeight: 1, color: s.gold ? 'var(--gold)' : 'var(--text)', marginBottom: 4 }}>{s.value}</div>
               <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.3 }}>{s.label}</div>
             </div>
           ))}
@@ -1029,7 +1029,7 @@ export default function Admin() {
                     )}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.06em', color: cfg.color }}>
+                    <div style={{ fontFamily: 'Bricolage Grotesque', fontSize: 14, letterSpacing: '0.06em', color: cfg.color }}>
                       {m.label} {cfg.label}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
@@ -1067,7 +1067,7 @@ export default function Admin() {
                 {onlineInstances.length > 0 && <div style={{ position: 'absolute', top: 0, left: 0, width: 10, height: 10, borderRadius: '50%', background: '#4ecb4e', opacity: 0.4, animation: 'pulse 2s infinite' }} />}
               </div>
               <div>
-                <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.06em', color: onlineInstances.length > 0 ? '#4ecb4e' : '#e74c3c' }}>
+                <div style={{ fontFamily: 'Bricolage Grotesque', fontSize: 14, letterSpacing: '0.06em', color: onlineInstances.length > 0 ? '#4ecb4e' : '#e74c3c' }}>
                   TERMINALS — {onlineInstances.length} ONLINE
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -1185,7 +1185,7 @@ export default function Admin() {
             style={{ background: '#04080e', cursor: 'pointer' }}
             onClick={() => setShowScanSettings(p => !p)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.06em', color: '#5b9bd5' }}>Scan Schedule &amp; Intervals</div>
+              <div style={{ fontFamily: 'Bricolage Grotesque', fontSize: 14, letterSpacing: '0.06em', color: '#5b9bd5' }}>Scan Schedule &amp; Intervals</div>
             </div>
             <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{showScanSettings ? <IconChevronUp size={11} /> : <IconChevronDown size={11} />}</span>
           </div>
@@ -1278,7 +1278,7 @@ export default function Admin() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ display: 'inline-flex', color: 'var(--gold)' }}><IconUsers size={14} /></span>
                 <div>
-                  <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.05em', color: 'var(--gold)' }}>ADMIN USERS</div>
+                  <div style={{ fontFamily: 'Bricolage Grotesque', fontSize: 14, letterSpacing: '0.05em', color: 'var(--gold)' }}>ADMIN USERS</div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{admins.filter(a => a.role !== 'owner').length} admin{admins.filter(a => a.role !== 'owner').length !== 1 ? 's' : ''}</div>
                 </div>
               </div>
@@ -1305,7 +1305,7 @@ export default function Admin() {
                         loadLogs(a.username)
                       }} style={{
                         background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer',
-                        fontFamily: 'DM Sans', fontSize: 14, fontWeight: 600, padding: 0, textAlign: 'left',
+                        fontFamily: 'Plus Jakarta Sans', fontSize: 14, fontWeight: 600, padding: 0, textAlign: 'left',
                       }}>{a.username}</button>
                       <span style={{
                         fontSize: 11, padding: '2px 8px', borderRadius: 10,
@@ -1382,7 +1382,7 @@ export default function Admin() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ display: 'inline-flex', color: 'var(--gold)' }}><IconGift size={14} /></span>
               <div>
-                <div style={{ fontFamily: 'Bebas Neue', fontSize: 14, letterSpacing: '0.05em' }}>FREE CUSTOMERS</div>
+                <div style={{ fontFamily: 'Bricolage Grotesque', fontSize: 14, letterSpacing: '0.05em' }}>FREE CUSTOMERS</div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{(() => {
                   const linkedIds = new Set(freeRows.filter(r => r.customer_id).map(r => r.customer_id))
                   const bare = freeRows.filter(r => !r.customer_id).length
@@ -1489,7 +1489,7 @@ export default function Admin() {
                           width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           background: 'var(--dark-4)', color: 'var(--text)', border: '1px solid var(--border)',
-                          fontFamily: 'Bebas Neue', fontSize: 12, letterSpacing: '0.05em',
+                          fontFamily: 'Bricolage Grotesque', fontSize: 12, letterSpacing: '0.05em',
                         }}>{initials}</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -1525,7 +1525,7 @@ export default function Admin() {
                             width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             background: '#2a1a00', color: 'var(--gold)', border: '1px solid rgba(201,168,76,0.3)',
-                            fontFamily: 'Bebas Neue', fontSize: 12,
+                            fontFamily: 'Bricolage Grotesque', fontSize: 12,
                           }}>{r.entry.includes('@') ? r.entry[0].toUpperCase() : '#'}</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)' }}>{r.entry}</div>
@@ -1558,7 +1558,7 @@ export default function Admin() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
                 <span style={{ display: 'inline-flex', color: '#ff6b6b' }}><IconExclamationTriangle size={16} /></span>
                 <div>
-                  <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em', color: '#ff6b6b' }}>
+                  <div style={{ fontFamily: 'Bricolage Grotesque', fontSize: 16, letterSpacing: '0.05em', color: '#ff6b6b' }}>
                     PENDING DELETIONS — {customers.filter(c => c.pending_deletion).length} awaiting approval
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Requested by another admin — confirm to delete permanently or reinstate</div>
@@ -1590,7 +1590,7 @@ export default function Admin() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 16 }}>⏳</span>
                 <div>
-                  <div style={{ fontFamily: 'Bebas Neue', fontSize: 16, letterSpacing: '0.05em', color: '#ff9966' }}>PENDING PAYMENT</div>
+                  <div style={{ fontFamily: 'Bricolage Grotesque', fontSize: 16, letterSpacing: '0.05em', color: '#ff9966' }}>PENDING PAYMENT</div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{pendingPayment.length} customer{pendingPayment.length !== 1 ? 's' : ''} registered but not yet paid</div>
                 </div>
               </div>
@@ -1654,8 +1654,8 @@ export default function Admin() {
 
         {/* Filters */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
-          <div style={{ fontFamily: 'Bebas Neue', fontSize: 20, letterSpacing: '0.08em', color: 'var(--text)' }}>
-            CUSTOMERS <span style={{ color: 'var(--text-muted)', fontSize: 14, fontFamily: 'DM Sans', letterSpacing: 0, fontWeight: 400 }}>{filtered.length} shown</span>
+          <div style={{ fontFamily: 'Bricolage Grotesque', fontSize: 20, letterSpacing: '0.08em', color: 'var(--text)' }}>
+            CUSTOMERS <span style={{ color: 'var(--text-muted)', fontSize: 14, fontFamily: 'Plus Jakarta Sans', letterSpacing: 0, fontWeight: 400 }}>{filtered.length} shown</span>
           </div>
         </div>
         <div className='filters-row' style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
@@ -1694,7 +1694,7 @@ export default function Admin() {
                     <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{c.email} · {c.phone}</div>
                   </div>
                   <div style={{ textAlign: 'center', minWidth: 60 }}>
-                    <div style={{ fontFamily: 'Bebas Neue', fontSize: 22, color: 'var(--gold)' }}>{c.vehicles?.filter(v => !v.archived && !v.deleted_at).length || 0}</div>
+                    <div style={{ fontFamily: 'Bricolage Grotesque', fontSize: 22, color: 'var(--gold)' }}>{c.vehicles?.filter(v => !v.archived && !v.deleted_at).length || 0}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>VEHICLE{(c.vehicles?.filter(v => !v.archived && !v.deleted_at).length || 0) !== 1 ? 'S' : ''}</div>
                     {(c.vehicles?.filter(v => v.archived).length ?? 0) > 0 && (
                       <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>+{c.vehicles?.filter(v => v.archived).length} archived</div>
@@ -1894,7 +1894,7 @@ export default function Admin() {
                               }} style={{
                                 padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
                                 background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700,
-                                fontFamily: 'DM Sans', whiteSpace: 'nowrap', transition: 'all 0.2s',
+                                fontFamily: 'Plus Jakarta Sans', whiteSpace: 'nowrap', transition: 'all 0.2s',
                               }}>Save</button>
                             </div>
                             {v.previous_cutoff && (
@@ -1968,7 +1968,7 @@ export default function Admin() {
                               style={{
                                 padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
                                 background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700,
-                                fontFamily: 'DM Sans', whiteSpace: 'nowrap',
+                                fontFamily: 'Plus Jakarta Sans', whiteSpace: 'nowrap',
                               }}
                             >Save</button>
                           </div>
@@ -2036,7 +2036,7 @@ export default function Admin() {
                               style={{
                                 padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
                                 background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700,
-                                fontFamily: 'DM Sans', whiteSpace: 'nowrap',
+                                fontFamily: 'Plus Jakarta Sans', whiteSpace: 'nowrap',
                               }}
                             >Save</button>
                           </div>
@@ -2141,7 +2141,7 @@ export default function Admin() {
                               rows={3}
                               style={{
                                 flex: 1, padding: '6px 8px', fontSize: 13, borderRadius: 4,
-                                resize: 'vertical', fontFamily: 'DM Sans', lineHeight: 1.5,
+                                resize: 'vertical', fontFamily: 'Plus Jakarta Sans', lineHeight: 1.5,
                                 background: '#0a0a0a', border: '1px solid #1a1a1a', color: 'var(--text)',
                               }}
                             />
@@ -2156,7 +2156,7 @@ export default function Admin() {
                               style={{
                                 padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
                                 background: 'var(--gold)', border: 'none', color: '#000', fontWeight: 700,
-                                fontFamily: 'DM Sans', whiteSpace: 'nowrap', alignSelf: 'flex-start',
+                                fontFamily: 'Plus Jakarta Sans', whiteSpace: 'nowrap', alignSelf: 'flex-start',
                               }}
                             >Save</button>
                           </div>
@@ -2239,7 +2239,7 @@ export default function Admin() {
               onClick={() => setShowArchivedPanel(p => !p)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ display: 'inline-flex', color: '#C9A84C' }}><IconArchive size={14} /></span>
-                <span style={{ fontFamily: 'Bebas Neue', fontSize: 17, letterSpacing: '0.08em', color: '#C9A84C' }}>ARCHIVED ({archived.length})</span>
+                <span style={{ fontFamily: 'Bricolage Grotesque', fontSize: 17, letterSpacing: '0.08em', color: '#C9A84C' }}>ARCHIVED ({archived.length})</span>
               </div>
               <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{showArchivedPanel ? 'HIDE' : 'SHOW'}</span>
             </div>
@@ -2264,7 +2264,7 @@ export default function Admin() {
                         <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{c.email} · {c.phone}</div>
                       </div>
                       <div style={{ textAlign: 'center', minWidth: 60 }}>
-                        <div style={{ fontFamily: 'Bebas Neue', fontSize: 22, color: 'var(--gold)' }}>{(c.archived ? c.vehicles?.length : c.vehicles?.filter(v => v.archived).length) || 0}</div>
+                        <div style={{ fontFamily: 'Bricolage Grotesque', fontSize: 22, color: 'var(--gold)' }}>{(c.archived ? c.vehicles?.length : c.vehicles?.filter(v => v.archived).length) || 0}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>ARCHIVED VEHICLE{((c.archived ? c.vehicles?.length : c.vehicles?.filter(v => v.archived).length) || 0) !== 1 ? 'S' : ''}</div>
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 90, textAlign: 'right' }}>
@@ -2354,7 +2354,7 @@ export default function Admin() {
                                   padding: '3px 8px', borderRadius: 4, background: 'none',
                                   border: `1px solid ${v.archived ? '#2a4a2a' : '#4a3a1a'}`,
                                   color: v.archived ? '#5adb5a' : '#C9A84C',
-                                  fontSize: 11, cursor: 'pointer', fontFamily: 'DM Sans',
+                                  fontSize: 11, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans',
                                   display: 'inline-flex', alignItems: 'center', gap: 4,
                                 }}>{v.archived ? <><IconArrowUturnLeft size={13} />Unarchive</> : <IconArchive size={13} />}</button>
                                 {isOwner && (
@@ -2362,7 +2362,7 @@ export default function Admin() {
                                     padding: '3px 8px', borderRadius: 4, background: 'none',
                                     border: '1px solid #4a1a1a',
                                     color: '#ff6b6b',
-                                    fontSize: 11, cursor: 'pointer', fontFamily: 'DM Sans',
+                                    fontSize: 11, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans',
                                     display: 'inline-flex', alignItems: 'center',
                                   }}><IconTrash size={13} /></button>
                                 )}
