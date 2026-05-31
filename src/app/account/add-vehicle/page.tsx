@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import { validateVin, validateYear, validateCutoffDate, clampYearInput, validateMake, validateModel } from '@/lib/validators'
+import { PreviewShell, Arrow, BackToGarage } from '@/lib/previewDesign'
+import ProfileMenu from '@/components/ProfileMenu'
 
 const WOVI_LOCATIONS = [
   'Brisbane', 'Bundaberg', 'Burleigh Heads', 'Cairns', 'Mackay',
@@ -23,26 +25,24 @@ const TIMES = [
   '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM',
 ]
 const TIERS = [
-  { id: 'priority', name: 'Priority', price: '$5',    desc: 'Books the instant a slot opens', metal: 'tier-gold' },
-  { id: 'standard', name: 'Standard', price: '$3',    desc: '30s after Priority',             metal: 'tier-silver' },
-  { id: 'basic',    name: 'Basic',    price: '$1.50', desc: '60s after Standard',             metal: 'tier-bronze' },
+  { id: 'priority', name: 'Priority', price: '$5',    desc: 'Books the instant a slot opens', c: 'var(--gold-2)' },
+  { id: 'standard', name: 'Standard', price: '$3',    desc: '30s after Priority',             c: '#cfcabb' },
+  { id: 'basic',    name: 'Basic',    price: '$1.50', desc: '60s after Standard',             c: '#b08d57' },
 ]
 const MAX_LOC = 4
 const MAX_PRIO = 2
 
-// Format an auction date (ISO or YYYY-MM-DD) → "29 May 2026"; null if absent.
 function fmtDate(d: string | null | undefined): string | null {
   if (!d) return null
   const dt = new Date(d)
   if (isNaN(dt.getTime())) return d
-  return dt.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+  return dt.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-// "Add a vehicle" for signed-in customers — the "My Garage" design. The
-// customer's personal details come from their saved profile (edited on the
-// Edit Details page); here they enter the VIN (auto-fills from auction
-// records), the vehicle, their current WOVI booking, a per-vehicle tier, and
-// up to 4 inspection locations (2 ranked priority).
+// "Add a vehicle" for signed-in customers — maximalist "Ethereal Glass" design.
+// Personal details come from the saved profile; here the customer enters the
+// VIN (auto-fills from auction records), the vehicle, their current WOVI
+// booking, a per-vehicle tier, and up to 4 inspection locations (2 ranked).
 export default function AddVehiclePage() {
   const router = useRouter()
 
@@ -51,7 +51,6 @@ export default function AddVehiclePage() {
   const [err, setErr] = useState<string | null>(null)
   const [authEmail, setAuthEmail] = useState<string>('')
 
-  // Customer-level (prefilled from profile, submitted unchanged — not edited here)
   const [c, setC] = useState({
     state: 'QLD' as 'QLD' | 'SA',
     tier: 'priority' as 'priority' | 'standard' | 'basic',
@@ -72,20 +71,21 @@ export default function AddVehiclePage() {
     current_booking_location: '',
   })
 
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
-  const [photoFallback, setPhotoFallback] = useState<string | null>(null)
-  // Found-in-auction-records match, held for the customer to confirm before
-  // we touch their form (Yes → autofill, No → manual entry). No "appearances"
-  // count shown — it confused customers on the booking page.
+  const [photos, setPhotos] = useState<string[]>([])
+  const [photoIdx, setPhotoIdx] = useState(0)
+  const [photoSave, setPhotoSave] = useState<string | null>(null)
+  const photoUrl = photos[photoIdx] || null
   const [candidate, setCandidate] = useState<{
     make: string; model: string; year: string; colour: string
     series?: string | null; badge?: string | null; body_type?: string | null
     transmission?: string | null; odometer_km?: number | null; source?: string | null
-    auction_date?: string | null
+    auction_date?: string | null; damage?: string | null
+    build_month?: string | null; build_date?: string | null
+    vehicle_type?: string | null
   } | null>(null)
   const [lookup, setLookup] = useState<{ status: 'idle' | 'searching' | 'found' | 'autofilled' | 'declined' | 'none' }>({ status: 'idle' })
+  const [autoFields, setAutoFields] = useState<Set<string>>(new Set())
 
-  // Bootstrap — fetch profile + prefill the (hidden) customer fields.
   useEffect(() => {
     (async () => {
       const res = await fetch('/api/account/profile', { cache: 'no-store' })
@@ -107,31 +107,34 @@ export default function AddVehiclePage() {
     })()
   }, [router])
 
-  // VIN → auction-intel lookup (debounced). Autofills only empty fields.
   useEffect(() => {
     const vin = v.vin.trim().toUpperCase()
-    if (validateVin(vin)) { setLookup({ status: 'idle' }); setCandidate(null); setPhotoUrl(null); setPhotoFallback(null); return }
+    if (validateVin(vin)) { setLookup({ status: 'idle' }); setCandidate(null); setPhotos([]); setPhotoIdx(0); setPhotoSave(null); setAutoFields(new Set()); return }
     let cancelled = false
-    setLookup({ status: 'searching' }); setCandidate(null)
+    setLookup({ status: 'searching' }); setCandidate(null); setAutoFields(new Set())
     const t = setTimeout(async () => {
       try {
         const r = await fetch(`/api/vehicle-lookup?vin=${encodeURIComponent(vin)}`)
         const d = await r.json()
         if (cancelled) return
         if (d?.found) {
-          // Hold the match for confirmation — don't touch the form yet.
           setCandidate({
             make: d.make || '', model: d.model || '',
             year: d.year ? String(d.year) : '', colour: d.colour || '',
             series: d.series || null, badge: d.badge || null, body_type: d.body_type || null,
             transmission: d.transmission || null, odometer_km: d.odometer_km ?? null, source: d.source || null,
-            auction_date: d.auction_date || null,
+            auction_date: d.auction_date || null, damage: d.damage || null,
+            build_month: d.build_month || null, build_date: d.build_date || null,
+            vehicle_type: d.vehicle_type || null,
           })
-          setPhotoUrl(d.photo_url || null)
-          setPhotoFallback(d.photo_fallback || null)
+          const cands: string[] = Array.isArray(d.photo_candidates)
+            ? d.photo_candidates.filter(Boolean)
+            : [d.photo_url, d.photo_fallback].filter(Boolean)
+          setPhotos(cands); setPhotoIdx(0)
+          setPhotoSave(d.photo_durable || cands[0] || null)
           setLookup({ status: 'found' })
         } else {
-          setLookup({ status: 'none' }); setCandidate(null); setPhotoUrl(null); setPhotoFallback(null)
+          setLookup({ status: 'none' }); setCandidate(null); setPhotos([]); setPhotoIdx(0); setPhotoSave(null)
         }
       } catch {
         if (!cancelled) setLookup({ status: 'idle' })
@@ -140,33 +143,37 @@ export default function AddVehiclePage() {
     return () => { cancelled = true; clearTimeout(t) }
   }, [v.vin])
 
-  function updV<K extends keyof typeof v>(k: K, val: typeof v[K]) { setV(s => ({ ...s, [k]: val })) }
+  function updV<K extends keyof typeof v>(k: K, val: typeof v[K]) {
+    setV(s => ({ ...s, [k]: val }))
+    setAutoFields(prev => {
+      if (!prev.has(k as string)) return prev
+      const n = new Set(prev); n.delete(k as string); return n
+    })
+  }
 
-  // "Yes — autofill": fill the form from the confirmed auction match.
   function acceptMatch() {
     if (!candidate) return
-    setV(s => ({
-      ...s,
-      make: candidate.make || s.make,
-      model: candidate.model || s.model,
-      year: candidate.year || s.year,
-      colour: candidate.colour || s.colour,
-      // It's in the auction database → it was bought at auction, from this source.
-      purchase_method: 'Auction',
-      purchased_from: candidate.source || s.purchased_from,
-    }))
+    const filled = new Set<string>()
+    const patch: Partial<typeof v> = {}
+    if (candidate.make)   { patch.make = candidate.make;     filled.add('make') }
+    if (candidate.model)  { patch.model = candidate.model;   filled.add('model') }
+    if (candidate.year)   { patch.year = candidate.year;     filled.add('year') }
+    if (candidate.colour) { patch.colour = candidate.colour; filled.add('colour') }
+    if (candidate.build_month && MONTHS.includes(candidate.build_month)) { patch.build_month = candidate.build_month; filled.add('build_month') }
+    if (candidate.vehicle_type && VEHICLE_TYPES.includes(candidate.vehicle_type)) { patch.vehicle_type = candidate.vehicle_type; filled.add('vehicle_type') }
+    if (candidate.damage && DAMAGES.includes(candidate.damage)) { patch.damage = candidate.damage; filled.add('damage') }
+    patch.purchase_method = 'Auction'; filled.add('purchase_method')
+    if (candidate.source) { patch.purchased_from = candidate.source; filled.add('purchased_from') }
+    setV(s => ({ ...s, ...patch }))
+    setAutoFields(filled)
     setLookup({ status: 'autofilled' })
   }
-  // "No": not their vehicle — drop the photo + let them type it in.
   function declineMatch() {
-    setPhotoUrl(null)
-    setPhotoFallback(null)
+    setPhotos([]); setPhotoIdx(0); setPhotoSave(null)
     setLookup({ status: 'declined' })
   }
-  // Banner image: if the full-res hero fails, drop to the thumb, then hide.
   function onPhotoError() {
-    if (photoFallback && photoUrl !== photoFallback) setPhotoUrl(photoFallback)
-    else setPhotoUrl(null)
+    setPhotoIdx(i => i + 1)
   }
 
   function toggleLoc(loc: string) {
@@ -177,7 +184,6 @@ export default function AddVehiclePage() {
       if (locations.length >= MAX_LOC) return
       const next = [...locations, loc]
       setLocations(next)
-      // Once a 2nd location is added, the first pick is auto-set as priority #1.
       if (next.length === 2 && priorityLocations.length === 0) setPriorityLocations([locations[0]])
     }
   }
@@ -186,8 +192,6 @@ export default function AddVehiclePage() {
     else if (priorityLocations.length < MAX_PRIO) setPriorityLocations([...priorityLocations, loc])
   }
 
-  // Gate Register on the vehicle + booking fields (personal details come from
-  // the saved profile). Matches the prototype's "fill everything" rule.
   function validateAll(): string {
     const vinErr = validateVin(v.vin);     if (vinErr)   return vinErr
     const makeErr = validateMake(v.make);  if (makeErr)  return makeErr
@@ -197,7 +201,6 @@ export default function AddVehiclePage() {
     if (!v.vehicle_type) return 'Select a vehicle type.'
     if (!v.build_month) return 'Select the build month.'
     if (!v.damage) return 'Select the damage type.'
-    // WOVI requires these — the booking can't be completed without them.
     if (!v.purchase_method) return 'Select how the vehicle was bought.'
     if (!v.purchased_from.trim()) return 'Tell us where the vehicle was purchased from.'
     const cutoffErr = validateCutoffDate(v.cutoff_date); if (cutoffErr) return cutoffErr
@@ -232,7 +235,7 @@ export default function AddVehiclePage() {
           vin: v.vin.toUpperCase(),
           state: c.state,
           tier: c.tier,
-          photo_url: photoUrl,
+          photo_url: photoSave,
           current_booking_time: v.current_booking_time || null,
           current_booking_location: v.current_booking_location || (c.state === 'SA' ? 'Regency Park' : null),
           locations: c.state === 'QLD' ? locations : ['Regency Park'],
@@ -247,268 +250,218 @@ export default function AddVehiclePage() {
   }
 
   if (!authReady) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] text-[#99907e]" style={{ fontFamily: 'DM Sans, sans-serif' }}>Loading…</div>
+    return <PreviewShell><p style={{ color: 'var(--muted)' }}>Loading…</p></PreviewShell>
   }
 
   const bookingLocations = c.state === 'QLD' ? WOVI_LOCATIONS : ['Regency Park']
+  const showNeeds = lookup.status === 'autofilled' || lookup.status === 'declined' || lookup.status === 'none'
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-[#e5e2e1]" style={{ fontFamily: 'DM Sans, sans-serif' }}>
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-[#131313]/95 backdrop-blur border-b border-white/10 h-16 flex items-center justify-between px-5">
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={() => router.replace('/account')} className="text-[#d0c5b2] flex items-center" aria-label="Back to garage">
-            <span className="material-symbols-outlined">arrow_back</span>
-          </button>
-          <h1 className="av-bebas text-[24px] text-[#e6c364]">Add Vehicle</h1>
+    <PreviewShell>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <BackToGarage href="/account" />
+        <div className="r"><ProfileMenu email={authEmail} /></div>
+      </div>
+
+      <div className="r" style={{ marginBottom: 26 }}>
+        <span className="eyebrow">Add a vehicle</span>
+        <h1 className="disp" style={{ fontSize: 'clamp(36px,5vw,60px)', marginTop: 16 }}>Add a <span className="shimmer">vehicle</span></h1>
+        <p style={{ color: 'var(--muted)', fontSize: 15, marginTop: 14, maxWidth: 480 }}>Enter your VIN — we pull the photo and details straight from auction records.{authEmail ? <span style={{ color: '#6f6757' }}> Signed in as {authEmail}.</span> : null}</p>
+      </div>
+
+      {/* VIN search + match */}
+      <div className="r card" style={{ animationDelay: '.06s', padding: 26, marginBottom: 18 }}>
+        <div style={{ position: 'relative' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold-2)" strokeWidth="1.7" style={{ position: 'absolute', left: 16, top: 15 }}><circle cx="11" cy="11" r="7" /><path d="m20 20-3-3" strokeLinecap="round" /></svg>
+          <input className="inp" value={v.vin} maxLength={17} placeholder="Enter your VIN" autoComplete="off"
+            onChange={e => updV('vin', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17))}
+            style={{ paddingLeft: 44, fontFamily: 'ui-monospace,monospace', letterSpacing: '0.06em', ...((v.vin && validateVin(v.vin)) ? { borderColor: '#a33' } : {}) }} />
         </div>
-        <form action="/auth/sign-out" method="post" className="m-0">
-          <button type="submit" className="text-[11px] text-[#99907e] border border-[#333] rounded-md px-2.5 py-1">Sign out</button>
-        </form>
-      </header>
 
-      <main className="max-w-2xl mx-auto px-5 pt-6 pb-16 space-y-8">
-        <section className="space-y-1">
-          <h2 className="av-bebas text-[32px] text-[#e6c364] leading-none">Add a Vehicle</h2>
-          <p className="text-[#d0c5b2] text-[15px] max-w-md">Enter your VIN — we&apos;ll pull the photo and details from auction records instantly.{authEmail ? <span className="text-[#99907e]"> Signed in as {authEmail}.</span> : null}</p>
-        </section>
-        <div className="sec-divider" />
-
-        {/* VIN search card */}
-        <section>
-          <div className="vin-card">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="vin-badge"><span className="material-symbols-outlined">search</span></div>
-              <div>
-                <p className="av-bebas text-[20px] text-[#e5e2e1] leading-none">Find your vehicle</p>
-                <p className="text-[12px] text-[#99907e] mt-1">Smart VIN lookup across auction records</p>
-              </div>
-            </div>
-            <div className="relative flex items-center">
-              <span className="material-symbols-outlined absolute left-4 text-[#e6c364] pointer-events-none">search</span>
-              <input
-                className="vin-search av-input"
-                value={v.vin}
-                maxLength={17}
-                placeholder="Enter your VIN"
-                autoComplete="off"
-                onChange={e => updV('vin', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17))}
-                style={{ paddingLeft: '2.75rem', ...((v.vin && validateVin(v.vin)) ? { borderColor: '#a33' } : {}) }}
-              />
-            </div>
-            {v.vin && validateVin(v.vin) ? (
-              <p className="text-[12px] text-[#f87171] mt-2">{validateVin(v.vin)}</p>
-            ) : lookup.status === 'searching' ? (
-              <p className="text-[13px] text-[#99907e] mt-3">Searching auction records…</p>
-            ) : lookup.status === 'found' && candidate ? (
-              <div className="mt-3 rounded-xl overflow-hidden" style={{ background: '#0d0d0d', border: '1px solid rgba(201,168,76,0.32)', boxShadow: '0 0 24px rgba(201,168,76,0.06)' }}>
-                {(() => {
-                  const found = (
-                    <span className="inline-flex items-center gap-1" style={{ background: 'rgba(90,219,90,0.16)', border: '1px solid rgba(90,219,90,0.45)', color: '#7fe07f', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>verified</span> FOUND IN AUCTION RECORDS
-                    </span>
-                  )
-                  const title = [candidate.year, candidate.make, candidate.model, candidate.badge].filter(Boolean).join(' ') || 'Vehicle'
-                  return photoUrl ? (
-                    <div className="relative" style={{ height: 152 }}>
-                      <img src={photoUrl} alt="" onError={onPhotoError} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(13,13,13,0.97) 8%, rgba(13,13,13,0.15) 64%, rgba(13,13,13,0.4))' }} />
-                      <div className="absolute top-2.5 left-2.5">{found}</div>
-                      <div className="absolute left-3.5 right-3.5 bottom-3 av-bebas text-[28px] text-white leading-none" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.85)' }}>{title}</div>
-                    </div>
-                  ) : (
-                    <div className="px-3.5 pt-3.5">
-                      {found}
-                      <div className="av-bebas text-[26px] text-[#e6c364] leading-none mt-2">{title}</div>
-                    </div>
-                  )
-                })()}
-                {(() => {
-                  const specs = ([
-                    ['Series', candidate.series],
-                    ['Body', candidate.body_type],
-                    ['Transmission', candidate.transmission],
-                    ['Odometer', candidate.odometer_km ? `${candidate.odometer_km.toLocaleString()} km` : null],
-                    ['Colour', candidate.colour],
-                    ['Bought from', candidate.source],
-                    ['Auction date', fmtDate(candidate.auction_date)],
-                  ] as [string, any][]).filter(([, val]) => val)
-                  return specs.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-3 px-3.5 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                      {specs.map(([label, val]) => (
-                        <div key={label}>
-                          <div className="uppercase text-[#6f6757]" style={{ fontSize: 11, letterSpacing: '0.08em', fontWeight: 600 }}>{label}</div>
-                          <div className="text-[#e5e2e1]" style={{ fontSize: 15, lineHeight: 1.35 }}>{val}</div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null
-                })()}
-                <div className="px-3.5 py-3.5">
-                  <div className="text-[15px] text-[#e5e2e1] mb-2.5 font-medium">Is this your vehicle?</div>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={acceptMatch}
-                      style={{ flex: 1, background: '#c9a84c', color: '#3d2e00', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 700, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 19 }}>check</span> Yes, autofill
-                    </button>
-                    <button type="button" onClick={declineMatch}
-                      style={{ background: 'transparent', color: '#d0c5b2', border: '1px solid #4d4637', borderRadius: 8, padding: '12px 20px', fontSize: 15, cursor: 'pointer' }}>
-                      No
-                    </button>
+        {v.vin && validateVin(v.vin) ? (
+          <p style={{ fontSize: 12, color: '#f08a8a', marginTop: 8 }}>{validateVin(v.vin)}</p>
+        ) : lookup.status === 'searching' ? (
+          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 12 }}>Searching auction records…</p>
+        ) : lookup.status === 'found' && candidate ? (
+          <div style={{ marginTop: 18, borderRadius: 18, overflow: 'hidden', border: '1px solid rgba(98,227,106,0.3)' }}>
+            {(() => {
+              const found = (
+                <span className="spill" style={{ color: 'var(--green)', background: 'rgba(98,227,106,0.18)', border: '1px solid var(--green)' }}><span className="dot" style={{ background: 'var(--green)' }} />Found in auction records</span>
+              )
+              const title = [candidate.year, candidate.make, candidate.model, candidate.badge].filter(Boolean).join(' ') || 'Vehicle'
+              return photoUrl ? (
+                <div style={{ position: 'relative', height: 170 }}>
+                  <img src={photoUrl} alt="" onError={onPhotoError} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(6,6,6,0.95), transparent 60%)' }} />
+                  <div style={{ position: 'absolute', top: 12, left: 12 }}>{found}</div>
+                  <div className="disp" style={{ position: 'absolute', left: 16, right: 16, bottom: 12, fontSize: 24, color: '#fff', textShadow: '0 2px 12px rgba(0,0,0,0.8)' }}>{title}</div>
+                </div>
+              ) : (
+                <div style={{ padding: '16px 16px 0' }}>{found}<div className="disp" style={{ fontSize: 24, color: 'var(--gold-2)', marginTop: 10 }}>{title}</div></div>
+              )
+            })()}
+            <div style={{ background: 'rgba(98,227,106,0.04)', padding: 18 }}>
+              {(() => {
+                const specs = ([
+                  ['Series', candidate.series], ['Body', candidate.body_type], ['Build', candidate.build_date],
+                  ['Transmission', candidate.transmission], ['Odometer', candidate.odometer_km ? `${candidate.odometer_km.toLocaleString()} km` : null],
+                  ['Colour', candidate.colour], ['Damage', candidate.damage], ['Bought from', candidate.source], ['Auction date', fmtDate(candidate.auction_date)],
+                ] as [string, any][]).filter(([, val]) => val)
+                return specs.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: '14px 20px', marginBottom: 16 }}>
+                    {specs.map(([label, val]) => (<div key={label}><div className="fl">{label}</div><div className="fv" style={{ fontSize: 14 }}>{val}</div></div>))}
                   </div>
-                </div>
+                ) : null
+              })()}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>Is this your vehicle?</span>
+                <button type="button" className="pill gold" onClick={acceptMatch} style={{ padding: '10px 20px' }}>Yes, autofill</button>
+                <button type="button" className="pill ghost" onClick={declineMatch} style={{ padding: '10px 18px' }}>No</button>
               </div>
-            ) : lookup.status === 'autofilled' ? (
-              <div className="mt-3 flex items-center gap-1.5 text-[#7fe07f] text-[13px]">
-                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>check_circle</span>
-                Autofilled from auction records — edit anything that&apos;s different.
-              </div>
-            ) : lookup.status === 'declined' ? (
-              <p className="text-[13px] text-[#99907e] mt-3">No problem — enter the details manually below.</p>
-            ) : lookup.status === 'none' ? (
-              <p className="text-[13px] text-[#99907e] mt-3">No auction record on file — enter the details manually.</p>
-            ) : (
-              <div className="flex items-center gap-1.5 text-[11px] text-[#99907e] mt-2">
-                <span className="material-symbols-outlined text-[#e6c364]" style={{ fontSize: 14 }}>bolt</span>
-                We search auction records as you type.
-              </div>
-            )}
-          </div>
-        </section>
-        <div className="sec-divider" />
-
-        {/* Vehicle details */}
-        <section className="space-y-4">
-          <div>
-            <label className="av-label">Vehicle details</label>
-            <p className="text-[12px] text-[#99907e] italic">Autofilled from auction records when we have your VIN — edit anything.</p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <AVField label="Make" value={v.make} placeholder="e.g. Toyota" error={v.make ? validateMake(v.make) : null}
-              onChange={x => updV('make', x.replace(/[^A-Za-z0-9\s\-/]/g, '').slice(0, 30))} />
-            <AVField label="Model" value={v.model} placeholder="e.g. HiLux" error={v.model ? validateModel(v.model) : null}
-              onChange={x => updV('model', x.replace(/[^A-Za-z0-9\s\-/.]/g, '').slice(0, 40))} />
-            <AVField label="Year" value={v.year} placeholder="e.g. 2022" inputMode="numeric" maxLength={4} error={v.year ? validateYear(v.year) : null}
-              onChange={x => updV('year', clampYearInput(x))} />
-            <AVSelect label="Build month" value={v.build_month} placeholder="Select" options={MONTHS} onChange={x => updV('build_month', x)} />
-            <AVSelect label="Colour" value={v.colour} placeholder="Select" options={COLOURS} onChange={x => updV('colour', x)} />
-            <AVSelect label="Vehicle type" value={v.vehicle_type} options={VEHICLE_TYPES} onChange={x => updV('vehicle_type', x)} />
-            <AVSelect label="Damage" value={v.damage} placeholder="Select" options={DAMAGES} onChange={x => updV('damage', x)} />
-            <AVSelect label="How did you buy it?" value={v.purchase_method} placeholder="Select" options={PURCHASE_METHODS} onChange={x => updV('purchase_method', x)} />
-          </div>
-          <AVField label="Where was it purchased from?" value={v.purchased_from} placeholder="e.g. Pickles, a dealer, a private seller"
-            onChange={x => updV('purchased_from', x)} />
-        </section>
-        <div className="sec-divider" />
-
-        {/* Current WOVI booking */}
-        <section className="space-y-4">
-          <div>
-            <label className="av-label">Your current {c.state === 'QLD' ? 'WOVI' : 'Service SA'} booking</label>
-            <p className="text-[12px] text-[#99907e] italic">The inspection you already have booked — we only rebook if we find an earlier slot.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="av-label">Date</label>
-              <input type="date" className="av-input" value={v.cutoff_date}
-                onChange={e => updV('cutoff_date', e.target.value)}
-                style={(v.cutoff_date && validateCutoffDate(v.cutoff_date)) ? { borderColor: '#a33' } : undefined} />
-              {v.cutoff_date && validateCutoffDate(v.cutoff_date) && <p className="text-[12px] text-[#f87171] mt-1">{validateCutoffDate(v.cutoff_date)}</p>}
             </div>
-            <AVSelect label="Time" value={v.current_booking_time} placeholder="Select time" options={TIMES} onChange={x => updV('current_booking_time', x)} />
           </div>
-          <AVSelect label="Location" value={v.current_booking_location} placeholder="Select centre" options={bookingLocations} onChange={x => updV('current_booking_location', x)} />
-        </section>
-        <div className="sec-divider" />
-
-        {/* Monitoring tier */}
-        <section>
-          <label className="av-label">Monitoring Tier <span className="text-[11px] text-[#99907e] normal-case tracking-normal">· per vehicle</span></label>
-          <div className="grid grid-cols-3 gap-2 mt-1">
-            {TIERS.map(t => (
-              <button key={t.id} type="button" onClick={() => setC(s => ({ ...s, tier: t.id as any }))}
-                className={`tier-card ${t.metal} ${c.tier === t.id ? 'sel' : ''}`}>
-                <span className="material-symbols-outlined t-medal">military_tech</span>
-                <span className="t-name">{t.name}</span>
-                <span className="t-price">{t.price}</span>
-                <span className="t-desc">{t.desc}</span>
-              </button>
-            ))}
+        ) : lookup.status === 'autofilled' ? (
+          <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--green)', fontSize: 13 }}>
+            <span className="dot" style={{ background: 'var(--green)' }} />Autofilled from auction records — edit anything that&apos;s different.
           </div>
-        </section>
-        <div className="sec-divider" />
-
-        {/* Inspection locations (QLD) */}
-        {c.state === 'QLD' && (
-          <section className="space-y-4">
-            <div>
-              <label className="av-label">Which locations for your next booking? <span className="text-[11px] text-[#99907e] normal-case tracking-normal">(up to {MAX_LOC})</span></label>
-              <p className="text-[12px] text-[#99907e] italic">Pick up to {MAX_LOC} WOVI centres you&apos;d accept an earlier slot at.</p>
-            </div>
-            <div className={`loc-grid grid grid-cols-2 gap-2 ${locations.length >= MAX_LOC ? 'maxed' : ''}`}>
-              {WOVI_LOCATIONS.map(loc => {
-                const on = locations.includes(loc)
-                return (
-                  <button key={loc} type="button" onClick={() => toggleLoc(loc)} className={`loc-opt ${on ? 'sel' : ''}`}>
-                    <span className="material-symbols-outlined loc-ic">{on ? 'check_circle' : 'location_on'}</span>
-                    <span>{loc}</span>
-                  </button>
-                )
-              })}
-            </div>
-            {locations.length >= 2 && (
-              <div>
-                <label className="av-label">Priority <span className="text-[11px] text-[#99907e] normal-case tracking-normal">(up to {MAX_PRIO})</span></label>
-                <p className="text-[12px] text-[#99907e] italic mb-2">Your first pick is #1 by default. Tap another to make it #2 — ① is tried before ②.</p>
-                <div className="flex flex-wrap gap-2">
-                  {locations.map(loc => {
-                    const idx = priorityLocations.indexOf(loc)
-                    const isP = idx > -1
-                    const atMax = priorityLocations.length >= MAX_PRIO && !isP
-                    return (
-                      <button key={loc} type="button" onClick={() => togglePriority(loc)} className={`prio-chip ${isP ? 'on' : ''} ${atMax ? 'dim' : ''}`}>
-                        {isP && <span className="pnum">{idx + 1}</span>}{loc}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-          </section>
+        ) : lookup.status === 'declined' ? (
+          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 12 }}>No problem — enter the details manually below.</p>
+        ) : lookup.status === 'none' ? (
+          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 12 }}>No auction record on file — enter the details manually.</p>
+        ) : (
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10 }}>We search auction records as you type.</p>
         )}
+      </div>
 
-        {err && <div className="rounded-lg p-3 text-[13px]" style={{ background: '#1f0c0c', border: '1px solid #3a1a1a', color: '#f87171' }}>{err}</div>}
+      {/* vehicle details */}
+      <div className="r card" style={{ animationDelay: '.1s', padding: 26, marginBottom: 18 }}>
+        <span className="eyebrow">Vehicle details</span>
+        <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 8, fontStyle: 'italic' }}>Autofilled from auction records when we have your VIN — edit anything.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 18, marginTop: 20 }}>
+          <AVField label="Make" value={v.make} placeholder="e.g. Toyota" error={v.make ? validateMake(v.make) : null} autofilled={autoFields.has('make')} needsInput={showNeeds && !v.make} onChange={x => updV('make', x.replace(/[^A-Za-z0-9\s\-/]/g, '').slice(0, 30))} />
+          <AVField label="Model" value={v.model} placeholder="e.g. HiLux" error={v.model ? validateModel(v.model) : null} autofilled={autoFields.has('model')} needsInput={showNeeds && !v.model} onChange={x => updV('model', x.replace(/[^A-Za-z0-9\s\-/.]/g, '').slice(0, 40))} />
+          <AVField label="Year" value={v.year} placeholder="e.g. 2022" inputMode="numeric" maxLength={4} error={v.year ? validateYear(v.year) : null} autofilled={autoFields.has('year')} needsInput={showNeeds && !v.year} onChange={x => updV('year', clampYearInput(x))} />
+          <AVSelect label="Build month" value={v.build_month} placeholder="Select" options={MONTHS} autofilled={autoFields.has('build_month')} needsInput={showNeeds && !v.build_month} onChange={x => updV('build_month', x)} />
+          <AVSelect label="Colour" value={v.colour} placeholder="Select" options={COLOURS} autofilled={autoFields.has('colour')} needsInput={showNeeds && !v.colour} onChange={x => updV('colour', x)} />
+          <AVSelect label="Vehicle type" value={v.vehicle_type} options={VEHICLE_TYPES} autofilled={autoFields.has('vehicle_type')} onChange={x => updV('vehicle_type', x)} />
+          <AVSelect label="Damage" value={v.damage} placeholder="Select" options={DAMAGES} autofilled={autoFields.has('damage')} needsInput={showNeeds && !v.damage} onChange={x => updV('damage', x)} />
+          <AVSelect label="How did you buy it?" value={v.purchase_method} placeholder="Select" options={PURCHASE_METHODS} autofilled={autoFields.has('purchase_method')} needsInput={showNeeds && !v.purchase_method} onChange={x => updV('purchase_method', x)} />
+        </div>
+        <div style={{ marginTop: 18 }}>
+          <AVField label="Where was it purchased from?" value={v.purchased_from} placeholder="e.g. Pickles, a dealer, a private seller" autofilled={autoFields.has('purchased_from')} needsInput={showNeeds && !v.purchased_from.trim()} onChange={x => updV('purchased_from', x)} />
+        </div>
+      </div>
 
-        <button type="button" onClick={submit} disabled={busy || !formValid} className="av-register" title={formValid ? '' : formErr}>
-          {busy ? 'Adding…' : <>REGISTER VEHICLE <span className="material-symbols-outlined">arrow_forward</span></>}
+      {/* current booking */}
+      <div className="r card" style={{ animationDelay: '.13s', padding: 26, marginBottom: 18 }}>
+        <span className="eyebrow">Your current {c.state === 'QLD' ? 'WOVI' : 'Service SA'} booking</span>
+        <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 8, fontStyle: 'italic' }}>The inspection you already have booked — we only rebook if we find an earlier slot.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 18, marginTop: 20 }}>
+          <div>
+            <div className="fl" style={{ marginBottom: 7 }}>Date</div>
+            <input className="inp" type="date" value={v.cutoff_date} onChange={e => updV('cutoff_date', e.target.value)} style={(v.cutoff_date && validateCutoffDate(v.cutoff_date)) ? { borderColor: '#a33' } : undefined} />
+            {v.cutoff_date && validateCutoffDate(v.cutoff_date) && <p style={{ fontSize: 12, color: '#f08a8a', marginTop: 6 }}>{validateCutoffDate(v.cutoff_date)}</p>}
+          </div>
+          <AVSelect label="Time" value={v.current_booking_time} placeholder="Select time" options={TIMES} onChange={x => updV('current_booking_time', x)} />
+          <AVSelect label="Location" value={v.current_booking_location} placeholder="Select centre" options={bookingLocations} onChange={x => updV('current_booking_location', x)} />
+        </div>
+      </div>
+
+      {/* tiers */}
+      <div className="r" style={{ animationDelay: '.16s', marginBottom: 14 }}><span className="eyebrow">Monitoring tier · per vehicle</span></div>
+      <div className="r" style={{ animationDelay: '.18s', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 14, marginBottom: 18 }}>
+        {TIERS.map(t => (
+          <button key={t.id} type="button" onClick={() => setC(s => ({ ...s, tier: t.id as any }))} className="card" style={{ padding: 20, textAlign: 'left', cursor: 'pointer', border: 'none', background: c.tier === t.id ? 'radial-gradient(120% 120% at 50% 0%, rgba(201,168,76,0.16), transparent 60%), linear-gradient(180deg,rgba(20,18,16,0.9),rgba(11,10,9,0.95))' : undefined, boxShadow: c.tier === t.id ? '0 0 0 1px rgba(201,168,76,0.5)' : undefined }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <span className="disp" style={{ fontSize: 22, color: t.c }}>{t.name}</span>
+              <span className="disp" style={{ fontSize: 26, color: 'var(--ink)' }}>{t.price}</span>
+            </div>
+            <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 8 }}>{t.desc}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* locations (QLD) */}
+      {c.state === 'QLD' && (
+        <div className="r card" style={{ animationDelay: '.2s', padding: 26, marginBottom: 18 }}>
+          <span className="eyebrow">Inspection locations · up to {MAX_LOC}</span>
+          <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 8, fontStyle: 'italic' }}>Pick up to {MAX_LOC} WOVI centres you&apos;d accept an earlier slot at.</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 16, opacity: locations.length >= MAX_LOC ? 0.85 : 1 }}>
+            {WOVI_LOCATIONS.map(loc => {
+              const on = locations.includes(loc)
+              return <button key={loc} type="button" onClick={() => toggleLoc(loc)} className={on ? 'chip on' : 'chip'}>{loc}</button>
+            })}
+          </div>
+          {locations.length >= 2 && (
+            <div style={{ marginTop: 18 }}>
+              <div className="fl" style={{ marginBottom: 6 }}>Priority · up to {MAX_PRIO}</div>
+              <p style={{ color: 'var(--muted)', fontSize: 12, fontStyle: 'italic', marginBottom: 10 }}>Your first pick is #1 by default. Tap another to make it #2 — ① is tried before ②.</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {locations.map(loc => {
+                  const idx = priorityLocations.indexOf(loc)
+                  const isP = idx > -1
+                  const atMax = priorityLocations.length >= MAX_PRIO && !isP
+                  return (
+                    <button key={loc} type="button" onClick={() => togglePriority(loc)} className={isP ? 'chip on' : 'chip'} style={atMax ? { opacity: 0.45 } : undefined}>
+                      {isP && <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: 'rgba(0,0,0,0.25)', color: '#231900', fontSize: 10, fontWeight: 800, marginRight: 6 }}>{idx + 1}</span>}{loc}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {err && <div className="r" style={{ marginBottom: 14, padding: 12, borderRadius: 12, background: 'rgba(240,120,120,0.1)', border: '1px solid rgba(240,120,120,0.4)', color: '#f08a8a', fontSize: 13 }}>{err}</div>}
+
+      <div className="r" style={{ animationDelay: '.22s', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+        <button type="button" onClick={submit} disabled={busy || !formValid} className="pill gold" style={{ fontSize: 15, opacity: (busy || !formValid) ? 0.5 : 1, cursor: (busy || !formValid) ? 'not-allowed' : 'pointer' }} title={formValid ? '' : formErr}>
+          {busy ? 'Adding…' : <>Register vehicle<span className="ibtn"><Arrow /></span></>}
         </button>
-        {!formValid && <p className="text-[12px] text-[#99907e] text-center -mt-2">{formErr}</p>}
-      </main>
-    </div>
+        {!formValid && <p style={{ fontSize: 12, color: 'var(--muted)' }}>{formErr}</p>}
+      </div>
+    </PreviewShell>
   )
 }
 
-function AVField({ label, value, onChange, placeholder, inputMode, maxLength, error }: {
+// AUTO (gold) / NEEDS INPUT (amber) badge beside a field label.
+function FieldTag({ autofilled, needsInput }: { autofilled?: boolean; needsInput?: boolean }) {
+  if (autofilled) return <span style={{ marginLeft: 8, fontSize: 8, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--gold-2)', background: 'rgba(201,168,76,0.16)', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 999, padding: '1px 7px' }}>AUTO</span>
+  if (needsInput) return <span style={{ marginLeft: 8, fontSize: 8, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--amber)', background: 'rgba(240,169,60,0.12)', border: '1px solid rgba(240,169,60,0.45)', borderRadius: 999, padding: '1px 7px' }}>NEEDS INPUT</span>
+  return null
+}
+
+// error (red) wins, then autofilled (gold), then needs-input (amber dashed).
+function fieldStyle(error?: string | null, autofilled?: boolean, needsInput?: boolean): CSSProperties | undefined {
+  if (error) return { borderColor: '#a33' }
+  if (autofilled) return { borderColor: 'rgba(201,168,76,0.55)', background: 'rgba(201,168,76,0.06)' }
+  if (needsInput) return { borderColor: 'rgba(240,169,60,0.4)', borderStyle: 'dashed' }
+  return undefined
+}
+
+function AVField({ label, value, onChange, placeholder, inputMode, maxLength, error, autofilled, needsInput }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string;
   inputMode?: 'numeric' | 'text'; maxLength?: number; error?: string | null
+  autofilled?: boolean; needsInput?: boolean
 }) {
   return (
     <div>
-      <label className="av-label">{label}</label>
-      <input className="av-input" value={value} placeholder={placeholder} inputMode={inputMode} maxLength={maxLength}
-        onChange={e => onChange(e.target.value)} style={error ? { borderColor: '#a33' } : undefined} />
-      {error && <p className="text-[12px] text-[#f87171] mt-1">{error}</p>}
+      <div className="fl" style={{ marginBottom: 7 }}>{label}<FieldTag autofilled={autofilled} needsInput={needsInput} /></div>
+      <input className="inp" value={value} placeholder={placeholder} inputMode={inputMode} maxLength={maxLength} onChange={e => onChange(e.target.value)} style={fieldStyle(error, autofilled, needsInput)} />
+      {error && <p style={{ fontSize: 12, color: '#f08a8a', marginTop: 6 }}>{error}</p>}
     </div>
   )
 }
 
-function AVSelect({ label, value, onChange, options, placeholder }: {
+function AVSelect({ label, value, onChange, options, placeholder, autofilled, needsInput }: {
   label: string; value: string; onChange: (v: string) => void; options: string[]; placeholder?: string
+  autofilled?: boolean; needsInput?: boolean
 }) {
   return (
     <div>
-      <label className="av-label">{label}</label>
-      <select className="av-input appearance-none" value={value} onChange={e => onChange(e.target.value)}>
+      <div className="fl" style={{ marginBottom: 7 }}>{label}<FieldTag autofilled={autofilled} needsInput={needsInput} /></div>
+      <select className="inp" value={value} onChange={e => onChange(e.target.value)} style={{ ...fieldStyle(null, autofilled, needsInput), appearance: 'auto' }}>
         {placeholder !== undefined && <option value="">{placeholder}</option>}
         {options.map(o => <option key={o} value={o}>{o}</option>)}
       </select>

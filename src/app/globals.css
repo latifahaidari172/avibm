@@ -418,3 +418,12 @@ html { scroll-behavior: smooth; }
 .av-register:hover:not(:disabled) { filter:brightness(1.1); }
 .av-register:active:not(:disabled) { transform:scale(0.98); }
 .av-register:disabled { opacity:0.4; cursor:not-allowed; filter:grayscale(0.4); }
+
+/* Vehicle detail page: check-listing-style layout — gallery+specs left,
+   sticky booking/monitoring sidebar right. Stacks on narrow screens. */
+.veh-grid { display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start; }
+.veh-side { display: flex; flex-direction: column; gap: 16px; }
+@media (min-width: 880px) {
+  .veh-grid { grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr); }
+  .veh-side { position: sticky; top: 20px; }
+}

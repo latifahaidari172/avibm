@@ -27,13 +27,15 @@ export interface SessionPayload {
   sub: string // customer id ('' for a verified-email-but-no-profile-yet session)
   email: string
   exp: number // unix seconds
+  imp?: boolean // true when an admin is impersonating this customer
 }
 
-export function signSession(customerId: string, email: string): string {
+export function signSession(customerId: string, email: string, imp = false): string {
   const payload: SessionPayload = {
     sub: customerId,
     email,
-    exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE,
+    exp: Math.floor(Date.now() / 1000) + (imp ? 60 * 60 * 8 : SESSION_MAX_AGE),
+    ...(imp ? { imp: true } : {}),
   }
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url')
   const sig = createHmac('sha256', getSecret()).update(body).digest('base64url')
@@ -135,8 +137,8 @@ export function verifyState(token: string): Record<string, any> | null {
 }
 
 // Set / clear the session cookie on a NextResponse (route handlers).
-export function setSessionCookie(res: NextResponse, customerId: string, email: string): void {
-  res.cookies.set(SESSION_COOKIE, signSession(customerId, email), SESSION_COOKIE_OPTS)
+export function setSessionCookie(res: NextResponse, customerId: string, email: string, imp = false): void {
+  res.cookies.set(SESSION_COOKIE, signSession(customerId, email, imp), SESSION_COOKIE_OPTS)
 }
 
 export function clearSessionCookie(res: NextResponse): void {

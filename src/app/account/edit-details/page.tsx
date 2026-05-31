@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { IconArrowLeft } from '@/components/icons'
+import { PreviewShell, Arrow, BackToGarage } from '@/lib/previewDesign'
 import {
   validateAuMobile, validatePostcode, validateStreetAddress, validateSuburb,
   validateCrn, normaliseAuMobile,
@@ -56,13 +56,11 @@ export default function EditDetailsPage() {
         date_of_birth: c.date_of_birth || '',
         preferred_locations: Array.isArray(c.preferred_locations) ? c.preferred_locations : [],
       })
-      // preferred_locations now live on the customers row (returned by the
-      // profile API above) — no separate auth lookup needed.
       setLoading(false)
     })()
   }, [router])
 
-  if (loading || !f) return <Page><p style={muted}>Loading…</p></Page>
+  if (loading || !f) return <PreviewShell><BackToGarage href="/account" /><p style={{ color: 'var(--muted)' }}>Loading…</p></PreviewShell>
 
   function up<K extends keyof Form>(k: K, v: Form[K]) {
     setF(s => s ? { ...s, [k]: v } : s)
@@ -111,150 +109,68 @@ export default function EditDetailsPage() {
   }
 
   return (
-    <Page>
-      <p style={{ marginBottom: 12 }}>
-        <Link href="/account" style={{ ...link, display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
-          <IconArrowLeft size={14} />Back to dashboard
-        </Link>
-      </p>
+    <PreviewShell>
+      <BackToGarage href="/account" />
 
-      <h1 style={h1}>Edit details</h1>
-      <p style={{ ...muted, marginBottom: 20 }}>
-        Email and state are locked. To change your email you&apos;ll need to sign out and sign in with the new account.
-      </p>
+      <div className="r" style={{ marginBottom: 26 }}>
+        <span className="eyebrow">Edit details</span>
+        <h1 className="disp" style={{ fontSize: 'clamp(36px,5vw,58px)', marginTop: 16 }}>Your <span className="shimmer">details</span></h1>
+        <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 14, maxWidth: 480 }}>Email and state are locked. To change your email, sign out and sign in with the new account.</p>
+      </div>
 
-      <Section title="Personal details">
-        <Grid>
-          <Field label="First name" value={f.first_name} onChange={x => up('first_name', x)} />
-          <Field label="Last name"  value={f.last_name}  onChange={x => up('last_name', x)} />
-          <Field label="Email (locked)" value={f.email} onChange={() => {}} disabled fullRow />
-          <Field
-            label="Mobile (04…)"
-            value={f.phone}
-            onChange={x => up('phone', normaliseAuMobile(x))}
-            fullRow
-            error={f.phone ? validateAuMobile(f.phone) : null}
-          />
-          <Field
-            label="Street address (number + name)"
-            value={f.address}
-            onChange={x => up('address', x)}
-            fullRow
-            error={f.address ? validateStreetAddress(f.address) : null}
-          />
-          <Field
-            label="Suburb (no postcode)"
-            value={f.suburb}
-            onChange={x => up('suburb', x.replace(/\d/g, ''))}
-            error={f.suburb ? validateSuburb(f.suburb) : null}
-          />
-          <Field
-            label="Postcode"
-            value={f.postcode}
-            onChange={x => up('postcode', x.replace(/\D/g, '').slice(0, 4))}
-            error={f.postcode ? validatePostcode(f.postcode, f.state) : null}
-          />
-          <Field label="State (locked)" value={f.state} onChange={() => {}} disabled />
-          {f.state === 'QLD' && (
-            <Field
-              label="CRN"
-              value={f.crn}
-              onChange={x => up('crn', x.replace(/\D/g, '').slice(0, 10))}
-              error={f.crn ? validateCrn(f.crn) : null}
-            />
-          )}
-          {f.state === 'SA' && (
-            <Field label="Licence number" value={f.licence_number} onChange={x => up('licence_number', x)} />
-          )}
-          <Field label="Date of birth" type="date" value={f.date_of_birth} onChange={x => up('date_of_birth', x)} />
-        </Grid>
-      </Section>
+      <div className="r card" style={{ animationDelay: '.06s', padding: 28, marginBottom: 18 }}>
+        <span className="eyebrow">Personal details</span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 20, marginTop: 22 }}>
+          <EField label="First name" value={f.first_name} onChange={x => up('first_name', x)} />
+          <EField label="Last name" value={f.last_name} onChange={x => up('last_name', x)} />
+          <div style={{ gridColumn: '1 / -1' }}><EField label="Email (locked)" value={f.email} onChange={() => {}} disabled /></div>
+          <div style={{ gridColumn: '1 / -1' }}><EField label="Mobile (04…)" value={f.phone} onChange={x => up('phone', normaliseAuMobile(x))} error={f.phone ? validateAuMobile(f.phone) : null} /></div>
+          <div style={{ gridColumn: '1 / -1' }}><EField label="Street address (number + name)" value={f.address} onChange={x => up('address', x)} error={f.address ? validateStreetAddress(f.address) : null} /></div>
+          <EField label="Suburb (no postcode)" value={f.suburb} onChange={x => up('suburb', x.replace(/\d/g, ''))} error={f.suburb ? validateSuburb(f.suburb) : null} />
+          <EField label="Postcode" value={f.postcode} onChange={x => up('postcode', x.replace(/\D/g, '').slice(0, 4))} error={f.postcode ? validatePostcode(f.postcode, f.state) : null} />
+          <EField label="State (locked)" value={f.state} onChange={() => {}} disabled />
+          {f.state === 'QLD' && <EField label="CRN" value={f.crn} onChange={x => up('crn', x.replace(/\D/g, '').slice(0, 10))} error={f.crn ? validateCrn(f.crn) : null} />}
+          {f.state === 'SA' && <EField label="Licence number" value={f.licence_number} onChange={x => up('licence_number', x)} />}
+          <EField label="Date of birth" type="date" value={f.date_of_birth} onChange={x => up('date_of_birth', x)} />
+        </div>
+      </div>
 
       {f.state === 'QLD' && (
-        <Section title="Preferred inspection locations">
-          <p style={{ ...muted, marginBottom: 8 }}>Tap to include or exclude. These apply to any new vehicles you add.</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div className="r card" style={{ animationDelay: '.1s', padding: 28, marginBottom: 18 }}>
+          <span className="eyebrow">Preferred inspection locations</span>
+          <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 8, fontStyle: 'italic' }}>Tap to include or exclude. These apply to any new vehicles you add.</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
             {WOVI_LOCATIONS.map(loc => {
               const on = f.preferred_locations.includes(loc)
-              return (
-                <button type="button" key={loc} onClick={() => toggleLoc(loc)} style={pill(on)}>{loc}</button>
-              )
+              return <button type="button" key={loc} onClick={() => toggleLoc(loc)} className={on ? 'chip on' : 'chip'}>{loc}</button>
             })}
           </div>
-        </Section>
+        </div>
       )}
 
-      {err && <div style={errBox}>{err}</div>}
-      {savedAt && !err && <div style={okBox}>Saved. Redirecting…</div>}
+      {err && <div className="r" style={{ marginBottom: 14, padding: 12, borderRadius: 12, background: 'rgba(240,120,120,0.1)', border: '1px solid rgba(240,120,120,0.4)', color: '#f08a8a', fontSize: 13 }}>{err}</div>}
+      {savedAt && !err && <div className="r" style={{ marginBottom: 14, padding: 12, borderRadius: 12, background: 'rgba(98,227,106,0.1)', border: '1px solid rgba(98,227,106,0.4)', color: 'var(--green)', fontSize: 13 }}>Saved. Redirecting…</div>}
 
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
-        <Link href="/account" style={ghostBtnLink}>Cancel</Link>
-        <button
-          type="button"
-          onClick={save}
-          disabled={busy || !formValid}
-          style={(!formValid && !busy) ? { ...primaryBtn, opacity: 0.4, cursor: 'not-allowed' } : primaryBtn}
-          title={formValid ? '' : formErr}
-        >
-          {busy ? 'Saving…' : 'Save changes'}
+      <div className="r" style={{ animationDelay: '.14s', display: 'flex', justifyContent: 'flex-end', gap: 12, alignItems: 'stretch' }}>
+        <Link href="/account" className="pill ghost" style={{ textDecoration: 'none', padding: '0 22px' }}>Cancel</Link>
+        <button type="button" onClick={save} disabled={busy || !formValid} className="pill gold" title={formValid ? '' : formErr} style={{ opacity: (busy || !formValid) ? 0.5 : 1, cursor: (busy || !formValid) ? 'not-allowed' : 'pointer' }}>
+          {busy ? 'Saving…' : <>Save changes<span className="ibtn"><Arrow /></span></>}
         </button>
       </div>
-      {!formValid && !busy && (
-        <p style={{ ...muted, textAlign: 'right', marginTop: 8 }}>{formErr}</p>
-      )}
-    </Page>
+      {!formValid && !busy && <p className="r" style={{ textAlign: 'right', marginTop: 8, color: 'var(--muted)', fontSize: 12 }}>{formErr}</p>}
+    </PreviewShell>
   )
 }
 
-function Page({ children }: { children: React.ReactNode }) {
+function EField({ label, value, onChange, type = 'text', error = null, disabled = false }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; error?: string | null; disabled?: boolean
+}) {
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#eee', fontFamily: 'DM Sans, sans-serif', padding: '40px 20px' }}>
-      <div style={{ maxWidth: 720, margin: '0 auto' }}>{children}</div>
+    <div>
+      <div className="fl" style={{ marginBottom: 7 }}>{label}</div>
+      <input className="inp" type={type} value={value} disabled={disabled} onChange={e => onChange(e.target.value)}
+        style={{ ...(error ? { borderColor: '#a33' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }} />
+      {error && <p style={{ fontSize: 12, color: '#f08a8a', marginTop: 6 }}>{error}</p>}
     </div>
   )
 }
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ background: '#111', border: '1px solid #222', borderRadius: 10, padding: 20, marginBottom: 16 }}>
-      <h2 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 16, letterSpacing: '0.06em', color: '#C9A84C', margin: '0 0 14px 0' }}>{title}</h2>
-      {children}
-    </div>
-  )
-}
-function Grid({ children }: { children: React.ReactNode }) {
-  return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>{children}</div>
-}
-function Field({ label, value, onChange, fullRow = false, type = 'text', error = null, disabled = false }: { label: string; value: string; onChange: (v: string) => void; fullRow?: boolean; type?: string; error?: string | null; disabled?: boolean }) {
-  return (
-    <div style={{ gridColumn: fullRow ? 'span 2' : undefined }}>
-      <label style={lbl}>{label}</label>
-      <input
-        type={type}
-        value={value}
-        disabled={disabled}
-        onChange={e => onChange(e.target.value)}
-        style={{ ...inp, borderColor: error ? '#a33' : '#222', opacity: disabled ? 0.6 : 1, cursor: disabled ? 'not-allowed' : 'auto' }}
-      />
-      {error && <p style={{ fontSize: 11, color: '#f87171', margin: '4px 0 0 0' }}>{error}</p>}
-    </div>
-  )
-}
-function pill(on: boolean): React.CSSProperties {
-  return {
-    padding: '6px 12px', borderRadius: 999, fontSize: 12,
-    background: on ? '#1a1200' : '#0a0a0a',
-    border: `1px solid ${on ? '#4a3a00' : '#222'}`,
-    color: on ? '#C9A84C' : '#888',
-    cursor: 'pointer', fontFamily: 'inherit',
-  }
-}
-
-const h1: React.CSSProperties = { fontFamily: 'Bebas Neue, sans-serif', fontSize: 26, letterSpacing: '0.05em', margin: '0 0 8px 0' }
-const muted: React.CSSProperties = { color: '#888', fontSize: 12 }
-const link: React.CSSProperties = { color: '#5ab0ff', fontSize: 13, textDecoration: 'underline' }
-const lbl: React.CSSProperties = { display: 'block', fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }
-const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 6, background: '#0a0a0a', border: '1px solid #222', color: '#eee', fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box' }
-const primaryBtn: React.CSSProperties = { padding: '11px 18px', borderRadius: 6, background: '#C9A84C', color: '#000', border: 'none', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }
-const ghostBtnLink: React.CSSProperties = { padding: '11px 18px', borderRadius: 6, background: 'none', color: '#888', border: '1px solid #333', fontWeight: 600, fontSize: 13, textDecoration: 'none', display: 'inline-block' }
-const errBox: React.CSSProperties = { padding: 12, background: '#1f0c0c', border: '1px solid #3a1a1a', borderRadius: 6, color: '#f87171', fontSize: 13, marginBottom: 12 }
-const okBox: React.CSSProperties = { padding: 12, background: '#0c1f0c', border: '1px solid #1a3a1a', borderRadius: 6, color: '#5adb5a', fontSize: 13, marginBottom: 12 }

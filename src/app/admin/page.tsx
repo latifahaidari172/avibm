@@ -66,6 +66,7 @@ type Vehicle = {
   search_after_active?: boolean
   notes?: string
   archived?: boolean
+  deleted_at?: string | null
 }
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'avibm2024'
@@ -766,6 +767,19 @@ export default function Admin() {
     await logAction(current ? 'Unarchived customer' : 'Archived customer', customer ? `${customer.first_name} ${customer.last_name}` : id)
   }
 
+  // Sign in as a customer (impersonate) to view their account as they see it.
+  const impersonate = async (id: string) => {
+    const res = await authFetch('/api/admin/impersonate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customer_id: id }),
+    })
+    if (!res.ok) { alert('Could not open this customer’s account.'); return }
+    const customer = customers.find(c => c.id === id)
+    await logAction('Viewed account as user', customer ? (customer.email || id) : id)
+    window.open('/account', '_blank')
+  }
+
   const archiveVehicle = async (vid: string, current: boolean) => {
     await adminPatch('vehicles', vid, { archived: !current, active: false })
     setCustomers(cs => cs.map(c => ({
@@ -774,6 +788,16 @@ export default function Admin() {
     })))
     const vehicle = customers.flatMap(c => c.vehicles || []).find(v => v.id === vid)
     await logAction(current ? 'Unarchived vehicle' : 'Archived vehicle', vehicle ? vehicle.label : vid)
+  }
+  // Restore a customer-deleted vehicle: clear deleted_at + reactivate.
+  const restoreDeletedVehicle = async (vid: string) => {
+    await adminPatch('vehicles', vid, { deleted_at: null, active: true })
+    setCustomers(cs => cs.map(c => ({
+      ...c,
+      vehicles: c.vehicles?.map(v => v.id === vid ? { ...v, deleted_at: null, active: true } : v)
+    })))
+    const vehicle = customers.flatMap(c => c.vehicles || []).find(v => v.id === vid)
+    await logAction('Restored deleted vehicle', vehicle ? vehicle.label : vid)
   }
 
   const deleteVehicle = async (vid: string) => {
@@ -861,7 +885,7 @@ export default function Admin() {
     active: active_customers.filter(c => c.active).length,
     qld: active_customers.filter(c => c.state === 'QLD').length,
     sa: active_customers.filter(c => c.state === 'SA').length,
-    vehicles: active_customers.reduce((n, c) => n + (c.vehicles?.filter(v => !v.archived).length || 0), 0),
+    vehicles: active_customers.reduce((n, c) => n + (c.vehicles?.filter(v => !v.archived && !v.deleted_at).length || 0), 0),
     priority: active_customers.filter(c => c.tier === 'priority' || c.state === 'SA').length,
     standard: active_customers.filter(c => c.tier === 'standard' && c.state !== 'SA').length,
     basic: active_customers.filter(c => c.tier === 'basic' && c.state !== 'SA').length,
@@ -1670,8 +1694,8 @@ export default function Admin() {
                     <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{c.email} · {c.phone}</div>
                   </div>
                   <div style={{ textAlign: 'center', minWidth: 60 }}>
-                    <div style={{ fontFamily: 'Bebas Neue', fontSize: 22, color: 'var(--gold)' }}>{c.vehicles?.filter(v => !v.archived).length || 0}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>VEHICLE{(c.vehicles?.filter(v => !v.archived).length || 0) !== 1 ? 'S' : ''}</div>
+                    <div style={{ fontFamily: 'Bebas Neue', fontSize: 22, color: 'var(--gold)' }}>{c.vehicles?.filter(v => !v.archived && !v.deleted_at).length || 0}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>VEHICLE{(c.vehicles?.filter(v => !v.archived && !v.deleted_at).length || 0) !== 1 ? 'S' : ''}</div>
                     {(c.vehicles?.filter(v => v.archived).length ?? 0) > 0 && (
                       <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>+{c.vehicles?.filter(v => v.archived).length} archived</div>
                     )}
@@ -1763,7 +1787,7 @@ export default function Admin() {
                     </div>
 
                     <div className="section-label" style={{ marginBottom: 12 }}>Vehicles</div>
-                    {c.vehicles?.filter(v => !v.archived).map(v => (
+                    {c.vehicles?.filter(v => !v.archived && !v.deleted_at).map(v => (
                       <div key={v.id} style={{
                         background: (v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '#040e04' : '#070707',
                         border: `1px solid ${(v.booked_date && new Date(v.booked_date) < new Date(v.cutoff_date)) ? '#1a3a1a' : '#141414'}`,
@@ -2161,6 +2185,25 @@ export default function Admin() {
                       </div>
                     )}
 
+                    {/* Deleted vehicles — customer removed them, but the record
+                        is kept here. Restore puts the vehicle back. */}
+                    {(c.vehicles?.filter(v => v.deleted_at).length ?? 0) > 0 && (
+                      <div style={{ marginTop: 16 }}>
+                        <div className="section-label" style={{ marginBottom: 10, color: '#f87171' }}>Deleted Vehicles <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({c.vehicles?.filter(v => v.deleted_at).length})</span></div>
+                        {c.vehicles?.filter(v => v.deleted_at).map(v => (
+                          <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: '#0c0707', border: '1px solid #2a1414', borderRadius: 8, padding: '10px 14px', marginBottom: 6, opacity: 0.85 }}>
+                            <div style={{ fontSize: 13 }}>
+                              <span style={{ fontSize: 9, fontWeight: 700, color: '#f87171', border: '1px solid #5a2020', borderRadius: 4, padding: '1px 5px', marginRight: 8, letterSpacing: '0.06em' }}>DELETED</span>
+                              <span style={{ color: 'var(--text)' }}>{[v.year, v.make, v.model].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim()}</span>
+                              {v.ref && <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11, color: 'var(--gold)', marginLeft: 8 }}>{v.ref}</span>}
+                              {v.vin && <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>{v.vin}</span>}
+                            </div>
+                            <button onClick={() => restoreDeletedVehicle(v.id)} title="Restore vehicle" className="admin-btn" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4, border: '1px solid #2a4a2a', color: '#5adb5a', background: 'transparent', borderRadius: 6, padding: '6px 10px', whiteSpace: 'nowrap' }}><IconArrowUturnLeft size={13} />Restore</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Actions */}
                     <div className='actions-row' style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
                       {!c.active ? (
@@ -2172,6 +2215,7 @@ export default function Admin() {
                         </div>
                       )}
                       <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => impersonate(c.id)} className="admin-btn" title="Sign in as this customer to see their account" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><IconUser size={13} />View as user</button>
                         <button onClick={() => archiveCustomer(c.id, !!c.archived)} className="admin-btn admin-btn-amber">Archive</button>
                         {isOwner ? (
                           <button onClick={() => deleteCustomer(c.id)} className="admin-btn admin-btn-red">Delete</button>

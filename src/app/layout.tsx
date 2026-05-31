@@ -6,8 +6,13 @@ export const metadata: Metadata = {
   description: 'Automatically monitor and book the earliest available inspection slot for your written-off vehicle.',
   applicationName: 'AVIBM',
   icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.svg',
+    // .ico first for universal support (Safari + browsers that request
+    // /favicon.ico directly and ignore SVG favicons); SVG for crisp scaling.
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/favicon.ico',
     apple: '/apple-touch-icon.png',
   },
   // iOS standalone "Add to Home Screen" behaviour

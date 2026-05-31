@@ -125,8 +125,8 @@ function LogsView() {
           <div style={errBox}>
             <strong>Stream not available:</strong> {errorMsg}<br />
             <span style={{ fontSize: 12, color: '#888' }}>
-              Set <code>AVIBM_LOG_URL</code> and <code>AVIBM_LOG_SECRET</code> in your Vercel env vars and confirm the
-              VPS service is running on port 8090.
+              Set <code>AVIBM_LOG_URL</code> and <code>AVIBM_LOG_SECRET</code> in <code>/opt/avibm-web/.env</code> and confirm
+              <code>avibm-log-stream.service</code> is running on port 8090.
             </span>
           </div>
         )}
