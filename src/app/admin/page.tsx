@@ -284,6 +284,11 @@ export default function Admin() {
   const [admins, setAdmins] = useState<AdminUser[]>([])
   const [newAdmin, setNewAdmin] = useState({ username: '', password: '' })
 
+  const [showFree, setShowFree] = useState(false)
+  const [freeList, setFreeList] = useState<{ entry: string; customer_id: string | null; notified_at: string | null; created_at: string }[]>([])
+  const [newFree, setNewFree] = useState('')
+  const [freeBusy, setFreeBusy] = useState(false)
+
   const authFetch = async (url: string, options: RequestInit = {}) => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('avibm_admin_token') || '' : ''
     const res = await fetch(url, { ...options, headers: { ...(options.headers || {}), 'Authorization': `Bearer ${token}` } })
@@ -316,22 +321,23 @@ export default function Admin() {
     } catch {}
   }
   const loadAdmins = async () => { const r = await authFetch('/api/admin-login?action=list'); if (r.ok) { const d = await r.json(); if (Array.isArray(d)) setAdmins(d) } }
+  const loadFree = async () => { try { const r = await authFetch('/api/admin/whitelist'); if (r.ok) { const d = await r.json(); if (Array.isArray(d)) setFreeList(d) } } catch {} }
   const loadBot = async () => { try { const r = await authFetch('/api/bot-control'); if (r.ok) { const d = await r.json(); if (Array.isArray(d)) setBotOnline(d.some((b: any) => b.last_seen && (Date.now() - new Date(b.last_seen).getTime()) < 3 * 60 * 1000)) } } catch {} }
 
   useEffect(() => {
     if (!authed) return
     authFetch('/api/admin-login?action=refresh').then(async res => { if (res.ok) { const d = await res.json(); if (d.token) localStorage.setItem('avibm_admin_token', d.token) } })
-    loadData(); loadBot(); loadAdmins()
+    loadData(); loadBot(); loadAdmins(); loadFree()
     const t = setInterval(loadData, 30000)
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed])
 
   useEffect(() => {
-    if (!showAdmins) return
-    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowAdmins(false) }
+    if (!showAdmins && !showFree) return
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { setShowAdmins(false); setShowFree(false) } }
     document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k)
-  }, [showAdmins])
+  }, [showAdmins, showFree])
 
   const login = async () => {
     if (!username.trim() || !pw.trim()) { setPwError('Enter your username and password'); return }
@@ -403,6 +409,34 @@ export default function Admin() {
     await authFetch('/api/admin-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'remove', id }) })
     loadAdmins()
   }
+  // ── free customers (whitelist) ──
+  const addFree = async () => {
+    const v = newFree.trim()
+    if (!v) return
+    setFreeBusy(true)
+    try {
+      const r = await authFetch('/api/admin/whitelist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entry: v }) })
+      if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Could not add to the free list.') }
+      else { setNewFree(''); await logAction('Added free customer', v) }
+      await loadFree()
+    } finally { setFreeBusy(false) }
+  }
+  const removeFree = async (entry: string) => {
+    if (!confirm(`Remove ${entry} from the free list?`)) return
+    await authFetch('/api/admin/whitelist', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entry }) })
+    await loadFree(); await logAction('Removed free customer', entry)
+  }
+  const makeFree = async (rc: any) => {
+    const r = await authFetch('/api/admin/whitelist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customer_id: rc.id }) })
+    const d = await r.json().catch(() => ({}))
+    await loadFree(); await logAction('Granted free access', rc.email || rc.id)
+    alert(r.ok ? (d.emailed ? `Free access granted — confirmation emailed to ${rc.email}.` : 'Free access granted.') : (d.error || 'Could not grant free access.'))
+  }
+  const removeFreeCustomer = async (rc: any) => {
+    if (!confirm('Remove free access for this customer?')) return
+    await authFetch('/api/admin/whitelist', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customer_id: rc.id }) })
+    await loadFree(); await logAction('Revoked free access', rc.email || rc.id)
+  }
 
   // ── login screen ──
   if (!authed) {
@@ -436,17 +470,23 @@ export default function Admin() {
     const hay = [c.first, c.last, c.email, c.ref, ...c.vehicles.flatMap(v => [v.ref, v.vin, v.title, v.make, v.model]), ...c.archived.flatMap(v => [v.ref, v.vin, v.title]), ...c.deleted.flatMap(v => [v.vin, v.title])].filter(Boolean).join(' ').toLowerCase()
     return hay.includes(q.trim().toLowerCase())
   })
-  // ── aggregations for stats + charts (always over the active customer base) ──
-  const allVeh = customers.flatMap(c => c.vehicles)
-  const vehMonitoring = allVeh.filter(v => v.active && v.status !== 'Booked').length
-  const vehBooked = allVeh.filter(v => v.status === 'Booked').length
-  const vehIdle = Math.max(0, allVeh.length - vehMonitoring - vehBooked)
+  // ── aggregations for stats + charts (whole base, incl. archived customers) ──
+  const allCusts = [...customers, ...archivedCustomers]
+  // Every vehicle across every customer (active + archived), excluding deleted.
+  const everyVeh = rawCustomers
+    .filter((c: any) => !c.pending_deletion)
+    .flatMap((c: any) => (c.vehicles || []).filter((v: any) => !v.deleted_at).map((v: any) => ({ active: !!v.active, booked: !!v.booked_date })))
+  const totalVehicles = everyVeh.length
+  const vehBooked = everyVeh.filter(v => v.booked).length
+  const vehMonitoring = everyVeh.filter(v => v.active && !v.booked).length
+  const vehIdle = Math.max(0, totalVehicles - vehBooked - vehMonitoring)
   const bookedCount = vehBooked
 
   const stats = [
-    { label: 'Customers', value: customers.length, c: 'var(--gold-2)', a: 'rgba(201,168,76,0.6)', g: 'rgba(201,168,76,0.14)' },
+    { label: 'Customers', value: allCusts.length, c: 'var(--gold-2)', a: 'rgba(201,168,76,0.6)', g: 'rgba(201,168,76,0.14)' },
     { label: 'Active', value: customers.filter(c => c.active).length, c: 'var(--blue)', a: 'rgba(107,182,255,0.6)', g: 'rgba(107,182,255,0.12)' },
-    { label: 'Vehicles', value: allVeh.length, c: '#cfcabb', a: 'rgba(207,202,187,0.6)', g: 'rgba(207,202,187,0.12)' },
+    { label: 'Archived', value: archivedCustomers.length, c: '#9b958a', a: 'rgba(155,149,138,0.6)', g: 'rgba(155,149,138,0.12)' },
+    { label: 'Vehicles', value: totalVehicles, c: '#cfcabb', a: 'rgba(207,202,187,0.6)', g: 'rgba(207,202,187,0.12)' },
     { label: 'Bots running', value: vehMonitoring, c: 'var(--green)', a: 'rgba(98,227,106,0.6)', g: 'rgba(98,227,106,0.14)' },
     { label: 'Booked', value: bookedCount, c: 'var(--blue)', a: 'rgba(107,182,255,0.6)', g: 'rgba(107,182,255,0.12)' },
     { label: 'Pending pay', value: customers.filter(c => c.pending).length, c: 'var(--amber)', a: 'rgba(240,169,60,0.6)', g: 'rgba(240,169,60,0.12)' },
@@ -458,25 +498,34 @@ export default function Admin() {
     { label: 'Idle / off', value: vehIdle, c: '#8d8678' },
   ]
   const stateSeg: Seg[] = [
-    { label: 'Queensland', value: customers.filter(c => c.state === 'QLD').length, c: '#6bb6ff' },
-    { label: 'South Australia', value: customers.filter(c => c.state === 'SA').length, c: '#c080ff' },
+    { label: 'Queensland', value: allCusts.filter(c => c.state === 'QLD').length, c: '#6bb6ff' },
+    { label: 'South Australia', value: allCusts.filter(c => c.state === 'SA').length, c: '#c080ff' },
   ]
   const tierItems: Seg[] = [
-    { label: 'Priority · $5', value: customers.filter(c => c.tier === 'priority').length, c: '#E9CE88' },
-    { label: 'Standard · $3', value: customers.filter(c => c.tier === 'standard').length, c: '#cfcabb' },
-    { label: 'Basic · $1.50', value: customers.filter(c => c.tier === 'basic').length, c: '#b08d57' },
+    { label: 'Priority · $5', value: allCusts.filter(c => c.tier === 'priority').length, c: '#E9CE88' },
+    { label: 'Standard · $3', value: allCusts.filter(c => c.tier === 'standard').length, c: '#cfcabb' },
+    { label: 'Basic · $1.50', value: allCusts.filter(c => c.tier === 'basic').length, c: '#b08d57' },
   ]
-  // New customers by month (last 6) from created_at.
+  // New customers by month (last 6) from created_at — across the whole base.
   const now = new Date()
   const signups = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1)
     return { key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: d.toLocaleDateString('en-AU', { month: 'short' }), value: 0 }
   })
-  for (const c of customers) {
+  for (const c of allCusts) {
     const raw = c._raw?.created_at
     if (!raw) continue
     const b = signups.find(s => s.key === String(raw).slice(0, 7))
     if (b) b.value++
+  }
+
+  // Free-customer (whitelist) lookup.
+  const freeSet = new Set(freeList.map(f => (f.entry || '').toLowerCase()))
+  const isFreeCustomer = (c: Cust) => freeSet.has((c.email || '').toLowerCase()) || (!!c.phone && freeSet.has(c.phone.replace(/\s/g, '').toLowerCase()))
+  const freeLinkedName = (customer_id: string | null) => {
+    if (!customer_id) return null
+    const rc = rawCustomers.find((x: any) => x.id === customer_id)
+    return rc ? `${rc.first_name || ''} ${rc.last_name || ''}`.trim() || rc.email : null
   }
 
   return (
@@ -491,6 +540,7 @@ export default function Admin() {
           <span className="spill" style={{ color: botOnline ? 'var(--green)' : '#aaa', background: botOnline ? 'rgba(98,227,106,0.12)' : 'rgba(170,170,170,0.12)', border: `1px solid ${botOnline ? 'rgba(98,227,106,0.4)' : 'rgba(170,170,170,0.3)'}` }}><span className={botOnline ? 'dot live' : 'dot'} style={{ background: botOnline ? 'var(--green)' : '#aaa' }} />{botOnline ? 'Bot online' : 'Bot offline'}</span>
           <button className="menu" onClick={loadData}>Refresh</button>
           <a href="/admin/logs" className="menu" style={{ textDecoration: 'none' }}>Live logs</a>
+          <button className="menu" onClick={() => { setShowFree(true); loadFree() }}>Free customers{freeList.length ? ` · ${freeList.length}` : ''}</button>
           {isOwner && <button className="menu" onClick={() => { setShowAdmins(true); loadAdmins() }}>Manage admins</button>}
           <button className="pill ghost" style={{ padding: '8px 16px', fontSize: 12 }} onClick={logout}>Log out</button>
         </div>
@@ -516,11 +566,11 @@ export default function Admin() {
       <div className="r" style={{ animationDelay: '.08s', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(290px,1fr))', gap: 16, marginBottom: 26 }}>
         <div className="card" style={{ padding: '22px 24px' }}>
           <div className="fl" style={{ marginBottom: 16 }}>Vehicles by status</div>
-          <Donut segments={statusSeg} total={allVeh.length} caption="VEHICLES" />
+          <Donut segments={statusSeg} total={totalVehicles} caption="VEHICLES" />
         </div>
         <div className="card" style={{ padding: '22px 24px' }}>
           <div className="fl" style={{ marginBottom: 16 }}>Customers by state</div>
-          <Donut segments={stateSeg} total={customers.length} caption="CUSTOMERS" />
+          <Donut segments={stateSeg} total={allCusts.length} caption="CUSTOMERS" />
         </div>
         <div className="card" style={{ padding: '22px 24px' }}>
           <div className="fl" style={{ marginBottom: 18 }}>Plan tier</div>
@@ -562,6 +612,7 @@ export default function Admin() {
             : c.active ? { label: 'Active', ...GREEN }
             : { label: 'Paused', c: '#aaa', bg: 'rgba(170,170,170,0.14)' }
           const tier = TIER_META[c.tier]
+          const free = isFreeCustomer(c)
           const cardStyle: React.CSSProperties = booked
             ? { padding: 0, overflow: 'hidden', boxShadow: '0 0 0 1px rgba(98,227,106,0.5), 0 30px 60px -30px rgba(0,0,0,0.9)', background: 'radial-gradient(130% 80% at 0% 0%, rgba(98,227,106,0.12), transparent 52%), linear-gradient(180deg,rgba(18,22,18,0.9),rgba(10,12,10,0.94))' }
             : { padding: 0, overflow: 'hidden' }
@@ -577,6 +628,7 @@ export default function Admin() {
                         <span className="disp" style={{ fontSize: 20 }}>{c.first} {c.last}</span>
                         {c.ref && <CopyRef value={c.ref} />}
                         <span className={`pill`} style={{ fontSize: 10, color: c.state === 'QLD' ? '#6bb6ff' : '#c080ff', background: 'rgba(255,255,255,0.04)', border: `1px solid ${c.state === 'QLD' ? '#6bb6ff' : '#c080ff'}` }}>{c.state}</span>
+                        {free && <span className="pill" style={{ fontSize: 10, color: 'var(--gold-2)', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.5)' }}>Free</span>}
                       </div>
                       <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email} · {c.phone}</div>
                     </div>
@@ -684,6 +736,9 @@ export default function Admin() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ marginRight: 2 }}><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" strokeLinecap="round" /></svg>
                         View as user
                       </button>
+                      {free
+                        ? <button className="chip" style={{ color: 'var(--gold-2)', borderColor: 'rgba(201,168,76,0.45)' }} onClick={() => removeFreeCustomer(c._raw)}>Remove free</button>
+                        : <button className="chip" onClick={() => makeFree(c._raw)}>Make free</button>}
                       {showArchived
                         ? <button className="chip" style={{ color: 'var(--green)', borderColor: 'rgba(98,227,106,0.4)' }} onClick={() => unarchiveCustomer(c.id)}>Unarchive</button>
                         : <button className="chip" onClick={() => archiveCustomer(c.id)}>Archive</button>}
@@ -732,6 +787,50 @@ export default function Admin() {
               <input className="inp" placeholder="Email or username" autoComplete="off" name="avibm-new-admin-user" value={newAdmin.username} onChange={e => setNewAdmin(s => ({ ...s, username: e.target.value }))} />
               <input className="inp" type="password" placeholder="Temporary password" autoComplete="new-password" name="avibm-new-admin-pass" value={newAdmin.password} onChange={e => setNewAdmin(s => ({ ...s, password: e.target.value }))} />
               <button onClick={addAdmin} disabled={!newAdmin.username.trim() || !newAdmin.password.trim()} className="pill gold" style={{ width: '100%', justifyContent: 'center', padding: '13px 0', opacity: (!newAdmin.username.trim() || !newAdmin.password.trim()) ? 0.5 : 1, cursor: (!newAdmin.username.trim() || !newAdmin.password.trim()) ? 'not-allowed' : 'pointer' }}>Add admin</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Free customers (whitelist) modal */}
+      {showFree && (
+        <div onClick={() => setShowFree(false)} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '8vh 20px 24px', overflowY: 'auto' }}>
+          <div onClick={e => e.stopPropagation()} className="card" style={{ width: '100%', maxWidth: 520, padding: 26 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+              <div><span className="eyebrow">Whitelist</span><h2 className="disp" style={{ fontSize: 26, marginTop: 12 }}>Free customers</h2></div>
+              <button onClick={() => setShowFree(false)} aria-label="Close" style={{ width: 34, height: 34, borderRadius: 999, flexShrink: 0, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+              </button>
+            </div>
+            <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 8, lineHeight: 1.55 }}>Emails or phone numbers on this list register for free — the bot skips payment and activates monitoring automatically.</p>
+
+            <div className="fl" style={{ marginTop: 18, marginBottom: 10 }}>Add a free customer</div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <input className="inp" placeholder="Email or phone number" autoComplete="off" name="avibm-free-entry" value={newFree} onChange={e => setNewFree(e.target.value)} onKeyDown={e => e.key === 'Enter' && addFree()} style={{ flex: '1 1 240px' }} />
+              <button onClick={addFree} disabled={!newFree.trim() || freeBusy} className="pill gold" style={{ padding: '0 22px', opacity: (!newFree.trim() || freeBusy) ? 0.5 : 1, cursor: (!newFree.trim() || freeBusy) ? 'not-allowed' : 'pointer' }}>{freeBusy ? 'Adding…' : 'Add'}</button>
+            </div>
+
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '22px 0 14px' }} />
+            <div className="fl" style={{ marginBottom: 12 }}>On the free list · {freeList.length}</div>
+            <div style={{ display: 'grid', gap: 10, maxHeight: '42vh', overflowY: 'auto' }}>
+              {freeList.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>No free customers yet.</p>}
+              {freeList.map(f => {
+                const linked = freeLinkedName(f.customer_id)
+                return (
+                  <div key={f.entry} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', borderRadius: 14, background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.22)' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'ui-monospace,monospace' }}>{f.entry}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        {linked && <span>{linked}</span>}
+                        {f.notified_at
+                          ? <span style={{ color: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>Notified</span>
+                          : <span style={{ color: '#8d8678' }}>Not emailed</span>}
+                      </div>
+                    </div>
+                    <button onClick={() => removeFree(f.entry)} className="chip" style={{ flexShrink: 0, color: '#f08a8a', borderColor: 'rgba(240,120,120,0.4)' }}>Remove</button>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
