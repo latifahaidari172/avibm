@@ -502,12 +502,12 @@ export default function Admin() {
       </div>
 
       {/* Stats */}
-      <div className="r" style={{ animationDelay: '.06s', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 16, marginBottom: 22 }}>
+      <div className="r" style={{ animationDelay: '.06s', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(118px,1fr))', gap: 12, marginBottom: 22 }}>
         {stats.map(s => (
-          <div key={s.label} className="card" style={{ padding: '22px 24px', overflow: 'hidden', background: `radial-gradient(130% 130% at 50% -20%, ${s.g}, transparent 55%), linear-gradient(180deg,rgba(20,18,16,0.86),rgba(11,10,9,0.92))` }}>
-            <div style={{ position: 'absolute', top: 1, left: 22, right: 22, height: 2, borderRadius: 2, background: `linear-gradient(90deg,transparent,${s.a},transparent)` }} />
-            <div className="disp" style={{ fontSize: 48, color: s.c, lineHeight: 1 }}>{s.value}</div>
-            <div className="fl" style={{ marginTop: 10 }}>{s.label}</div>
+          <div key={s.label} className="card" style={{ padding: '13px 16px', overflow: 'hidden', display: 'flex', alignItems: 'baseline', gap: 9, background: `radial-gradient(130% 130% at 50% -30%, ${s.g}, transparent 55%), linear-gradient(180deg,rgba(20,18,16,0.86),rgba(11,10,9,0.92))` }}>
+            <div style={{ position: 'absolute', top: 1, left: 16, right: 16, height: 2, borderRadius: 2, background: `linear-gradient(90deg,transparent,${s.a},transparent)` }} />
+            <div className="disp" style={{ fontSize: 28, color: s.c, lineHeight: 1 }}>{s.value}</div>
+            <div className="fl" style={{ fontSize: 9 }}>{s.label}</div>
           </div>
         ))}
       </div>
