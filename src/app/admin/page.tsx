@@ -12,7 +12,7 @@ import { PreviewShell, Arrow } from '@/lib/previewDesign'
 
 // ── shapes the prototype renders ──
 type Veh = {
-  id?: string; title: string; vin: string; ref?: string; status: string; c: string; bg: string; line: string
+  id?: string; title: string; vin: string; ref?: string; status: string; c: string; bg: string; line: string; active?: boolean
   make?: string; model?: string; year?: string; build?: string; colour?: string
   type?: string; damage?: string; method?: string; from?: string
   date?: string; time?: string; loc?: string
@@ -60,7 +60,7 @@ function CopyRef({ value }: { value: string }) {
   )
 }
 
-function VehicleBlock({ v }: { v: Veh }) {
+function VehicleBlock({ v, onToggleMonitor }: { v: Veh; onToggleMonitor?: (v: Veh) => void }) {
   const isBooked = v.status === 'Booked' && !!v.date
   const spec: [string, string | undefined][] = [
     ['Make', v.make], ['Model', v.model], ['Year', v.year], ['Build', v.build],
@@ -126,6 +126,21 @@ function VehicleBlock({ v }: { v: Veh }) {
       ) : (
         <div style={{ marginTop: 14, fontSize: 13, color: '#F0A93C' }}>Monitoring starts once payment is received.</div>
       )}
+
+      {onToggleMonitor && v.id && (
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <span className={v.active ? 'dot live' : 'dot'} style={{ background: v.active ? 'var(--green)' : '#aaa' }} />
+            {v.active ? 'Monitoring this vehicle' : 'Monitoring stopped'}
+          </span>
+          <button className="chip" onClick={() => onToggleMonitor(v)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: v.active ? '#f08a8a' : 'var(--green)', borderColor: v.active ? 'rgba(240,120,120,0.4)' : 'rgba(98,227,106,0.4)' }}>
+            {v.active
+              ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>Stop monitoring</>
+              : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4l13 8-13 8V4Z" /></svg>Resume monitoring</>}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -139,7 +154,7 @@ function toVeh(rv: any): Veh {
   const orig = rv.previous_cutoff || rv.cutoff_date
   const earlier = isBooked ? daysEarlier(orig, rv.booked_date) : null
   return {
-    id: rv.id, title, vin: rv.vin, ref: rv.ref, status, c: palette.c, bg: palette.bg,
+    id: rv.id, active: !!rv.active, title, vin: rv.vin, ref: rv.ref, status, c: palette.c, bg: palette.bg,
     line: isBooked ? `Booked ${fmtD(rv.booked_date)}${rv.booked_time ? ' · ' + rv.booked_time : ''}${rv.booked_location ? ' · ' + rv.booked_location : ''}` : `Looking for slots before ${fmtD(rv.cutoff_date)}`,
     make: rv.make, model: rv.model, year: rv.year ? String(rv.year) : '', build: rv.build_month, colour: rv.colour,
     type: rv.vehicle_type, damage: rv.damage, method: rv.purchase_method, from: rv.purchased_from,
@@ -180,6 +195,7 @@ export default function Admin() {
   const [tab, setTab] = useState<'all' | 'QLD' | 'SA'>('all')
   const [q, setQ] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
   const [botOnline, setBotOnline] = useState(false)
 
   const [showAdmins, setShowAdmins] = useState(false)
@@ -260,6 +276,11 @@ export default function Admin() {
     setRawCustomers(cs => cs.map(c => c.id === id ? { ...c, archived: true, active: false } : c))
     await logAction('Archived customer', id)
   }
+  const unarchiveCustomer = async (id: string) => {
+    await adminPatch('customers', id, { archived: false })
+    setRawCustomers(cs => cs.map(c => c.id === id ? { ...c, archived: false } : c))
+    await logAction('Unarchived customer', id)
+  }
   const deleteCustomer = async (id: string) => {
     if (!confirm('Delete this customer and all their vehicles?')) return
     await adminDelete('customers', id); setRawCustomers(cs => cs.filter(c => c.id !== id)); await logAction('Deleted customer', id)
@@ -271,6 +292,13 @@ export default function Admin() {
   const archiveVehicle = async (vid: string, current: boolean) => {
     await adminPatch('vehicles', vid, { archived: !current, active: false })
     setRawCustomers(cs => cs.map(c => ({ ...c, vehicles: c.vehicles?.map((v: any) => v.id === vid ? { ...v, archived: !current, active: false } : v) })))
+  }
+  const toggleMonitorVehicle = async (v: Veh) => {
+    if (!v.id) return
+    const turnOn = !v.active
+    await adminPatch('vehicles', v.id, { active: turnOn })
+    setRawCustomers(cs => cs.map(c => ({ ...c, vehicles: c.vehicles?.map((rv: any) => rv.id === v.id ? { ...rv, active: turnOn } : rv) })))
+    await logAction(turnOn ? 'Resumed monitoring vehicle' : 'Stopped monitoring vehicle', v.id)
   }
   const restoreDeletedVehicle = async (vid: string) => {
     await adminPatch('vehicles', vid, { deleted_at: null, active: true })
@@ -318,7 +346,9 @@ export default function Admin() {
 
   // ── data ──
   const customers = rawCustomers.filter(c => !c.archived && !c.pending_deletion).map(toCust)
-  const filtered = customers.filter(c => {
+  const archivedCustomers = rawCustomers.filter(c => c.archived && !c.pending_deletion).map(toCust)
+  const listBase = showArchived ? archivedCustomers : customers
+  const filtered = listBase.filter(c => {
     if (tab !== 'all' && c.state !== tab) return false
     if (!q.trim()) return true
     const hay = [c.first, c.last, c.email, c.ref, ...c.vehicles.flatMap(v => [v.ref, v.vin, v.title, v.make, v.model]), ...c.archived.flatMap(v => [v.ref, v.vin, v.title]), ...c.deleted.flatMap(v => [v.vin, v.title])].filter(Boolean).join(' ').toLowerCase()
@@ -367,10 +397,14 @@ export default function Admin() {
 
       {/* Controls: tabs + search */}
       <div className="r" style={{ animationDelay: '.1s', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {(['all', 'QLD', 'SA'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} className={tab === t ? 'chip on' : 'chip'}>{t === 'all' ? 'All states' : t}</button>
           ))}
+          <button onClick={() => { setShowArchived(s => !s); setOpenId(null) }} className={showArchived ? 'chip on' : 'chip'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7h18v3H3zM5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9M9 14h6" /></svg>
+            Archived{archivedCustomers.length ? ` · ${archivedCustomers.length}` : ''}
+          </button>
         </div>
         <div style={{ position: 'relative', minWidth: 240, flex: '0 1 320px' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.7" style={{ position: 'absolute', left: 14, top: 13 }}><circle cx="11" cy="11" r="7" /><path d="m20 20-3-3" strokeLinecap="round" /></svg>
@@ -445,7 +479,7 @@ export default function Admin() {
 
                   <div className="fl" style={{ marginTop: 22, marginBottom: 12 }}>Vehicles · {c.vehicles.length}</div>
                   {c.vehicles.length === 0 ? <p style={{ color: 'var(--muted)', fontSize: 13 }}>No active vehicles.</p> : (
-                    <div style={{ display: 'grid', gap: 12 }}>{c.vehicles.map(v => <VehicleBlock key={v.vin} v={v} />)}</div>
+                    <div style={{ display: 'grid', gap: 12 }}>{c.vehicles.map(v => <VehicleBlock key={v.vin} v={v} onToggleMonitor={showArchived ? undefined : toggleMonitorVehicle} />)}</div>
                   )}
 
                   {c.archived.length > 0 && (
@@ -487,7 +521,9 @@ export default function Admin() {
                   )}
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginTop: 22, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-                    {c.pending
+                    {showArchived
+                      ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}><span className="dot" style={{ background: '#aaa' }} />Archived customer</span>
+                      : c.pending
                       ? <button className="pill gold" style={{ padding: '11px 20px', fontSize: 13 }} onClick={() => sendPaymentRequest(c._raw)}>Send payment request</button>
                       : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--green)' }}><span className="dot live" style={{ background: 'var(--green)' }} />{booked ? 'Booking secured' : 'Active — monitoring running'}</span>}
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -495,7 +531,9 @@ export default function Admin() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ marginRight: 2 }}><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" strokeLinecap="round" /></svg>
                         View as user
                       </button>
-                      <button className="chip" onClick={() => archiveCustomer(c.id)}>Archive</button>
+                      {showArchived
+                        ? <button className="chip" style={{ color: 'var(--green)', borderColor: 'rgba(98,227,106,0.4)' }} onClick={() => unarchiveCustomer(c.id)}>Unarchive</button>
+                        : <button className="chip" onClick={() => archiveCustomer(c.id)}>Archive</button>}
                       <button className="chip" style={{ color: '#f08a8a', borderColor: 'rgba(240,120,120,0.4)' }} onClick={() => isOwner ? deleteCustomer(c.id) : requestDelete(c.id)}>{isOwner ? 'Delete' : 'Request delete'}</button>
                     </div>
                   </div>
@@ -504,7 +542,7 @@ export default function Admin() {
             </div>
           )
         })}
-        {filtered.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 14 }}>No customers match.</p>}
+        {filtered.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 14 }}>{showArchived ? 'No archived customers.' : 'No customers match.'}</p>}
       </div>
 
       {/* Manage admins modal */}

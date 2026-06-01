@@ -26,27 +26,27 @@ export default function Home() {
     <>
       <PreviewShell>
         {/* nav */}
-        <div className="r card" style={{ borderRadius: 999, padding: '9px 9px 9px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 56 }}>
+        <div className="r card lp-nav" style={{ borderRadius: 999, padding: '9px 9px 9px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 56 }}>
           <a href="#top" className="disp shimmer" style={{ fontSize: 21, textDecoration: 'none' }}>AVIBM</a>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <a href="#how" className="hide-sm navlink" style={{ marginRight: 8 }}>How it works</a>
             <a href="#pricing" className="hide-sm navlink" style={{ marginRight: 8 }}>Pricing</a>
             <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
-              <Link href="/account/sign-in" className="pill ghost" style={{ padding: '0 18px', textDecoration: 'none' }}>Sign in</Link>
-              <a href="#regions" className="pill gold" style={{ padding: '9px 12px 9px 18px', textDecoration: 'none' }}>Register vehicle<span className="ibtn"><Arrow /></span></a>
+              <Link href="/account/sign-in" className="pill ghost lp-signin" style={{ padding: '0 18px', textDecoration: 'none' }}>Sign in</Link>
+              <a href="#regions" className="pill gold lp-reg" style={{ padding: '9px 12px 9px 18px', textDecoration: 'none' }}>Register<span className="hide-xs">&nbsp;vehicle</span><span className="ibtn"><Arrow /></span></a>
             </div>
           </div>
         </div>
 
         {/* hero */}
-        <div id="top" className="bento-l" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 22, alignItems: 'center', marginBottom: 72 }}>
+        <div id="top" className="bento-l lp-hero" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 22, alignItems: 'center', marginBottom: 72 }}>
           <div className="r">
             <span className="eyebrow">Automated booking technology</span>
             <h1 className="disp" style={{ fontSize: 'clamp(46px,7vw,88px)', marginTop: 22 }}>Get inspected <span className="shimmer">sooner.</span></h1>
-            <p style={{ color: 'var(--muted)', fontSize: 18, marginTop: 22, maxWidth: 480, lineHeight: 1.55 }}>
+            <p className="lp-sub" style={{ color: 'var(--muted)', fontSize: 18, marginTop: 22, maxWidth: 480, lineHeight: 1.55 }}>
               AVIBM monitors written-off vehicle inspection systems around the clock and automatically rebooks the earliest slot that opens — so you&apos;re back on the road weeks ahead.
             </p>
-            <div style={{ display: 'flex', gap: 12, marginTop: 30, flexWrap: 'wrap' }}>
+            <div className="lp-cta" style={{ display: 'flex', gap: 12, marginTop: 30, flexWrap: 'wrap' }}>
               <a href="#regions" className="pill gold" style={{ fontSize: 15, textDecoration: 'none' }}>Register vehicle<span className="ibtn"><Arrow /></span></a>
               <a href="#how" className="pill ghost" style={{ padding: '13px 22px', textDecoration: 'none' }}>See how it works</a>
             </div>
@@ -65,7 +65,7 @@ export default function Home() {
 
         {/* how it works */}
         <div id="how" className="r" style={{ textAlign: 'center', marginBottom: 28, scrollMarginTop: 90 }}><span className="eyebrow">How it works</span></div>
-        <div className="r" style={{ animationDelay: '.06s', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 18, marginBottom: 80 }}>
+        <div className="r lp-mb" style={{ animationDelay: '.06s', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 18, marginBottom: 80 }}>
           {STEPS.map(s => (
             <div key={s.n} className="card" style={{ padding: 26 }}>
               <div className="disp" style={{ fontSize: 38, color: s.c }}>{s.n}</div>
@@ -99,7 +99,7 @@ export default function Home() {
             </Link>
           ))}
         </div>
-        <div className="r" style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 80 }}>
+        <div className="r lp-mb" style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 80 }}>
           {['VIC', 'NSW', 'WA', 'NT'].map(s => (
             <span key={s} className="chip" style={{ opacity: 0.5, cursor: 'default' }}>{s} — coming soon</span>
           ))}
@@ -129,7 +129,7 @@ export default function Home() {
             </div>
           ))}
         </div>
-        <p className="r" style={{ textAlign: 'center', marginBottom: 80, color: 'var(--muted)', fontSize: 13, letterSpacing: '0.04em' }}>
+        <p className="r lp-mb" style={{ textAlign: 'center', marginBottom: 80, color: 'var(--muted)', fontSize: 13, letterSpacing: '0.04em' }}>
           South Australia · Service SA: <span style={{ color: 'var(--gold-2)', fontWeight: 700 }}>Free / always priority</span>
         </p>
 
@@ -142,7 +142,7 @@ export default function Home() {
           </div>
         </div>
 
-        <style dangerouslySetInnerHTML={{ __html: 'html{scroll-behavior:smooth}.navlink{font-size:13px;color:var(--muted);text-decoration:none;cursor:pointer;transition:color .3s var(--ease)}.navlink:hover{color:var(--ink)}@media(max-width:820px){.bento-l{grid-template-columns:1fr!important}}' }} />
+        <style dangerouslySetInnerHTML={{ __html: 'html{scroll-behavior:smooth}.navlink{font-size:13px;color:var(--muted);text-decoration:none;cursor:pointer;transition:color .3s var(--ease)}.navlink:hover{color:var(--ink)}@media(max-width:820px){.bento-l{grid-template-columns:1fr!important}}@media(max-width:560px){.lp-nav{padding:8px 8px 8px 16px!important;margin-bottom:30px!important}.lp-signin{padding:0 14px!important}.lp-reg{padding:9px 10px 9px 16px!important}.lp-hero{margin-bottom:44px!important;gap:20px!important}.lp-hero h1{font-size:clamp(38px,12vw,64px)!important;margin-top:18px!important}.lp-sub{font-size:16px!important;margin-top:18px!important}.lp-cta{flex-direction:column;align-items:stretch;width:100%}.lp-cta>*{width:100%;justify-content:center}.lp-mb{margin-bottom:46px!important}.hide-xs{display:none!important}}' }} />
       </PreviewShell>
       <SiteFooter />
     </>
