@@ -184,6 +184,82 @@ function toCust(rc: any): Cust {
   }
 }
 
+// ── lightweight inline charts (no deps, on-brand) ──
+type Seg = { label: string; value: number; c: string }
+
+// Compact count pill for the collapsed customer card (e.g. "2 monitoring").
+function MiniStat({ c, v, label }: { c: string; v: number; label: string }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, padding: '4px 10px' }}>
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: c, flexShrink: 0 }} />
+      <span style={{ color: '#efece5', fontWeight: 700 }}>{v}</span>{label}
+    </span>
+  )
+}
+
+function Donut({ segments, total, caption }: { segments: Seg[]; total: number; caption: string }) {
+  const sum = segments.reduce((n, s) => n + s.value, 0) || 1
+  const R = 52, C = 2 * Math.PI * R, sw = 15
+  let offset = 0
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+      <svg width={132} height={132} viewBox="0 0 132 132" style={{ flexShrink: 0 }}>
+        <circle cx={66} cy={66} r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={sw} />
+        {segments.map((s, i) => {
+          const len = (s.value / sum) * C
+          const el = <circle key={i} cx={66} cy={66} r={R} fill="none" stroke={s.c} strokeWidth={sw} strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-offset} transform="rotate(-90 66 66)" style={{ transition: 'stroke-dasharray .6s var(--ease)' }} />
+          offset += len
+          return el
+        })}
+        <text x={66} y={62} textAnchor="middle" fontFamily="Bricolage Grotesque, sans-serif" fontSize="30" fontWeight="700" fill="#F5F2EB">{total}</text>
+        <text x={66} y={82} textAnchor="middle" fontSize="9" fill="#8d8678" letterSpacing="0.14em">{caption}</text>
+      </svg>
+      <div style={{ display: 'grid', gap: 9, minWidth: 120, flex: 1 }}>
+        {segments.map((s, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: s.c, flexShrink: 0 }} />
+            <span style={{ color: 'var(--muted)' }}>{s.label}</span>
+            <span style={{ marginLeft: 'auto', fontWeight: 700 }}>{s.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function Bars({ items }: { items: Seg[] }) {
+  const max = Math.max(1, ...items.map(i => i.value))
+  return (
+    <div style={{ display: 'grid', gap: 15 }}>
+      {items.map((it, i) => (
+        <div key={i}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+            <span style={{ color: 'var(--muted)' }}>{it.label}</span><span style={{ fontWeight: 700 }}>{it.value}</span>
+          </div>
+          <div style={{ height: 9, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+            <div style={{ width: `${(it.value / max) * 100}%`, height: '100%', borderRadius: 999, background: it.c, transition: 'width .6s var(--ease)' }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ColumnChart({ data, c }: { data: { label: string; value: number }[]; c: string }) {
+  const max = Math.max(1, ...data.map(d => d.value))
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 132 }}>
+      {data.map((d, i) => (
+        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, justifyContent: 'flex-end', height: '100%' }}>
+          <div style={{ fontSize: 11, color: '#efece5', fontWeight: 700 }}>{d.value}</div>
+          <div style={{ width: '100%', maxWidth: 34, height: `${Math.max(4, (d.value / max) * 84)}px`, borderRadius: '8px 8px 4px 4px', background: `linear-gradient(180deg,${c},rgba(201,168,76,0.2))` }} />
+          <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '0.04em' }}>{d.label}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 type AdminUser = { id: string; username: string; role: string; active?: boolean }
 
 export default function Admin() {
@@ -360,13 +436,48 @@ export default function Admin() {
     const hay = [c.first, c.last, c.email, c.ref, ...c.vehicles.flatMap(v => [v.ref, v.vin, v.title, v.make, v.model]), ...c.archived.flatMap(v => [v.ref, v.vin, v.title]), ...c.deleted.flatMap(v => [v.vin, v.title])].filter(Boolean).join(' ').toLowerCase()
     return hay.includes(q.trim().toLowerCase())
   })
-  const bookedCount = customers.reduce((n, c) => n + c.vehicles.filter(v => v.status === 'Booked').length, 0)
+  // ── aggregations for stats + charts (always over the active customer base) ──
+  const allVeh = customers.flatMap(c => c.vehicles)
+  const vehMonitoring = allVeh.filter(v => v.active && v.status !== 'Booked').length
+  const vehBooked = allVeh.filter(v => v.status === 'Booked').length
+  const vehIdle = Math.max(0, allVeh.length - vehMonitoring - vehBooked)
+  const bookedCount = vehBooked
+
   const stats = [
     { label: 'Customers', value: customers.length, c: 'var(--gold-2)', a: 'rgba(201,168,76,0.6)', g: 'rgba(201,168,76,0.14)' },
     { label: 'Active', value: customers.filter(c => c.active).length, c: 'var(--blue)', a: 'rgba(107,182,255,0.6)', g: 'rgba(107,182,255,0.12)' },
-    { label: 'Booked', value: bookedCount, c: 'var(--green)', a: 'rgba(98,227,106,0.6)', g: 'rgba(98,227,106,0.14)' },
+    { label: 'Vehicles', value: allVeh.length, c: '#cfcabb', a: 'rgba(207,202,187,0.6)', g: 'rgba(207,202,187,0.12)' },
+    { label: 'Bots running', value: vehMonitoring, c: 'var(--green)', a: 'rgba(98,227,106,0.6)', g: 'rgba(98,227,106,0.14)' },
+    { label: 'Booked', value: bookedCount, c: 'var(--blue)', a: 'rgba(107,182,255,0.6)', g: 'rgba(107,182,255,0.12)' },
     { label: 'Pending pay', value: customers.filter(c => c.pending).length, c: 'var(--amber)', a: 'rgba(240,169,60,0.6)', g: 'rgba(240,169,60,0.12)' },
   ]
+
+  const statusSeg: Seg[] = [
+    { label: 'Monitoring', value: vehMonitoring, c: '#62e36a' },
+    { label: 'Booked', value: vehBooked, c: '#6bb6ff' },
+    { label: 'Idle / off', value: vehIdle, c: '#8d8678' },
+  ]
+  const stateSeg: Seg[] = [
+    { label: 'Queensland', value: customers.filter(c => c.state === 'QLD').length, c: '#6bb6ff' },
+    { label: 'South Australia', value: customers.filter(c => c.state === 'SA').length, c: '#c080ff' },
+  ]
+  const tierItems: Seg[] = [
+    { label: 'Priority · $5', value: customers.filter(c => c.tier === 'priority').length, c: '#E9CE88' },
+    { label: 'Standard · $3', value: customers.filter(c => c.tier === 'standard').length, c: '#cfcabb' },
+    { label: 'Basic · $1.50', value: customers.filter(c => c.tier === 'basic').length, c: '#b08d57' },
+  ]
+  // New customers by month (last 6) from created_at.
+  const now = new Date()
+  const signups = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1)
+    return { key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: d.toLocaleDateString('en-AU', { month: 'short' }), value: 0 }
+  })
+  for (const c of customers) {
+    const raw = c._raw?.created_at
+    if (!raw) continue
+    const b = signups.find(s => s.key === String(raw).slice(0, 7))
+    if (b) b.value++
+  }
 
   return (
     <PreviewShell>
@@ -401,6 +512,26 @@ export default function Admin() {
         ))}
       </div>
 
+      {/* Insights — charts */}
+      <div className="r" style={{ animationDelay: '.08s', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(290px,1fr))', gap: 16, marginBottom: 26 }}>
+        <div className="card" style={{ padding: '22px 24px' }}>
+          <div className="fl" style={{ marginBottom: 16 }}>Vehicles by status</div>
+          <Donut segments={statusSeg} total={allVeh.length} caption="VEHICLES" />
+        </div>
+        <div className="card" style={{ padding: '22px 24px' }}>
+          <div className="fl" style={{ marginBottom: 16 }}>Customers by state</div>
+          <Donut segments={stateSeg} total={customers.length} caption="CUSTOMERS" />
+        </div>
+        <div className="card" style={{ padding: '22px 24px' }}>
+          <div className="fl" style={{ marginBottom: 18 }}>Plan tier</div>
+          <Bars items={tierItems} />
+        </div>
+        <div className="card" style={{ padding: '22px 24px' }}>
+          <div className="fl" style={{ marginBottom: 18 }}>New customers · last 6 months</div>
+          <ColumnChart data={signups} c="var(--gold-2)" />
+        </div>
+      </div>
+
       {/* Controls: tabs + search */}
       <div className="r" style={{ animationDelay: '.1s', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -424,6 +555,8 @@ export default function Admin() {
           const open = openId === c.id
           const bookedVehicles = c.vehicles.filter(v => v.status === 'Booked' && v.date)
           const booked = bookedVehicles.length > 0
+          const vTotal = c.vehicles.length
+          const vMon = c.vehicles.filter(v => v.active && v.status !== 'Booked').length
           const status = booked ? { label: 'Booked', ...GREEN }
             : c.pending ? { label: 'Awaiting payment', ...AMBER }
             : c.active ? { label: 'Active', ...GREEN }
@@ -459,6 +592,19 @@ export default function Admin() {
                     <span style={{ color: 'var(--muted)', transition: 'transform .3s', transform: open ? 'rotate(180deg)' : 'none', display: 'inline-flex' }}><Arrow dir="left" s={14} /></span>
                   </div>
                 </div>
+
+                {!open && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, width: '100%' }}>
+                    {vTotal === 0
+                      ? <MiniStat c="#8d8678" v={0} label=" vehicles" />
+                      : <>
+                          <MiniStat c="#62e36a" v={vMon} label=" monitoring" />
+                          {booked && <MiniStat c="#6bb6ff" v={bookedVehicles.length} label=" booked" />}
+                          <MiniStat c="#cfcabb" v={vTotal} label={vTotal === 1 ? ' vehicle' : ' vehicles'} />
+                          {c.archived.length > 0 && <MiniStat c="#8d8678" v={c.archived.length} label=" done" />}
+                        </>}
+                  </div>
+                )}
 
                 {!open && booked && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, width: '100%' }}>
