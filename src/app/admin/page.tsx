@@ -1776,7 +1776,8 @@ export default function Admin() {
                 {/* Expanded detail */}
                 {expandedId === c.id && (
                   <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', padding: '18px' }}>
-                    {/* Quick controls (moved off the collapsed row) */}
+                    {/* Quick controls — admin only (hidden unless Operations on) */}
+                    {showOps && (
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, paddingBottom: 14, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                       <button onClick={() => toggleActive(c.id, c.active)} className={`admin-toggle ${c.active ? 'on' : 'off'}`}>{c.active ? 'ACTIVE' : 'PENDING'}</button>
                       {c.state === 'QLD' && (
@@ -1789,6 +1790,7 @@ export default function Admin() {
                       <button onClick={() => adminPatch('customers', c.id, { auto_payment_email: !c.auto_payment_email }).then(() => setCustomers(cs => cs.map(x => x.id === c.id ? { ...x, auto_payment_email: !c.auto_payment_email } : x)))} className={`admin-toggle ${c.auto_payment_email ? 'on' : 'off'}`}>{c.auto_payment_email ? 'AUTO EMAIL' : 'MANUAL'}</button>
                       <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 'auto' }}>Joined {new Date(c.created_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Adelaide' })}</span>
                     </div>
+                    )}
                     {/* Customer Details — view / edit */}
                     <div style={{ marginBottom: 20 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -1914,6 +1916,7 @@ export default function Admin() {
                               </>
                             )}
                           </div>
+                          {showOps ? (
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                             {editingVehicle !== v.id && (
                               <button onClick={() => { setEditingVehicle(v.id); setVehicleEdits(eds => ({ ...eds, [v.id]: { make: v.make, model: v.model, year: v.year, colour: v.colour || '', vin: v.vin, label: v.label || '', vehicle_type: v.vehicle_type || '', build_month: v.build_month || '', damage: v.damage || '', purchase_method: v.purchase_method || '', purchased_from: v.purchased_from || '' } })) }} className="admin-btn admin-btn-outline" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center' }}><IconPencil size={12} /></button>
@@ -1928,8 +1931,44 @@ export default function Admin() {
                               <button onClick={() => deleteVehicle(v.id)} title="Delete vehicle (permanent)" className="admin-btn admin-btn-red" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center' }}><IconTrash size={14} /></button>
                             )}
                           </div>
+                          ) : (
+                            <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, borderRadius: 999, padding: '4px 11px', ...(v.booked_date ? { color: '#62e36a', background: 'rgba(98,227,106,0.16)', border: '1px solid #62e36a' } : v.active ? { color: '#E9CE88', background: 'rgba(201,168,76,0.16)', border: '1px solid #E9CE88' } : { color: '#aaa', background: 'rgba(170,170,170,0.14)', border: '1px solid #aaa' }) }}>
+                              {v.booked_date
+                                ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#62e36a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                                : <span style={{ width: 6, height: 6, borderRadius: 999, background: 'currentColor', display: 'inline-block' }} />}
+                              {v.booked_date ? 'Booked' : v.active ? 'Searching' : 'Paused'}
+                            </span>
+                          )}
                         </div>
 
+                        {/* Clean booking display (prototype): original → now-booked, or searching */}
+                        {(() => {
+                          const orig = v.previous_cutoff || v.cutoff_date
+                          const earlier = (v.booked_date && orig) ? Math.round((new Date(orig).getTime() - new Date(v.booked_date).getTime()) / 86400000) : null
+                          return v.booked_date ? (
+                            <div style={{ marginTop: 4, padding: '14px 16px', borderRadius: 14, background: 'rgba(98,227,106,0.06)', border: '1px solid rgba(98,227,106,0.3)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                                <div style={{ flex: 1, minWidth: 150 }}>
+                                  <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Original booking</div>
+                                  <div style={{ marginTop: 6, color: 'var(--text-muted)', fontSize: 13 }}>{_fmtD(orig)}</div>
+                                </div>
+                                <span style={{ color: '#62e36a', fontSize: 18 }}>→</span>
+                                <div style={{ flex: 1, minWidth: 150 }}>
+                                  <div style={{ fontSize: 10, color: '#62e36a', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Now booked</div>
+                                  <div style={{ marginTop: 6, color: '#62e36a', fontWeight: 700, fontSize: 13 }}>{_fmtD(v.booked_date)}{v.booked_time ? ` · ${v.booked_time}` : ''}{v.booked_location ? ` · ${v.booked_location}` : ''}</div>
+                                </div>
+                              </div>
+                              {earlier && earlier > 0 ? <div style={{ display: 'inline-block', marginTop: 12, fontSize: 12, fontWeight: 700, color: '#62e36a', background: 'rgba(98,227,106,0.14)', border: '1px solid rgba(98,227,106,0.4)', borderRadius: 999, padding: '5px 13px' }}>{earlier} day{earlier !== 1 ? 's' : ''} earlier</div> : null}
+                            </div>
+                          ) : (
+                            <div style={{ marginTop: 4, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: '12px 18px' }}>
+                              <div><div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Latest acceptable date</div><div style={{ fontSize: 13, marginTop: 3 }}>{_fmtD(v.cutoff_date)}</div></div>
+                              <div><div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Searching locations</div><div style={{ fontSize: 13, marginTop: 3 }}>{(v.locations && v.locations.length ? v.locations.join(', ') : (v.state === 'SA' ? 'Regency Park' : 'All centres'))}</div></div>
+                            </div>
+                          )
+                        })()}
+
+                        {showOps && (<>
                         {/* Booking info grid */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
                           {/* Cutoff Date */}
@@ -2215,6 +2254,7 @@ export default function Admin() {
                             >Save</button>
                           </div>
                         </div>
+                        </>)}
                       </div>
                     ))}
 
