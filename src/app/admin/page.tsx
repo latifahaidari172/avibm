@@ -421,10 +421,12 @@ export default function Admin() {
       await loadFree()
     } finally { setFreeBusy(false) }
   }
-  const removeFree = async (entry: string) => {
-    if (!confirm(`Remove ${entry} from the free list?`)) return
-    await authFetch('/api/admin/whitelist', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entry }) })
-    await loadFree(); await logAction('Removed free customer', entry)
+  const removeFreeGroup = async (entries: { entry: string }[], label: string) => {
+    if (!confirm(`Remove ${label} from the free list? This clears all their linked emails and numbers.`)) return
+    for (const e of entries) {
+      await authFetch('/api/admin/whitelist', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entry: e.entry }) })
+    }
+    await loadFree(); await logAction('Removed free customer', label)
   }
   const makeFree = async (rc: any) => {
     const r = await authFetch('/api/admin/whitelist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customer_id: rc.id }) })
@@ -519,14 +521,35 @@ export default function Admin() {
     if (b) b.value++
   }
 
-  // Free-customer (whitelist) lookup.
-  const freeSet = new Set(freeList.map(f => (f.entry || '').toLowerCase()))
-  const isFreeCustomer = (c: Cust) => freeSet.has((c.email || '').toLowerCase()) || (!!c.phone && freeSet.has(c.phone.replace(/\s/g, '').toLowerCase()))
-  const freeLinkedName = (customer_id: string | null) => {
-    if (!customer_id) return null
-    const rc = rawCustomers.find((x: any) => x.id === customer_id)
-    return rc ? `${rc.first_name || ''} ${rc.last_name || ''}`.trim() || rc.email : null
+  // Free-customer (whitelist) lookup + resolution to profiles.
+  // Phones normalised to their last 9 digits so formatting (+61 / spaces /
+  // leading 0) doesn't break matching.
+  const phoneKey = (s?: string | null) => { const d = (s || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : d }
+  const emailToCust = new Map<string, any>()
+  const phoneToCust = new Map<string, any>()
+  for (const rc of rawCustomers) {
+    if (rc.email) emailToCust.set(rc.email.toLowerCase().trim(), rc)
+    if (rc.phone) { const k = phoneKey(rc.phone); if (k) phoneToCust.set(k, rc) }
   }
+  const freeEmails = new Set(freeList.filter(f => (f.entry || '').includes('@')).map(f => f.entry.toLowerCase().trim()))
+  const freePhoneKeys = new Set(freeList.filter(f => !(f.entry || '').includes('@')).map(f => phoneKey(f.entry)).filter(Boolean))
+  const isFreeCustomer = (c: Cust) => freeEmails.has((c.email || '').toLowerCase().trim()) || (!!c.phone && freePhoneKeys.has(phoneKey(c.phone)))
+  const resolveFree = (f: { entry: string; customer_id: string | null }) => {
+    if (f.customer_id) { const rc = rawCustomers.find((x: any) => x.id === f.customer_id); if (rc) return rc }
+    const ent = (f.entry || '').toLowerCase().trim()
+    if (ent.includes('@')) return emailToCust.get(ent) || null
+    const k = phoneKey(ent); return k ? (phoneToCust.get(k) || null) : null
+  }
+  // Group entries by the resolved customer (or keep orphans separate).
+  type FreeGroup = { key: string; customer: any | null; entries: typeof freeList }
+  const freeGroupsMap = new Map<string, FreeGroup>()
+  for (const f of freeList) {
+    const rc = resolveFree(f)
+    const key = rc ? `c_${rc.id}` : `e_${(f.entry || '').toLowerCase().trim()}`
+    const g = freeGroupsMap.get(key)
+    if (g) g.entries.push(f); else freeGroupsMap.set(key, { key, customer: rc, entries: [f] })
+  }
+  const freeGroups = Array.from(freeGroupsMap.values())
 
   return (
     <PreviewShell>
@@ -540,7 +563,7 @@ export default function Admin() {
           <span className="spill" style={{ color: botOnline ? 'var(--green)' : '#aaa', background: botOnline ? 'rgba(98,227,106,0.12)' : 'rgba(170,170,170,0.12)', border: `1px solid ${botOnline ? 'rgba(98,227,106,0.4)' : 'rgba(170,170,170,0.3)'}` }}><span className={botOnline ? 'dot live' : 'dot'} style={{ background: botOnline ? 'var(--green)' : '#aaa' }} />{botOnline ? 'Bot online' : 'Bot offline'}</span>
           <button className="menu" onClick={loadData}>Refresh</button>
           <a href="/admin/logs" className="menu" style={{ textDecoration: 'none' }}>Live logs</a>
-          <button className="menu" onClick={() => { setShowFree(true); loadFree() }}>Free customers{freeList.length ? ` · ${freeList.length}` : ''}</button>
+          <button className="menu" onClick={() => { setShowFree(true); loadFree() }}>Free customers{freeGroups.length ? ` · ${freeGroups.length}` : ''}</button>
           {isOwner && <button className="menu" onClick={() => { setShowAdmins(true); loadAdmins() }}>Manage admins</button>}
           <button className="pill ghost" style={{ padding: '8px 16px', fontSize: 12 }} onClick={logout}>Log out</button>
         </div>
@@ -811,23 +834,31 @@ export default function Admin() {
             </div>
 
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '22px 0 14px' }} />
-            <div className="fl" style={{ marginBottom: 12 }}>On the free list · {freeList.length}</div>
+            <div className="fl" style={{ marginBottom: 12 }}>On the free list · {freeGroups.length}</div>
             <div style={{ display: 'grid', gap: 10, maxHeight: '42vh', overflowY: 'auto' }}>
-              {freeList.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>No free customers yet.</p>}
-              {freeList.map(f => {
-                const linked = freeLinkedName(f.customer_id)
+              {freeGroups.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>No free customers yet.</p>}
+              {freeGroups.map(g => {
+                const rc = g.customer
+                const name = rc ? (`${rc.first_name || ''} ${rc.last_name || ''}`.trim() || rc.email) : null
+                const anyNotified = g.entries.some(e => e.notified_at)
                 return (
-                  <div key={f.entry} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', borderRadius: 14, background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.22)' }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'ui-monospace,monospace' }}>{f.entry}</div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        {linked && <span>{linked}</span>}
-                        {f.notified_at
-                          ? <span style={{ color: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>Notified</span>
-                          : <span style={{ color: '#8d8678' }}>Not emailed</span>}
+                  <div key={g.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', borderRadius: 14, background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.22)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 999, flexShrink: 0, background: rc ? 'linear-gradient(135deg,var(--gold-2),var(--gold))' : 'rgba(255,255,255,0.08)', color: rc ? '#231900' : 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12 }}>
+                        {rc ? `${(rc.first_name?.[0] || '?')}${(rc.last_name?.[0] || '')}` : '?'}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13, fontWeight: 700 }}>{name || 'Unlinked entry'}</span>
+                          {rc?.ref && <CopyRef value={rc.ref} />}
+                          {anyNotified && <span style={{ color: 'var(--green)', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>Notified</span>}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap', fontFamily: 'ui-monospace,monospace' }}>
+                          {g.entries.map(e => <span key={e.entry}>{e.entry}</span>)}
+                        </div>
                       </div>
                     </div>
-                    <button onClick={() => removeFree(f.entry)} className="chip" style={{ flexShrink: 0, color: '#f08a8a', borderColor: 'rgba(240,120,120,0.4)' }}>Remove</button>
+                    <button onClick={() => removeFreeGroup(g.entries, name || g.entries[0].entry)} className="chip" style={{ flexShrink: 0, color: '#f08a8a', borderColor: 'rgba(240,120,120,0.4)' }}>Remove</button>
                   </div>
                 )
               })}
