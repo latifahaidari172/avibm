@@ -60,6 +60,20 @@ function CopyRef({ value }: { value: string }) {
   )
 }
 
+// Visual on/off switch showing whether the bot is monitoring this vehicle.
+function MonitorToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+  return (
+    <button onClick={(e) => { e.stopPropagation(); onClick() }} role="switch" aria-checked={on}
+      title={on ? 'Bot is monitoring — click to stop' : 'Bot is off — click to start'}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+      <span style={{ position: 'relative', width: 42, height: 24, borderRadius: 999, flexShrink: 0, transition: 'all .3s var(--ease)', background: on ? 'linear-gradient(180deg,#7ef08a,#3fcf57)' : 'rgba(255,255,255,0.12)', border: `1px solid ${on ? 'rgba(98,227,106,0.6)' : 'rgba(255,255,255,0.18)'}` }}>
+        <span style={{ position: 'absolute', top: 2, left: on ? 20 : 2, width: 18, height: 18, borderRadius: 999, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', transition: 'left .3s var(--ease)' }} />
+      </span>
+      <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.02em', color: on ? 'var(--green)' : '#aaa' }}>Bot {on ? 'ON' : 'OFF'}</span>
+    </button>
+  )
+}
+
 function VehicleBlock({ v, onToggleMonitor }: { v: Veh; onToggleMonitor?: (v: Veh) => void }) {
   const isBooked = v.status === 'Booked' && !!v.date
   const spec: [string, string | undefined][] = [
@@ -129,16 +143,8 @@ function VehicleBlock({ v, onToggleMonitor }: { v: Veh; onToggleMonitor?: (v: Ve
 
       {onToggleMonitor && v.id && (
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            <span className={v.active ? 'dot live' : 'dot'} style={{ background: v.active ? 'var(--green)' : '#aaa' }} />
-            {v.active ? 'Monitoring this vehicle' : 'Monitoring stopped'}
-          </span>
-          <button className="chip" onClick={() => onToggleMonitor(v)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: v.active ? '#f08a8a' : 'var(--green)', borderColor: v.active ? 'rgba(240,120,120,0.4)' : 'rgba(98,227,106,0.4)' }}>
-            {v.active
-              ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>Stop monitoring</>
-              : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4l13 8-13 8V4Z" /></svg>Resume monitoring</>}
-          </button>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{v.active ? 'Bot is monitoring for an earlier slot' : 'Bot is turned off for this vehicle'}</span>
+          <MonitorToggle on={!!v.active} onClick={() => onToggleMonitor(v)} />
         </div>
       )}
     </div>
@@ -479,7 +485,7 @@ export default function Admin() {
 
                   <div className="fl" style={{ marginTop: 22, marginBottom: 12 }}>Vehicles · {c.vehicles.length}</div>
                   {c.vehicles.length === 0 ? <p style={{ color: 'var(--muted)', fontSize: 13 }}>No active vehicles.</p> : (
-                    <div style={{ display: 'grid', gap: 12 }}>{c.vehicles.map(v => <VehicleBlock key={v.vin} v={v} onToggleMonitor={showArchived ? undefined : toggleMonitorVehicle} />)}</div>
+                    <div style={{ display: 'grid', gap: 12 }}>{c.vehicles.map(v => <VehicleBlock key={v.vin} v={v} onToggleMonitor={toggleMonitorVehicle} />)}</div>
                   )}
 
                   {c.archived.length > 0 && (
@@ -492,7 +498,8 @@ export default function Admin() {
                               <div style={{ fontSize: 14, fontWeight: 600 }}>{v.title}</div>
                               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}><span style={{ fontFamily: 'ui-monospace,monospace' }}>{v.vin}</span> · {v.line}</div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                              {v.id && <MonitorToggle on={!!v.active} onClick={() => toggleMonitorVehicle(v)} />}
                               <span className="spill" style={{ color: GREY.c, background: GREY.bg, border: `1px solid ${GREY.c}` }}><span className="dot" style={{ background: GREY.c }} />Done</span>
                               {v.id && <button className="chip" onClick={() => archiveVehicle(v.id!, true)}>Unarchive</button>}
                             </div>
