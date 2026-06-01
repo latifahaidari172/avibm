@@ -146,6 +146,9 @@ export default function Admin() {
   const [showFreePanel, setShowFreePanel] = useState(false)
   const [showPendingPanel, setShowPendingPanel] = useState(true)
   const [showArchivedPanel, setShowArchivedPanel] = useState(false)
+  // Operations panels (terminals, scan, admins, free, pending, archived) are
+  // hidden by default so the main view matches the /admin-preview prototype.
+  const [showOps, setShowOps] = useState(false)
   const [newRegCount, setNewRegCount] = useState(0)
   const [pendingCoupons, setPendingCoupons] = useState<Record<string, string>>({})
   const [sendingReminder, setSendingReminder] = useState<string | null>(null)
@@ -967,7 +970,11 @@ export default function Admin() {
           <span style={{ fontFamily: 'Bricolage Grotesque', fontSize: 22, color: 'var(--gold)', letterSpacing: '0.15em' }}>AVIBM</span>
           <span style={{ color: 'var(--text-muted)', fontSize: 12, marginLeft: 12, letterSpacing: '0.1em' }}>ADMIN PANEL</span>
         </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          {onlineInstances.length > 0 && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 700, color: '#62e36a', background: 'rgba(98,227,106,0.12)', border: '1px solid rgba(98,227,106,0.4)', borderRadius: 999, padding: '6px 13px' }}><span style={{ width: 7, height: 7, borderRadius: 999, background: '#62e36a', display: 'inline-block' }} />Bot online</span>
+          )}
+          <button onClick={() => setShowOps(p => !p)} style={{ background: showOps ? 'rgba(201,168,76,0.12)' : 'none', border: `1px solid ${showOps ? 'var(--gold)' : 'var(--border)'}`, color: showOps ? 'var(--gold)' : 'var(--text-muted)', padding: '8px 16px', borderRadius: 999, cursor: 'pointer', fontSize: 13, fontFamily: 'Plus Jakarta Sans', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{showOps ? 'Hide operations' : 'Operations'}</button>
           <button onClick={loadData} style={{
             background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)',
             padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontFamily: 'Plus Jakarta Sans',
@@ -996,7 +1003,7 @@ export default function Admin() {
                   borderRadius: 10, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
                 }}>
                   {isOwner && (
-                    <button onClick={() => { setShowMenu(false); setShowAdminPanel(true); document.getElementById('admin-panel')?.scrollIntoView({ behavior: 'smooth' }) }} style={{
+                    <button onClick={() => { setShowMenu(false); setShowOps(true); setShowAdminPanel(true); setTimeout(() => document.getElementById('admin-panel')?.scrollIntoView({ behavior: 'smooth' }), 60) }} style={{
                       width: '100%', padding: '12px 16px', background: 'none', border: 'none',
                       borderBottom: '1px solid var(--border)', color: 'var(--gold)',
                       cursor: 'pointer', fontFamily: 'Plus Jakarta Sans', fontSize: 13, textAlign: 'left',
@@ -1047,6 +1054,7 @@ export default function Admin() {
           )
         })()}
 
+        {showOps && (<>
         {/* Monitor Status */}
         {(() => {
           const cfg = monitorStateConfig[monitorState]
@@ -1686,6 +1694,7 @@ export default function Admin() {
             Payment request emails are <strong style={{ color: '#5adb5a' }}>automatically sent</strong> to every new registration. Use the button below to send reminders.
           </div>
         </div>
+        </>)}
 
         {/* Filters */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
@@ -2277,7 +2286,7 @@ export default function Admin() {
         )}
 
         {/* Archived Section */}
-        {archived.length > 0 && (
+        {showOps && archived.length > 0 && (
           <div className="admin-section" style={{ marginTop: 40, borderColor: '#3a2a0a' }}>
             <div className={`admin-section-header gold-border${showArchivedPanel ? ' open' : ''}`}
               style={{ background: 'linear-gradient(90deg, #151005, #111)', cursor: 'pointer' }}
