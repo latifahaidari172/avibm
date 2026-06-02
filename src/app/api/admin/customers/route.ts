@@ -15,7 +15,9 @@ function customerRef(email?: string | null): string {
   return 'P-' + h.slice(0, 6).toUpperCase()
 }
 function vehicleTypePrefix(t?: string | null): string {
-  const v = (t || '').trim().toLowerCase()
+  const raw = (t || '').trim()
+  if (raw.length === 1) return raw.toUpperCase() // already a single-letter code (auction-intel stores these)
+  const v = raw.toLowerCase()
   if (v.startsWith('motor') || v.startsWith('bike')) return 'M'
   if (v.startsWith('truck') || v.startsWith('bus') || v.startsWith('plant') || v.startsWith('heavy')) return 'H'
   if (v.startsWith('caravan') || v.startsWith('rv') || v.startsWith('motorhome')) return 'R'
@@ -23,13 +25,26 @@ function vehicleTypePrefix(t?: string | null): string {
   if (v.startsWith('boat') || v.startsWith('marine')) return 'O'
   return 'C' // car (default — most AVIBM vehicles)
 }
+// Mirror auction-intel's app/models/vehicle.py EXACTLY so the same car gets
+// the same code on both sites: a 17-char VIN hashes the upper-cased VIN;
+// otherwise it hashes "MAKE|MODEL|YEAR|COLOUR" upper-cased. Prefix is the
+// single-letter vehicle_type. Keep this byte-for-byte aligned with the bot.
 function vehicleRef(v: any): string {
-  const parts = [
-    v?.vin || '', v?.colour || '', v?.make || '', v?.model || '', String(v?.year || ''),
-  ].join('|').toLowerCase()
-  if (!parts.replace(/\|/g, '').trim()) return `${vehicleTypePrefix(v?.vehicle_type)}-??????`
-  const h = createHash('sha256').update(parts).digest('hex')
-  return `${vehicleTypePrefix(v?.vehicle_type)}-${h.slice(0, 6).toUpperCase()}`
+  const prefix = vehicleTypePrefix(v?.vehicle_type)
+  const vin = (v?.vin || '').trim().toUpperCase()
+  let data: string
+  if (vin.length === 17) {
+    data = vin
+  } else {
+    const make = (v?.make || '').trim().toUpperCase()
+    const model = (v?.model || '').trim().toUpperCase()
+    const year = String(v?.year || '')
+    const colour = (v?.colour || '').trim().toUpperCase()
+    if (!(make && model && year)) return `${prefix}-??????`
+    data = `${make}|${model}|${year}|${colour}`
+  }
+  const h = createHash('sha256').update(data).digest('hex')
+  return `${prefix}-${h.slice(0, 6).toUpperCase()}`
 }
 function annotate(customers: any[]): any[] {
   return customers.map(c => ({

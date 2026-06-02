@@ -22,6 +22,7 @@ type Veh = {
 type Cust = {
   id: string; ref: string; first: string; last: string; email: string; phone: string
   state: 'QLD' | 'SA'; tier: 'priority' | 'standard' | 'basic'; active: boolean; pending: boolean
+  isArchived: boolean; isPendingDel: boolean
   crn: string; dob: string; address: string; created: string
   vehicles: Veh[]; archived: Veh[]; deleted: { id?: string; title: string; vin: string }[]
   _raw: any
@@ -175,6 +176,7 @@ function toCust(rc: any): Cust {
   return {
     id: rc.id, ref: rc.ref || '', first: rc.first_name || '', last: rc.last_name || '', email: rc.email || '', phone: rc.phone || '',
     state: rc.state === 'SA' ? 'SA' : 'QLD', tier: (rc.tier || 'standard'), active: !!rc.active, pending: !rc.active && !!rc.auto_payment_email,
+    isArchived: !!rc.archived, isPendingDel: !!rc.pending_deletion,
     crn: rc.crn || rc.licence_number || '—', dob: fmtD(rc.date_of_birth) || (rc.date_of_birth || '—'),
     address: `${rc.address || ''}${rc.suburb ? ', ' + rc.suburb : ''} ${rc.postcode || ''}`.trim() || '—', created: fmtD(rc.created_at),
     vehicles: vs.filter((v: any) => !v.archived && !v.deleted_at).map(toVeh),
@@ -465,12 +467,29 @@ export default function Admin() {
   // ── data ──
   const customers = rawCustomers.filter(c => !c.archived && !c.pending_deletion).map(toCust)
   const archivedCustomers = rawCustomers.filter(c => c.archived && !c.pending_deletion).map(toCust)
-  const listBase = showArchived ? archivedCustomers : customers
+  const pendingDelCustomers = rawCustomers.filter(c => c.pending_deletion).map(toCust)
+  // When searching, look across the WHOLE base (active + archived + pending
+  // deletion) so a customer who was archived still turns up. Otherwise show
+  // the current view.
+  const searching = !!q.trim()
+  const listBase = searching ? [...customers, ...archivedCustomers, ...pendingDelCustomers] : (showArchived ? archivedCustomers : customers)
   const filtered = listBase.filter(c => {
     if (tab !== 'all' && c.state !== tab) return false
-    if (!q.trim()) return true
-    const hay = [c.first, c.last, c.email, c.ref, ...c.vehicles.flatMap(v => [v.ref, v.vin, v.title, v.make, v.model]), ...c.archived.flatMap(v => [v.ref, v.vin, v.title]), ...c.deleted.flatMap(v => [v.vin, v.title])].filter(Boolean).join(' ').toLowerCase()
-    return hay.includes(q.trim().toLowerCase())
+    if (!searching) return true
+    const ql = q.trim().toLowerCase()
+    // Human-readable fields — substring match at any length.
+    const text = [c.first, c.last, c.email, c.phone, ...c.vehicles.flatMap(v => [v.title, v.make, v.model]), ...c.archived.map(v => v.title), ...c.deleted.map(v => v.title)].filter(Boolean).join(' ').toLowerCase()
+    if (text.includes(ql)) return true
+    // Ref codes (P-…, C-…) — PREFIX match, so "p", "p-", "p-ab" all work and
+    // every profile (P-) shows up for "p". Prefix avoids "ab" hitting hex
+    // in the middle of a code.
+    const refs = [c.ref, ...c.vehicles.map(v => v.ref), ...c.archived.map(v => v.ref)].filter(Boolean).map(s => String(s).toLowerCase())
+    if (refs.some(r => r.startsWith(ql))) return true
+    // VINs / deeper code fragments — substring, but only for 4+ chars to
+    // avoid short hex collisions.
+    if (ql.length < 4) return false
+    const codes = [...refs, ...c.vehicles.map(v => v.vin), ...c.archived.map(v => v.vin), ...c.deleted.map(v => v.vin)].filter(Boolean).map(s => String(s).toLowerCase())
+    return codes.some(code => code.includes(ql))
   })
   // ── aggregations for stats + charts (whole base, incl. archived customers) ──
   const allCusts = [...customers, ...archivedCustomers]
@@ -576,7 +595,7 @@ export default function Admin() {
         </div>
         <div style={{ position: 'relative', minWidth: 220, flex: '0 1 340px' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.7" style={{ position: 'absolute', left: 14, top: 13 }}><circle cx="11" cy="11" r="7" /><path d="m20 20-3-3" strokeLinecap="round" /></svg>
-          <input className="inp" value={q} onChange={e => setQ(e.target.value)} placeholder="Search name, ref or VIN…" style={{ paddingLeft: 40 }} />
+          <input className="inp" value={q} onChange={e => setQ(e.target.value)} placeholder="Search name, ref or VIN…" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} name="avibm-customer-search" style={{ paddingLeft: 40 }} />
         </div>
       </div>
 
@@ -630,10 +649,12 @@ export default function Admin() {
           const booked = bookedVehicles.length > 0
           const vTotal = c.vehicles.length
           const vMon = c.vehicles.filter(v => v.active && v.status !== 'Booked').length
-          const status = booked ? { label: 'Booked', ...GREEN }
+          const status = c.isArchived ? { label: 'Archived', c: '#9b958a', bg: 'rgba(155,149,138,0.16)' }
+            : c.isPendingDel ? { label: 'Pending deletion', c: '#f08a8a', bg: 'rgba(240,120,120,0.16)' }
+            : booked ? { label: 'Booked', ...GREEN }
             : c.pending ? { label: 'Awaiting payment', ...AMBER }
             : c.active ? { label: 'Active', ...GREEN }
-            : { label: 'Paused', c: '#aaa', bg: 'rgba(170,170,170,0.14)' }
+            : { label: 'Inactive', c: '#aaa', bg: 'rgba(170,170,170,0.14)' }
           const tier = TIER_META[c.tier]
           const free = isFreeCustomer(c)
           const cardStyle: React.CSSProperties = booked
@@ -652,6 +673,8 @@ export default function Admin() {
                         {c.ref && <CopyRef value={c.ref} />}
                         <span className={`pill`} style={{ fontSize: 10, color: c.state === 'QLD' ? '#6bb6ff' : '#c080ff', background: 'rgba(255,255,255,0.04)', border: `1px solid ${c.state === 'QLD' ? '#6bb6ff' : '#c080ff'}` }}>{c.state}</span>
                         {free && <span className="pill" style={{ fontSize: 10, color: 'var(--gold-2)', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.5)' }}>Free</span>}
+                        {c.isArchived && <span className="pill" style={{ fontSize: 10, color: '#9b958a', background: 'rgba(155,149,138,0.12)', border: '1px solid rgba(155,149,138,0.5)' }}>Archived</span>}
+                        {c.isPendingDel && <span className="pill" style={{ fontSize: 10, color: '#f08a8a', background: 'rgba(240,120,120,0.12)', border: '1px solid rgba(240,120,120,0.5)' }}>Pending deletion</span>}
                       </div>
                       <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email} · {c.phone}</div>
                     </div>
@@ -749,8 +772,10 @@ export default function Admin() {
                   )}
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginTop: 22, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-                    {showArchived
+                    {c.isArchived
                       ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}><span className="dot" style={{ background: '#aaa' }} />Archived customer</span>
+                      : c.isPendingDel
+                      ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#f08a8a' }}><span className="dot" style={{ background: '#f08a8a' }} />Pending deletion</span>
                       : c.pending
                       ? <button className="pill gold" style={{ padding: '11px 20px', fontSize: 13 }} onClick={() => sendPaymentRequest(c._raw)}>Send payment request</button>
                       : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--green)' }}><span className="dot live" style={{ background: 'var(--green)' }} />{booked ? 'Booking secured' : 'Active — monitoring running'}</span>}
@@ -762,7 +787,7 @@ export default function Admin() {
                       {free
                         ? <button className="chip" style={{ color: 'var(--gold-2)', borderColor: 'rgba(201,168,76,0.45)' }} onClick={() => removeFreeCustomer(c._raw)}>Remove free</button>
                         : <button className="chip" onClick={() => makeFree(c._raw)}>Make free</button>}
-                      {showArchived
+                      {c.isArchived
                         ? <button className="chip" style={{ color: 'var(--green)', borderColor: 'rgba(98,227,106,0.4)' }} onClick={() => unarchiveCustomer(c.id)}>Unarchive</button>
                         : <button className="chip" onClick={() => archiveCustomer(c.id)}>Archive</button>}
                       <button className="chip" style={{ color: '#f08a8a', borderColor: 'rgba(240,120,120,0.4)' }} onClick={() => isOwner ? deleteCustomer(c.id) : requestDelete(c.id)}>{isOwner ? 'Delete' : 'Request delete'}</button>
