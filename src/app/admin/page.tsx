@@ -569,9 +569,15 @@ export default function Admin() {
         </div>
       </div>
 
-      <div className="r" style={{ marginBottom: 24 }}>
-        <span className="eyebrow">Admin panel</span>
-        <h1 className="disp" style={{ fontSize: 'clamp(36px,5vw,60px)', marginTop: 14 }}>Customer <span className="shimmer">control</span></h1>
+      <div className="r" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
+        <div>
+          <span className="eyebrow">Admin panel</span>
+          <h1 className="disp" style={{ fontSize: 'clamp(36px,5vw,60px)', marginTop: 14 }}>Customer <span className="shimmer">control</span></h1>
+        </div>
+        <div style={{ position: 'relative', minWidth: 220, flex: '0 1 340px' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.7" style={{ position: 'absolute', left: 14, top: 13 }}><circle cx="11" cy="11" r="7" /><path d="m20 20-3-3" strokeLinecap="round" /></svg>
+          <input className="inp" value={q} onChange={e => setQ(e.target.value)} placeholder="Search name, ref or VIN…" style={{ paddingLeft: 40 }} />
+        </div>
       </div>
 
       {/* Stats */}
@@ -605,21 +611,15 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* Controls: tabs + search */}
-      <div className="r" style={{ animationDelay: '.1s', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {(['all', 'QLD', 'SA'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} className={tab === t ? 'chip on' : 'chip'}>{t === 'all' ? 'All states' : t}</button>
-          ))}
-          <button onClick={() => { setShowArchived(s => !s); setOpenId(null) }} className={showArchived ? 'chip on' : 'chip'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7h18v3H3zM5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9M9 14h6" /></svg>
-            Archived{archivedCustomers.length ? ` · ${archivedCustomers.length}` : ''}
-          </button>
-        </div>
-        <div style={{ position: 'relative', minWidth: 240, flex: '0 1 320px' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.7" style={{ position: 'absolute', left: 14, top: 13 }}><circle cx="11" cy="11" r="7" /><path d="m20 20-3-3" strokeLinecap="round" /></svg>
-          <input className="inp" value={q} onChange={e => setQ(e.target.value)} placeholder="Search name, ref or VIN…" style={{ paddingLeft: 40 }} />
-        </div>
+      {/* Controls: tabs */}
+      <div className="r" style={{ animationDelay: '.1s', display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+        {(['all', 'QLD', 'SA'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} className={tab === t ? 'chip on' : 'chip'}>{t === 'all' ? 'All states' : t}</button>
+        ))}
+        <button onClick={() => { setShowArchived(s => !s); setOpenId(null) }} className={showArchived ? 'chip on' : 'chip'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7h18v3H3zM5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9M9 14h6" /></svg>
+          Archived{archivedCustomers.length ? ` · ${archivedCustomers.length}` : ''}
+        </button>
       </div>
 
       {/* Customer cards */}
